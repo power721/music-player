@@ -1,0 +1,127 @@
+"""
+Helper utility functions for the music player.
+"""
+import re
+from typing import List, Tuple, Optional
+
+
+def format_duration(seconds: float) -> str:
+    """
+    Format duration in seconds to MM:SS or HH:MM:SS format.
+
+    Args:
+        seconds: Duration in seconds
+
+    Returns:
+        Formatted duration string
+    """
+    if seconds is None or seconds < 0:
+        return "0:00"
+
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{secs:02d}"
+    return f"{minutes}:{secs:02d}"
+
+
+def format_time(seconds: float) -> str:
+    """
+    Format time in seconds for display.
+
+    Args:
+        seconds: Time in seconds
+
+    Returns:
+        Formatted time string
+    """
+    return format_duration(seconds)
+
+
+def parse_lrc(lrc_content: str) -> List[Tuple[float, str]]:
+    """
+    Parse LRC format lyrics content.
+
+    LRC format example:
+    [00:12.50]Line one
+    [00:15.30]Line two
+
+    Args:
+        lrc_content: LRC formatted string
+
+    Returns:
+        List of tuples (time_in_seconds, lyric_line)
+    """
+    lyrics = []
+    lrc_pattern = re.compile(r'\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)')
+
+    for line in lrc_content.split('\n'):
+        match = lrc_pattern.match(line.strip())
+        if match:
+            minutes = int(match.group(1))
+            seconds = int(match.group(2))
+            milliseconds = int(match.group(3).ljust(3, '0')[:3])
+            text = match.group(4).strip()
+
+            if text:  # Only add non-empty lyrics
+                time = minutes * 60 + seconds + milliseconds / 1000.0
+                lyrics.append((time, text))
+
+    return sorted(lyrics, key=lambda x: x[0])
+
+
+def find_lyric_line(lyrics: List[Tuple[float, str]], current_time: float) -> Optional[int]:
+    """
+    Find the current lyric line index based on time.
+
+    Args:
+        lyrics: List of (time, text) tuples
+        current_time: Current playback time in seconds
+
+    Returns:
+        Index of current lyric line, or None if no match
+    """
+    if not lyrics:
+        return None
+
+    for i, (time, _) in enumerate(lyrics):
+        if time > current_time:
+            return i - 1 if i > 0 else 0
+
+    return len(lyrics) - 1
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize filename by removing invalid characters.
+
+    Args:
+        filename: Original filename
+
+    Returns:
+        Sanitized filename
+    """
+    # Remove invalid characters for filenames
+    invalid_chars = '<>:"/\\|?*'
+    for char in invalid_chars:
+        filename = filename.replace(char, '')
+    return filename.strip()
+
+
+def truncate_text(text: str, max_length: int, suffix: str = '...') -> str:
+    """
+    Truncate text to maximum length with suffix.
+
+    Args:
+        text: Original text
+        max_length: Maximum length
+        suffix: Suffix to add when truncated
+
+    Returns:
+        Truncated text
+    """
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - len(suffix)] + suffix

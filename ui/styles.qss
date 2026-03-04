@@ -1,0 +1,241 @@
+/*
+ * Harmony Music Player - Global Styles
+ * Dark theme inspired by Spotify
+ */
+
+/* Main Window */
+QMainWindow {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+/* Scrollbar */
+QScrollBar:vertical {
+    background: transparent;
+    width: 12px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background: #ffffff;
+    min-height: 30px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #b3b3b3;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+    height: 12px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #ffffff;
+    min-width: 30px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #b3b3b3;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* Splitter */
+QSplitter::handle {
+    background-color: #282828;
+}
+
+QSplitter::handle:hover {
+    background-color: #404040;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: transparent;
+    border: none;
+    color: #b3b3b3;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #282828;
+    color: #ffffff;
+}
+
+QPushButton:pressed {
+    background-color: #404040;
+}
+
+QPushButton:checked {
+    background-color: #1db954;
+    color: #ffffff;
+}
+
+/* Primary Button */
+QPushButton[primary="true"] {
+    background-color: #1db954;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 12px 24px;
+    border-radius: 25px;
+}
+
+QPushButton[primary="true"]:hover {
+    background-color: #1ed760;
+}
+
+/* Input Fields */
+QLineEdit, QTextEdit {
+    background-color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px;
+    color: #000000;
+}
+
+QLineEdit:focus, QTextEdit:focus {
+    border: 2px solid #1db954;
+}
+
+/* Labels */
+QLabel {
+    color: #ffffff;
+    background-color: transparent;
+}
+
+QLabel[secondary="true"] {
+    color: #b3b3b3;
+}
+
+/* Lists */
+QListWidget {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item {
+    padding: 10px;
+    color: #b3b3b3;
+    border-radius: 4px;
+}
+
+QListWidget::item:selected {
+    background-color: #282828;
+    color: #ffffff;
+}
+
+QListWidget::item:hover {
+    background-color: #282828;
+}
+
+/* Tables */
+QTableWidget {
+    background-color: transparent;
+    border: none;
+    gridline-color: #282828;
+    outline: none;
+}
+
+QTableWidget::item {
+    padding: 8px;
+    color: #b3b3b3;
+}
+
+QTableWidget::item:selected {
+    background-color: #282828;
+    color: #ffffff;
+}
+
+QTableWidget::item:hover {
+    background-color: #282828;
+}
+
+QTableWidget QHeaderView::section {
+    background-color: transparent;
+    color: #b3b3b3;
+    padding: 10px;
+    border: none;
+    border-bottom: 1px solid #282828;
+    font-weight: bold;
+}
+
+/* Sliders */
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #4d4d4d;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-radius: 6px;
+    margin: -4px 0;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #1db954;
+}
+
+QSlider::groove:vertical {
+    width: 4px;
+    background: #4d4d4d;
+    border-radius: 2px;
+}
+
+QSlider::handle:vertical {
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border-radius: 6px;
+    margin: 0 -4px;
+}
+
+QSlider::handle:vertical:hover {
+    background: #1db954;
+}
+
+/* Menu */
+QMenu {
+    background-color: #282828;
+    color: #ffffff;
+    border: 1px solid #404040;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 8px 20px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background-color: #1db954;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: #404040;
+    margin: 4px 8px;
+}
+
+/* Tooltips */
+QToolTip {
+    background-color: #282828;
+    color: #ffffff;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
