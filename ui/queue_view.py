@@ -28,16 +28,18 @@ class QueueView(QWidget):
 
     play_track = Signal(int)
 
-    def __init__(self, player: PlayerController, parent=None):
+    def __init__(self, player: PlayerController, db_manager=None, parent=None):
         """
         Initialize queue view.
 
         Args:
             player: Player controller
+            db_manager: Database manager
             parent: Parent widget
         """
         super().__init__(parent)
         self._player = player
+        self._db = db_manager if db_manager else player._db
         self._setup_ui()
         self._setup_connections()
         self._refresh_timer = None
@@ -231,7 +233,7 @@ class QueueView(QWidget):
         # Restore selection
         for row in selected_indices:
             if row < self._queue_list.count():
-                self._queue_list.setItemSelected(self._queue_list.item(row), True)
+                self._queue_list.item(row).setSelected(True)
 
         self._queue_list.blockSignals(False)
 
@@ -313,6 +315,52 @@ class QueueView(QWidget):
         for row in rows_to_remove:
             self._player.engine.remove_track(row)
 
+    def _toggle_favorite_selected(self):
+        """Toggle favorite status for selected tracks."""
+        selected_items = self._queue_list.selectedItems()
+        if not selected_items:
+            return
+
+        track_ids = []
+        for item in selected_items:
+            track = item.data(Qt.UserRole)
+            if track and isinstance(track, dict):
+                track_id = track.get("id")
+                if track_id:
+                    track_ids.append(track_id)
+
+        if not track_ids:
+            return
+
+        added_count = 0
+        removed_count = 0
+        for track_id in track_ids:
+            if self._db.is_favorite(track_id):
+                self._db.remove_favorite(track_id)
+                removed_count += 1
+            else:
+                self._db.add_favorite(track_id)
+                added_count += 1
+
+        if added_count > 0 and removed_count == 0:
+            QMessageBox.information(
+                self,
+                "Added to Favorites",
+                f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
+            )
+        elif removed_count > 0 and added_count == 0:
+            QMessageBox.information(
+                self,
+                "Removed from Favorites",
+                f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
+            )
+        else:
+            QMessageBox.information(
+                self,
+                "Updated Favorites",
+                f"Added {added_count}, removed {removed_count}",
+            )
+
     def _show_context_menu(self, pos):
         """Show context menu."""
         item = self._queue_list.itemAt(pos)
@@ -336,6 +384,9 @@ class QueueView(QWidget):
 
         remove_action = menu.addAction("Remove from Queue")
         remove_action.triggered.connect(self._remove_selected)
+
+        favorite_action = menu.addAction("⭐ Add to Favorites")
+        favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
 
         menu.addSeparator()
 
@@ -396,8 +447,12 @@ class QueueView(QWidget):
             return
 
         item = selected_items[0]
-        track_id = item.data(Qt.UserRole)
+        track = item.data(Qt.UserRole)
 
+        if not track or not isinstance(track, dict):
+            return
+
+        track_id = track.get("id")
         if not track_id:
             return
 

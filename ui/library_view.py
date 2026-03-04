@@ -514,6 +514,18 @@ class LibraryView(QWidget):
         if not item:
             return
 
+        # Get selected items and check if already favorited
+        selected_items = self._tracks_table.selectedItems()
+        track_id = None
+        for it in selected_items:
+            if it.column() == 0:
+                track_id = it.data(Qt.UserRole)
+                break
+
+        is_favorited = False
+        if track_id:
+            is_favorited = self._db.is_favorite(track_id)
+
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu {
@@ -542,6 +554,13 @@ class LibraryView(QWidget):
         # Add to playlist action
         add_to_playlist_action = menu.addAction("📋 Add to Playlist")
         add_to_playlist_action.triggered.connect(lambda: self._add_to_playlist())
+
+        # Favorite action - check if already favorited
+        if self._current_view == "favorites" or is_favorited:
+            favorite_action = menu.addAction("❌ Remove from Favorites")
+        else:
+            favorite_action = menu.addAction("⭐ Add to Favorites")
+        favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
 
         menu.addSeparator()
 
@@ -581,6 +600,53 @@ class LibraryView(QWidget):
                 if track_id:
                     self.track_double_clicked.emit(track_id)
                     break
+
+    def _toggle_favorite_selected(self):
+        """Toggle favorite status for selected tracks."""
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_id = item.data(Qt.UserRole)
+                if track_id:
+                    track_ids.append(track_id)
+
+        if not track_ids:
+            return
+
+        added_count = 0
+        removed_count = 0
+        for track_id in track_ids:
+            if self._db.is_favorite(track_id):
+                self._db.remove_favorite(track_id)
+                removed_count += 1
+            else:
+                self._db.add_favorite(track_id)
+                added_count += 1
+
+        if added_count > 0 and removed_count == 0:
+            QMessageBox.information(
+                self,
+                "Added to Favorites",
+                f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
+            )
+        elif removed_count > 0 and added_count == 0:
+            QMessageBox.information(
+                self,
+                "Removed from Favorites",
+                f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
+            )
+        else:
+            QMessageBox.information(
+                self,
+                "Updated Favorites",
+                f"Added {added_count}, removed {removed_count}",
+            )
+
+        self.refresh()
 
     def _add_to_playlist(self):
         """Add selected tracks to a playlist."""

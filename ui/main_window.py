@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
 
         self._library_view = LibraryView(self._db, self._player)
         self._playlist_view = PlaylistView(self._db, self._player)
-        self._queue_view = QueueView(self._player)
+        self._queue_view = QueueView(self._player, self._db)
 
         self._stacked_widget.addWidget(self._library_view)
         self._stacked_widget.addWidget(self._playlist_view)
@@ -462,6 +462,7 @@ class MainWindow(QMainWindow):
         # Update nav button states
         self._nav_library.setChecked(False)
         self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
         self._nav_favorites.setChecked(True)
         self._nav_history.setChecked(False)
 
@@ -478,6 +479,7 @@ class MainWindow(QMainWindow):
         # Update nav button states
         self._nav_library.setChecked(False)
         self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(True)
 

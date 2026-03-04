@@ -466,6 +466,10 @@ class PlaylistView(QWidget):
         remove_action.triggered.connect(lambda: self._remove_track(item))
         menu.addAction(remove_action)
 
+        favorite_action = QAction("⭐ Add to Favorites", self)
+        favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
+        menu.addAction(favorite_action)
+
         menu.addSeparator()
 
         edit_action = QAction("Edit Media Info", self)
@@ -484,6 +488,54 @@ class PlaylistView(QWidget):
         if title_item:
             track_id = title_item.data(Qt.UserRole)
             self._db.remove_track_from_playlist(self._current_playlist_id, track_id)
+            self._load_playlist(self._current_playlist_id)
+
+    def _toggle_favorite_selected(self):
+        """Toggle favorite status for selected tracks."""
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_id = item.data(Qt.UserRole)
+                if track_id:
+                    track_ids.append(track_id)
+
+        if not track_ids:
+            return
+
+        added_count = 0
+        removed_count = 0
+        for track_id in track_ids:
+            if self._db.is_favorite(track_id):
+                self._db.remove_favorite(track_id)
+                removed_count += 1
+            else:
+                self._db.add_favorite(track_id)
+                added_count += 1
+
+        if added_count > 0 and removed_count == 0:
+            QMessageBox.information(
+                self,
+                "Added to Favorites",
+                f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
+            )
+        elif removed_count > 0 and added_count == 0:
+            QMessageBox.information(
+                self,
+                "Removed from Favorites",
+                f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
+            )
+        else:
+            QMessageBox.information(
+                self,
+                "Updated Favorites",
+                f"Added {added_count}, removed {removed_count}",
+            )
+
+        if self._current_playlist_id:
             self._load_playlist(self._current_playlist_id)
 
     def add_track_to_playlist(self, track_id: int):
