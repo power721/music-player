@@ -37,6 +37,7 @@ from ui.player_controls import PlayerControls
 from ui.mini_player import MiniPlayer
 from ui.queue_view import QueueView
 from utils.global_hotkeys import GlobalHotkeys, setup_media_key_handler
+from utils import t, set_language, get_language
 
 
 class MainWindow(QMainWindow):
@@ -49,14 +50,18 @@ class MainWindow(QMainWindow):
         """Initialize the main window."""
         super().__init__()
 
+        # Settings (must be initialized first)
+        self._settings = QSettings("HarmonyPlayer", "Harmony")
+
+        # Initialize language from settings
+        saved_lang = self._settings.value("language", "en")
+        set_language(saved_lang)
+
         # Initialize database
         self._db = DatabaseManager()
 
         # Initialize player controller
         self._player = PlayerController(self._db)
-
-        # Settings
-        self._settings = QSettings("HarmonyPlayer", "Harmony")
 
         # Mini player (hidden by default)
         self._mini_player: Optional[MiniPlayer] = None
@@ -75,7 +80,7 @@ class MainWindow(QMainWindow):
 
     def _setup_ui(self):
         """Setup the user interface."""
-        self.setWindowTitle("Harmony - Music Player")
+        self.setWindowTitle(t("app_title"))
         self.setMinimumSize(1000, 700)
         self.resize(1200, 800)
 
@@ -209,11 +214,11 @@ class MainWindow(QMainWindow):
 
         # Create navigation buttons with emoji font
         nav_buttons = [
-            ("_nav_library", "🎼 Library"),
-            ("_nav_playlists", "📋 Playlists"),
-            ("_nav_queue", "🎶 Queue"),
-            ("_nav_favorites", "⭐ Favorites"),
-            ("_nav_history", "🕐 History"),
+            ("_nav_library", "🎼 " + t("library")),
+            ("_nav_playlists", "📋 " + t("playlists")),
+            ("_nav_queue", "🎶 " + t("queue")),
+            ("_nav_favorites", "⭐ " + t("favorites")),
+            ("_nav_history", "🕐 " + t("history")),
         ]
 
         for attr_name, text in nav_buttons:
@@ -236,8 +241,35 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
+        # Language selector
+        from utils import get_language
+
+        lang_text = "EN" if get_language() == "en" else "中文"
+        self._language_btn = QPushButton("🌐 " + lang_text)
+        self._language_btn.setObjectName("languageBtn")
+        self._language_btn.setCursor(Qt.PointingHandCursor)
+        self._language_btn.setFixedHeight(32)
+        self._language_btn.setStyleSheet("""
+            QPushButton#languageBtn {
+                background-color: #2a2a2a;
+                color: #c0c0c0;
+                border: 2px solid #3a3a3a;
+                border-radius: 16px;
+                padding: 6px 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            QPushButton#languageBtn:hover {
+                background-color: #3a3a3a;
+                border: 2px solid #1db954;
+                color: #1db954;
+            }
+        """)
+        self._language_btn.clicked.connect(self._toggle_language)
+        layout.addWidget(self._language_btn)
+
         # Add music button
-        self._add_music_btn = QPushButton("+ Add Music")
+        self._add_music_btn = QPushButton(t("add_music"))
         self._add_music_btn.setObjectName("addMusicBtn")
         layout.addWidget(self._add_music_btn)
 
@@ -254,7 +286,7 @@ class MainWindow(QMainWindow):
         # Title with download button
         title_layout = QHBoxLayout()
 
-        title = QLabel("Lyrics")
+        title = QLabel(t("lyrics"))
         title.setObjectName("lyricsTitle")
         title.setAlignment(Qt.AlignLeft)
         title_layout.addWidget(title)
@@ -262,7 +294,7 @@ class MainWindow(QMainWindow):
         title_layout.addStretch()
 
         # Download lyrics button
-        self._download_lyrics_btn = QPushButton("⬇ Download")
+        self._download_lyrics_btn = QPushButton(t("download"))
         self._download_lyrics_btn.setObjectName("downloadLyricsBtn")
         self._download_lyrics_btn.setFixedHeight(28)
         self._download_lyrics_btn.clicked.connect(self._download_lyrics)
@@ -367,21 +399,21 @@ class MainWindow(QMainWindow):
         # Create tray menu
         tray_menu = QMenu()
 
-        show_action = tray_menu.addAction("Show")
+        show_action = tray_menu.addAction(t("show"))
         show_action.triggered.connect(self.show)
 
-        play_pause_action = tray_menu.addAction("Play/Pause")
+        play_pause_action = tray_menu.addAction(t("play_pause"))
         play_pause_action.triggered.connect(self._toggle_play_pause)
 
-        next_action = tray_menu.addAction("Next")
+        next_action = tray_menu.addAction(t("next"))
         next_action.triggered.connect(self._player.engine.play_next)
 
-        prev_action = tray_menu.addAction("Previous")
+        prev_action = tray_menu.addAction(t("previous"))
         prev_action.triggered.connect(self._player.engine.play_previous)
 
         tray_menu.addSeparator()
 
-        quit_action = tray_menu.addAction("Quit")
+        quit_action = tray_menu.addAction(t("quit"))
         quit_action.triggered.connect(self.close)
 
         self._tray_icon.setContextMenu(tray_menu)
@@ -524,7 +556,7 @@ class MainWindow(QMainWindow):
         """Add music to the library."""
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.Directory)
-        dialog.setWindowTitle("Select Music Folder")
+        dialog.setWindowTitle(t("select_music_folder"))
 
         if dialog.exec():
             folder = dialog.selectedFiles()[0]
@@ -546,9 +578,47 @@ class MainWindow(QMainWindow):
 
         QMessageBox.information(
             self,
-            "Scanning",
-            f"Added music from folder. Refresh the library to see new tracks.",
+            t("scanning"),
+            t("added_music"),
         )
+
+    def _toggle_language(self):
+        """Toggle between English and Chinese."""
+        from utils import get_language, set_language
+
+        current_lang = get_language()
+        new_lang = "zh" if current_lang == "en" else "en"
+        set_language(new_lang)
+
+        # Save language preference
+        self._settings.setValue("language", new_lang)
+
+        # Update button text
+        self._language_btn.setText("🌐 " + ("EN" if new_lang == "en" else "中文"))
+
+        # Refresh the UI to apply translations
+        self._refresh_ui_texts()
+
+    def _refresh_ui_texts(self):
+        """Refresh UI texts after language change."""
+        # Update window title
+        self.setWindowTitle(t("app_title"))
+
+        # Update sidebar
+        self._nav_library.setText("🎼 " + t("library"))
+        self._nav_playlists.setText("📋 " + t("playlists"))
+        self._nav_queue.setText("🎶 " + t("queue"))
+        self._nav_favorites.setText("⭐ " + t("favorites"))
+        self._nav_history.setText("🕐 " + t("history"))
+        self._add_music_btn.setText(t("add_music"))
+
+        # Update lyrics panel
+        # (labels will be refreshed when track changes)
+
+        # Refresh views
+        self._library_view.refresh()
+        self._playlist_view._refresh_playlists()
+        self._queue_view.refresh_queue()
 
     def _play_track(self, track_id: int):
         """Play a track."""
@@ -571,7 +641,7 @@ class MainWindow(QMainWindow):
 
         if not track_dict:
             self._lyrics_browser.setHtml(
-                '<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>No track playing</div>'
+                f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>{t("not_playing")}</div>'
             )
             return
 
@@ -608,11 +678,11 @@ class MainWindow(QMainWindow):
 
             if lrc_path.exists() or lrc_alt.exists():
                 self._lyrics_browser.setHtml(
-                    '<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>Lyrics file found but could not be parsed.<br><br>Make sure the .lrc file is valid.</div>'
+                    f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>{t("lyrics_found_parse_failed")}<br><br>{t("ensure_lrc_valid")}</div>'
                 )
             else:
                 self._lyrics_browser.setHtml(
-                    f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>♪ {title} ♪<br><br>by {artist}<br><br>---<br><br>No lyrics available<br><br>Click "⬇ Download" to search for lyrics online.</div>'
+                    f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">🎵<br><br>♪ {title} ♪<br><br>by {artist}<br><br>---<br><br>{t("no_lyrics")}<br><br>{t("click_download")}</div>'
                 )
 
     def _download_lyrics(self):
@@ -625,7 +695,7 @@ class MainWindow(QMainWindow):
             return
 
         self._lyrics_browser.setHtml(
-            '<div style="color: #b3b3b3; text-align: center; padding: 40px;">⏳<br><br>Searching for lyrics...<br><br>Please wait...</div>'
+            f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">⏳<br><br>{t("searching_lyrics")}</div>'
         )
 
         from threading import Thread
@@ -658,7 +728,7 @@ class MainWindow(QMainWindow):
                         Qt.QueuedConnection,
                         Q_ARG(
                             str,
-                            '<div style="color: #b3b3b3; text-align: center; padding: 40px;">❌<br><br>Lyrics downloaded but could not be loaded.</div>',
+                            f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">❌<br><br>{t("lyrics_downloaded_parsing_failed")}</div>',
                         ),
                     )
             else:
@@ -668,7 +738,7 @@ class MainWindow(QMainWindow):
                     Qt.QueuedConnection,
                     Q_ARG(
                         str,
-                        '<div style="color: #b3b3b3; text-align: center; padding: 40px;">❌<br><br>Could not find lyrics online.<br><br>Try searching manually and<br>adding the .lrc file.</div>',
+                        f'<div style="color: #b3b3b3; text-align: center; padding: 40px;">❌<br><br>{t("lyrics_not_found")}</div>',
                     ),
                 )
 
@@ -693,10 +763,10 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        download_action = menu.addAction("⬇ Download Lyrics")
+        download_action = menu.addAction(t("download_lyrics"))
         download_action.triggered.connect(self._download_lyrics)
 
-        refresh_action = menu.addAction("🔄 Refresh")
+        refresh_action = menu.addAction(t("refresh"))
         refresh_action.triggered.connect(self._refresh_lyrics)
 
         menu.exec_(self._lyrics_browser.mapToGlobal(pos))
@@ -723,9 +793,9 @@ class MainWindow(QMainWindow):
         self._status_bar = self.statusBar()
         if not self._status_bar:
             self._status_bar = self.statusBar()
-        self._status_bar.showMessage(
-            f"Added {count} track{'s' if count > 1 else ''} to queue", 3000
-        )
+        s = "s" if count > 1 else ""
+        msg = t("added_to_queue").replace("{count}", str(count)).replace("{s}", s)
+        self._status_bar.showMessage(msg, 3000)
 
     def _on_position_changed(self, position_ms: int):
         """Handle position change for lyrics sync with highlight and auto-scroll."""

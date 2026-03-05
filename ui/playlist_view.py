@@ -26,7 +26,7 @@ from typing import List, Optional
 
 from database import DatabaseManager, Track, Playlist
 from player import PlayerController
-from utils import format_duration
+from utils import format_duration, t
 
 
 class PlaylistView(QWidget):
@@ -88,7 +88,7 @@ class PlaylistView(QWidget):
         layout.setSpacing(10)
 
         # Title
-        title = QLabel("📋 Playlists")
+        title = QLabel("📋 " + t("playlists"))
         title.setStyleSheet("""
             color: #1db954;
             font-size: 20px;
@@ -98,7 +98,7 @@ class PlaylistView(QWidget):
         layout.addWidget(title)
 
         # New playlist button
-        self._new_playlist_btn = QPushButton("+ New Playlist")
+        self._new_playlist_btn = QPushButton(t("new_playlist"))
         self._new_playlist_btn.setObjectName("newPlaylistBtn")
         self._new_playlist_btn.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self._new_playlist_btn)
@@ -121,7 +121,7 @@ class PlaylistView(QWidget):
         # Header
         header_layout = QHBoxLayout()
 
-        self._playlist_title = QLabel("Select a Playlist")
+        self._playlist_title = QLabel(t("select_playlist_placeholder"))
         self._playlist_title.setStyleSheet("""
             color: #1db954;
             font-size: 24px;
@@ -132,14 +132,14 @@ class PlaylistView(QWidget):
         header_layout.addStretch()
 
         # Playlist actions
-        self._play_playlist_btn = QPushButton("▶️ Play")
+        self._play_playlist_btn = QPushButton(t("play"))
         self._play_playlist_btn.setObjectName("playlistActionBtn")
         self._play_playlist_btn.setCursor(Qt.PointingHandCursor)
         self._play_playlist_btn.setEnabled(False)
         self._play_playlist_btn.clicked.connect(self._play_current_playlist)
         header_layout.addWidget(self._play_playlist_btn)
 
-        self._delete_playlist_btn = QPushButton("🗑️ Delete")
+        self._delete_playlist_btn = QPushButton("🗑️ " + t("delete_playlist"))
         self._delete_playlist_btn.setObjectName("playlistActionBtn")
         self._delete_playlist_btn.setCursor(Qt.PointingHandCursor)
         self._delete_playlist_btn.setEnabled(False)
@@ -151,7 +151,7 @@ class PlaylistView(QWidget):
         self._tracks_table = QTableWidget()
         self._tracks_table.setColumnCount(4)
         self._tracks_table.setHorizontalHeaderLabels(
-            ["Title", "Artist", "Album", "Duration"]
+            [t("title"), t("artist"), t("album"), t("duration")]
         )
 
         # Configure table
@@ -329,7 +329,9 @@ class PlaylistView(QWidget):
 
     def _create_playlist(self):
         """Create a new playlist."""
-        name, ok = QInputDialog.getText(self, "Create Playlist", "Enter playlist name:")
+        name, ok = QInputDialog.getText(
+            self, t("create_playlist"), t("enter_playlist_name")
+        )
 
         if ok and name:
             playlist_id = self._db.create_playlist(name)
@@ -350,8 +352,8 @@ class PlaylistView(QWidget):
 
         reply = QMessageBox.question(
             self,
-            "Delete Playlist",
-            "Are you sure you want to delete this playlist?",
+            t("delete_playlist"),
+            t("delete_playlist_confirm"),
             QMessageBox.Yes | QMessageBox.No,
         )
 
@@ -392,7 +394,7 @@ class PlaylistView(QWidget):
 
         # Load tracks
         self._populate_table(tracks)
-        self._status_label.setText(f"{len(tracks)} tracks")
+        self._status_label.setText(f"{len(tracks)} {t('tracks')}")
 
     def _play_current_playlist(self):
         """Play the current playlist."""
@@ -404,7 +406,7 @@ class PlaylistView(QWidget):
 
     def _clear_playlist_content(self):
         """Clear the playlist content view."""
-        self._playlist_title.setText("Select a Playlist")
+        self._playlist_title.setText(t("select_playlist_placeholder"))
         self._tracks_table.setRowCount(0)
         self._status_label.setText("")
         self._delete_playlist_btn.setEnabled(False)
@@ -422,12 +424,12 @@ class PlaylistView(QWidget):
             self._tracks_table.setItem(row, 0, title_item)
 
             # Artist
-            artist_item = QTableWidgetItem(track.artist or "Unknown")
+            artist_item = QTableWidgetItem(track.artist or t("unknown"))
             artist_item.setForeground(QBrush(QColor("#b0b0b0")))
             self._tracks_table.setItem(row, 1, artist_item)
 
             # Album
-            album_item = QTableWidgetItem(track.album or "Unknown")
+            album_item = QTableWidgetItem(track.album or t("unknown"))
             album_item.setForeground(QBrush(QColor("#b0b0b0")))
             self._tracks_table.setItem(row, 2, album_item)
 
@@ -466,17 +468,17 @@ class PlaylistView(QWidget):
             }
         """)
 
-        remove_action = QAction("Remove from Playlist", self)
+        remove_action = QAction(t("remove_from_playlist"), self)
         remove_action.triggered.connect(lambda: self._remove_track(item))
         menu.addAction(remove_action)
 
-        favorite_action = QAction("⭐ Add to Favorites", self)
+        favorite_action = QAction(t("add_to_favorites"), self)
         favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
         menu.addAction(favorite_action)
 
         menu.addSeparator()
 
-        edit_action = QAction("Edit Media Info", self)
+        edit_action = QAction(t("edit_media_info"), self)
         edit_action.triggered.connect(lambda: self._edit_media_info())
         menu.addAction(edit_action)
 
@@ -523,19 +525,19 @@ class PlaylistView(QWidget):
         if added_count > 0 and removed_count == 0:
             QMessageBox.information(
                 self,
-                "Added to Favorites",
+                t("added_to_favorites"),
                 f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
             )
         elif removed_count > 0 and added_count == 0:
             QMessageBox.information(
                 self,
-                "Removed from Favorites",
+                t("removed_from_favorites"),
                 f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
             )
         else:
             QMessageBox.information(
                 self,
-                "Updated Favorites",
+                t("updated_favorites"),
                 f"Added {added_count}, removed {removed_count}",
             )
 
@@ -546,7 +548,7 @@ class PlaylistView(QWidget):
         """Add a track to the current playlist."""
         if self._current_playlist_id is None:
             QMessageBox.warning(
-                self, "No Playlist Selected", "Please select a playlist first."
+                self, t("no_playlist_selected"), t("select_playlist_first")
             )
             return
 
@@ -554,7 +556,7 @@ class PlaylistView(QWidget):
         if success:
             self._load_playlist(self._current_playlist_id)
         else:
-            QMessageBox.warning(self, "Error", "Track is already in this playlist.")
+            QMessageBox.warning(self, "Error", t("track_already_in_playlist"))
 
     def _edit_media_info(self):
         """Edit media information for selected track."""
@@ -586,7 +588,7 @@ class PlaylistView(QWidget):
             return
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Edit Media Info")
+        dialog.setWindowTitle(t("edit_media_info_title"))
         dialog.setMinimumWidth(450)
         dialog.setStyleSheet("""
             QDialog { background-color: #282828; color: #ffffff; }
@@ -620,26 +622,26 @@ class PlaylistView(QWidget):
         form_layout.setLabelAlignment(Qt.AlignRight)
 
         title_input = QLineEdit(track.title or "")
-        title_input.setPlaceholderText("Enter title")
+        title_input.setPlaceholderText(t("enter_title"))
         artist_input = QLineEdit(track.artist or "")
-        artist_input.setPlaceholderText("Enter artist")
+        artist_input.setPlaceholderText(t("enter_artist"))
         album_input = QLineEdit(track.album or "")
-        album_input.setPlaceholderText("Enter album")
+        album_input.setPlaceholderText(t("enter_album"))
 
         path_label = QLabel(track.path)
         path_label.setStyleSheet("color: #808080; font-size: 11px;")
         path_label.setWordWrap(True)
 
-        form_layout.addRow("Title:", title_input)
-        form_layout.addRow("Artist:", artist_input)
-        form_layout.addRow("Album:", album_input)
-        form_layout.addRow("File:", path_label)
+        form_layout.addRow(t("title") + ":", title_input)
+        form_layout.addRow(t("artist") + ":", artist_input)
+        form_layout.addRow(t("album") + ":", album_input)
+        form_layout.addRow(t("file") + ":", path_label)
 
         layout.addLayout(form_layout)
 
         buttons = QDialogButtonBox()
-        ok_button = QPushButton("Save")
-        cancel_button = QPushButton("Cancel")
+        ok_button = QPushButton(t("save"))
+        cancel_button = QPushButton(t("cancel"))
         cancel_button.setProperty("role", "cancel")
 
         buttons.addButton(ok_button, QDialogButtonBox.AcceptRole)
@@ -660,13 +662,11 @@ class PlaylistView(QWidget):
                 self._db.update_track(
                     track_id, title=new_title, artist=new_artist, album=new_album
                 )
-                QMessageBox.information(
-                    self, "Success", "Media information saved successfully."
-                )
+                QMessageBox.information(self, t("success"), t("media_saved"))
                 if self._current_playlist_id:
                     self._load_playlist(self._current_playlist_id)
             else:
-                QMessageBox.warning(self, "Error", "Failed to save media information.")
+                QMessageBox.warning(self, "Error", t("media_save_failed"))
 
             dialog.accept()
 

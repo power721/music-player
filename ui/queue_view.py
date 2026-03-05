@@ -21,7 +21,7 @@ from typing import List
 
 from player import PlayerController
 from player.engine import PlayerState
-from utils import format_duration
+from utils import format_duration, t
 
 
 class QueueView(QWidget):
@@ -46,6 +46,7 @@ class QueueView(QWidget):
 
         # Load initial queue content and update indicators
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(0, self._initialize_view)
 
     def _setup_ui(self):
@@ -61,10 +62,11 @@ class QueueView(QWidget):
         header_layout.setContentsMargins(0, 10, 0, 10)
         header_layout.setSpacing(10)
 
-        title = QLabel("🎶 Play Queue")
+        title = QLabel(t("play_queue"))
 
         # Set emoji-supporting font for title
         from PySide6.QtGui import QFontDatabase, QFont
+
         emoji_fonts = [
             "Segoe UI Emoji",
             "Apple Color Emoji",
@@ -97,7 +99,7 @@ class QueueView(QWidget):
         header_layout.addStretch()
 
         # Clear button
-        self._clear_btn = QPushButton("Clear Queue")
+        self._clear_btn = QPushButton(t("clear_queue"))
         self._clear_btn.setObjectName("queueActionBtn")
         self._clear_btn.setCursor(Qt.PointingHandCursor)
         self._clear_btn.clicked.connect(self._clear_queue)
@@ -118,14 +120,12 @@ class QueueView(QWidget):
         layout.addWidget(self._queue_list)
 
         # Status bar
-        self._status_label = QLabel("0 tracks in queue")
+        self._status_label = QLabel(f"0 {t('tracks_in_queue')}")
         self._status_label.setStyleSheet("color: #808080; font-size: 13px;")
         layout.addWidget(self._status_label)
 
         # Add track hint
-        hint = QLabel(
-            "💡 Tip: Right-click on tracks in the library to add them to the queue"
-        )
+        hint = QLabel(t("tip_right_click"))
         hint.setStyleSheet("color: #606060; font-size: 11px;")
         layout.addWidget(hint)
 
@@ -213,9 +213,7 @@ class QueueView(QWidget):
         self._player.engine.current_track_changed.connect(
             self._on_current_track_changed
         )
-        self._player.engine.state_changed.connect(
-            self._on_player_state_changed
-        )
+        self._player.engine.state_changed.connect(self._on_player_state_changed)
 
     def _initialize_view(self):
         """Initialize the queue view with current content and indicators."""
@@ -235,8 +233,8 @@ class QueueView(QWidget):
         self._queue_list.clear()
 
         for i, track in enumerate(playlist):
-            title = track.get("title", "Unknown")
-            artist = track.get("artist", "Unknown")
+            title = track.get("title", t("unknown"))
+            artist = track.get("artist", t("unknown"))
 
             # Add play/pause icon for current track
             if i == current_index:
@@ -267,7 +265,7 @@ class QueueView(QWidget):
         self._queue_list.blockSignals(False)
 
         # Update status
-        self._status_label.setText(f"{len(playlist)} tracks in queue")
+        self._status_label.setText(f"{len(playlist)} {t('tracks_in_queue')}")
 
         # Scroll to current track after a delay
         QTimer.singleShot(100, self._scroll_to_current_track)
@@ -294,8 +292,8 @@ class QueueView(QWidget):
         self._queue_list.clear()
 
         for i, track in enumerate(playlist):
-            title = track.get("title", "Unknown")
-            artist = track.get("artist", "Unknown")
+            title = track.get("title", t("unknown"))
+            artist = track.get("artist", t("unknown"))
 
             # Add play/pause icon for current track
             if i == current_index:
@@ -330,10 +328,11 @@ class QueueView(QWidget):
 
         # Scroll to current track after a short delay
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(100, self._scroll_to_current_track)
 
         # Update status
-        self._status_label.setText(f"{len(playlist)} tracks in queue")
+        self._status_label.setText(f"{len(playlist)} {t('tracks_in_queue')}")
 
     def _update_current_track_indicator(self):
         """Update the visual indicator for current track."""
@@ -375,6 +374,7 @@ class QueueView(QWidget):
 
         # Scroll to current track with delay to ensure UI is updated
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(100, self._scroll_to_current_track)
 
     def _scroll_to_current_track(self):
@@ -436,8 +436,8 @@ class QueueView(QWidget):
         """Clear the queue."""
         reply = QMessageBox.question(
             self,
-            "Clear Queue",
-            "Are you sure you want to clear the entire queue?",
+            t("clear_queue"),
+            t("clear_queue_confirm"),
             QMessageBox.Yes | QMessageBox.No,
         )
 
@@ -489,19 +489,19 @@ class QueueView(QWidget):
         if added_count > 0 and removed_count == 0:
             QMessageBox.information(
                 self,
-                "Added to Favorites",
+                t("added_to_favorites"),
                 f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
             )
         elif removed_count > 0 and added_count == 0:
             QMessageBox.information(
                 self,
-                "Removed from Favorites",
+                t("removed_from_favorites"),
                 f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
             )
         else:
             QMessageBox.information(
                 self,
-                "Updated Favorites",
+                t("updated_favorites"),
                 f"Added {added_count}, removed {removed_count}",
             )
 
@@ -526,15 +526,15 @@ class QueueView(QWidget):
             }
         """)
 
-        remove_action = menu.addAction("Remove from Queue")
+        remove_action = menu.addAction(t("remove_from_queue"))
         remove_action.triggered.connect(self._remove_selected)
 
-        favorite_action = menu.addAction("⭐ Add to Favorites")
+        favorite_action = menu.addAction(t("add_to_favorites"))
         favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
 
         menu.addSeparator()
 
-        edit_action = menu.addAction("Edit Media Info")
+        edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
 
         menu.exec_(self._queue_list.mapToGlobal(pos))
@@ -577,6 +577,7 @@ class QueueView(QWidget):
         super().showEvent(event)
         # Refresh queue content and update indicators when the view becomes visible
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(50, self._initialize_view)
 
     def _edit_media_info(self):
@@ -610,7 +611,7 @@ class QueueView(QWidget):
             return
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Edit Media Info")
+        dialog.setWindowTitle(t("edit_media_info_title"))
         dialog.setMinimumWidth(450)
         dialog.setStyleSheet("""
             QDialog { background-color: #282828; color: #ffffff; }
@@ -644,26 +645,26 @@ class QueueView(QWidget):
         form_layout.setLabelAlignment(Qt.AlignRight)
 
         title_input = QLineEdit(track.title or "")
-        title_input.setPlaceholderText("Enter title")
+        title_input.setPlaceholderText(t("enter_title"))
         artist_input = QLineEdit(track.artist or "")
-        artist_input.setPlaceholderText("Enter artist")
+        artist_input.setPlaceholderText(t("enter_artist"))
         album_input = QLineEdit(track.album or "")
-        album_input.setPlaceholderText("Enter album")
+        album_input.setPlaceholderText(t("enter_album"))
 
         path_label = QLabel(track.path)
         path_label.setStyleSheet("color: #808080; font-size: 11px;")
         path_label.setWordWrap(True)
 
-        form_layout.addRow("Title:", title_input)
-        form_layout.addRow("Artist:", artist_input)
-        form_layout.addRow("Album:", album_input)
-        form_layout.addRow("File:", path_label)
+        form_layout.addRow(t("title") + ":", title_input)
+        form_layout.addRow(t("artist") + ":", artist_input)
+        form_layout.addRow(t("album") + ":", album_input)
+        form_layout.addRow(t("file") + ":", path_label)
 
         layout.addLayout(form_layout)
 
         buttons = QDialogButtonBox()
-        ok_button = QPushButton("Save")
-        cancel_button = QPushButton("Cancel")
+        ok_button = QPushButton(t("save"))
+        cancel_button = QPushButton(t("cancel"))
         cancel_button.setProperty("role", "cancel")
 
         buttons.addButton(ok_button, QDialogButtonBox.AcceptRole)
@@ -684,12 +685,10 @@ class QueueView(QWidget):
                 self._db.update_track(
                     track_id, title=new_title, artist=new_artist, album=new_album
                 )
-                QMessageBox.information(
-                    self, "Success", "Media information saved successfully."
-                )
+                QMessageBox.information(self, t("success"), t("media_saved"))
                 self.refresh()
             else:
-                QMessageBox.warning(self, "Error", "Failed to save media information.")
+                QMessageBox.warning(self, "Error", t("media_save_failed"))
 
             dialog.accept()
 

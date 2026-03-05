@@ -27,6 +27,7 @@ from pathlib import Path
 from database import DatabaseManager, Track
 from player import PlayerController
 from player.engine import PlayerState
+from utils import t
 
 
 class LibraryView(QWidget):
@@ -70,7 +71,7 @@ class LibraryView(QWidget):
         # Header with title and search
         header_layout = QHBoxLayout()
 
-        self._title_label = QLabel("Your Library")
+        self._title_label = QLabel(t("library"))
         self._title_label.setObjectName("libraryTitle")
         self._title_label.setStyleSheet("""
             QLabel#libraryTitle {
@@ -86,7 +87,7 @@ class LibraryView(QWidget):
 
         # Search box
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("🔍 Search tracks, artists, albums...")
+        self._search_input.setPlaceholderText(t("search_tracks"))
         self._search_input.setFixedWidth(300)
         self._search_input.setStyleSheet("""
             QLineEdit {
@@ -115,6 +116,7 @@ class LibraryView(QWidget):
 
         # Get emoji-supporting font
         from PySide6.QtGui import QFontDatabase, QFont
+
         emoji_fonts = [
             "Segoe UI Emoji",
             "Apple Color Emoji",
@@ -131,12 +133,12 @@ class LibraryView(QWidget):
                 break
 
         # Create view buttons with emoji font
-        self._btn_all = QPushButton("🎵 All Tracks")
+        self._btn_all = QPushButton(t("all_tracks"))
         self._btn_all.setCheckable(True)
         self._btn_all.setChecked(True)
         self._btn_all.setObjectName("viewBtn")
         self._btn_all.setCursor(Qt.PointingHandCursor)
-        self._btn_all.setMinimumWidth(120)  # Ensure enough width for text
+        self._btn_all.setMinimumWidth(120)
         if emoji_font:
             btn_font = QFont()
             btn_font.setFamily(emoji_font)
@@ -144,11 +146,11 @@ class LibraryView(QWidget):
             self._btn_all.setFont(btn_font)
         view_selector.addWidget(self._btn_all)
 
-        self._btn_artists = QPushButton("🎤 Artists")
+        self._btn_artists = QPushButton(t("artists"))
         self._btn_artists.setCheckable(True)
         self._btn_artists.setObjectName("viewBtn")
         self._btn_artists.setCursor(Qt.PointingHandCursor)
-        self._btn_artists.setMinimumWidth(110)  # Ensure enough width for text
+        self._btn_artists.setMinimumWidth(110)
         if emoji_font:
             btn_font = QFont()
             btn_font.setFamily(emoji_font)
@@ -156,11 +158,11 @@ class LibraryView(QWidget):
             self._btn_artists.setFont(btn_font)
         view_selector.addWidget(self._btn_artists)
 
-        self._btn_albums = QPushButton("💿 Albums")
+        self._btn_albums = QPushButton(t("albums"))
         self._btn_albums.setCheckable(True)
         self._btn_albums.setObjectName("viewBtn")
         self._btn_albums.setCursor(Qt.PointingHandCursor)
-        self._btn_albums.setMinimumWidth(100)  # Ensure enough width for text
+        self._btn_albums.setMinimumWidth(100)
         if emoji_font:
             btn_font = QFont()
             btn_font.setFamily(emoji_font)
@@ -212,7 +214,7 @@ class LibraryView(QWidget):
         self._tracks_table.setObjectName("tracksTable")
         self._tracks_table.setColumnCount(5)
         self._tracks_table.setHorizontalHeaderLabels(
-            ["Title", "Artist", "Album", "Duration", ""]
+            [t("title"), t("artist"), t("album"), t("duration"), ""]
         )
 
         # Configure table
@@ -351,7 +353,7 @@ class LibraryView(QWidget):
         """)
 
         # Loading indicator
-        self._loading_label = QLabel("⏳ Loading...")
+        self._loading_label = QLabel("⏳ " + t("loading"))
         self._loading_label.setAlignment(Qt.AlignCenter)
         self._loading_label.setStyleSheet(
             "color: #1db954; font-size: 16px; padding: 40px; background-color: #1e1e1e; border-radius: 8px;"
@@ -362,7 +364,7 @@ class LibraryView(QWidget):
         layout.addWidget(self._tracks_table)
 
         # Status bar
-        self._status_label = QLabel("📚 No tracks in library")
+        self._status_label = QLabel("📚 " + t("no_tracks"))
         self._status_label.setStyleSheet(
             "color: #808080; font-size: 13px; padding: 8px 0px;"
         )
@@ -378,7 +380,9 @@ class LibraryView(QWidget):
         self._btn_albums.clicked.connect(lambda: self._change_view("albums"))
 
         # Connect to player engine signals
-        self._player.engine.current_track_changed.connect(self._on_current_track_changed)
+        self._player.engine.current_track_changed.connect(
+            self._on_current_track_changed
+        )
         self._player.engine.state_changed.connect(self._on_player_state_changed)
 
     def refresh(self):
@@ -398,7 +402,7 @@ class LibraryView(QWidget):
     def show_all(self):
         """Show all tracks."""
         self._current_view = "all"
-        self._title_label.setText("Your Library")
+        self._title_label.setText(t("library"))
         self._load_all_tracks()
         # Show view buttons
         self._btn_all.setVisible(True)
@@ -416,12 +420,13 @@ class LibraryView(QWidget):
 
         # Select and scroll to current playing track after UI updates
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(150, self._select_and_scroll_to_current)
 
     def show_favorites(self):
         """Show favorite tracks."""
         self._current_view = "favorites"
-        self._title_label.setText("⭐ Favorites")
+        self._title_label.setText("⭐ " + t("favorites"))
         self._load_favorites()
         # Hide view buttons
         self._btn_all.setVisible(False)
@@ -431,7 +436,7 @@ class LibraryView(QWidget):
     def show_history(self):
         """Show play history."""
         self._current_view = "history"
-        self._title_label.setText("🕐 Recently Played")
+        self._title_label.setText("🕐 " + t("history"))
         self._load_history()
         # Hide view buttons
         self._btn_all.setVisible(False)
@@ -462,7 +467,7 @@ class LibraryView(QWidget):
 
         tracks = self._db.get_all_tracks()
         self._populate_table(tracks)
-        self._status_label.setText(f"{len(tracks)} tracks")
+        self._status_label.setText(f"{len(tracks)} {t('tracks')}")
 
         self._loading_label.setVisible(False)
         self._tracks_table.setVisible(True)
@@ -474,7 +479,7 @@ class LibraryView(QWidget):
 
         tracks = self._db.get_favorites()
         self._populate_table(tracks)
-        self._status_label.setText(f"{len(tracks)} favorites")
+        self._status_label.setText(f"{len(tracks)} {t('favorites_word')}")
 
         self._loading_label.setVisible(False)
         self._tracks_table.setVisible(True)
@@ -493,7 +498,7 @@ class LibraryView(QWidget):
                 tracks.append((track, entry.played_at))
 
         self._populate_table([t[0] for t in tracks])
-        self._status_label.setText(f"{len(tracks)} recently played")
+        self._status_label.setText(f"{len(tracks)} {t('recently_played')}")
 
         self._loading_label.setVisible(False)
         self._tracks_table.setVisible(True)
@@ -516,7 +521,7 @@ class LibraryView(QWidget):
                 artist_tracks.append(track_list[0])
 
         self._populate_table(artist_tracks)
-        self._status_label.setText(f"{len(artists)} artists")
+        self._status_label.setText(f"{len(artists)} {t('artists_count')}")
 
     def _load_albums(self):
         """Load albums view."""
@@ -536,7 +541,7 @@ class LibraryView(QWidget):
                 album_tracks.append(track_list[0])
 
         self._populate_table(album_tracks)
-        self._status_label.setText(f"{len(albums)} albums")
+        self._status_label.setText(f"{len(albums)} {t('albums_count')}")
 
     def _populate_table(self, tracks: List[Track]):
         """Populate the table with tracks."""
@@ -555,7 +560,7 @@ class LibraryView(QWidget):
 
             for row, track in enumerate(tracks):
                 # Title - add play icon if currently playing
-                is_currently_playing = (track.id == self._current_playing_track_id)
+                is_currently_playing = track.id == self._current_playing_track_id
                 if is_currently_playing:
                     playing_row = row
 
@@ -575,6 +580,7 @@ class LibraryView(QWidget):
                 # Make currently playing row bold and green
                 if is_currently_playing:
                     from PySide6.QtGui import QFont
+
                     font = title_item.font()
                     font.setBold(True)
                     title_item.setFont(font)
@@ -583,12 +589,12 @@ class LibraryView(QWidget):
                 self._tracks_table.setItem(row, 0, title_item)
 
                 # Artist
-                artist_item = QTableWidgetItem(track.artist or "Unknown")
+                artist_item = QTableWidgetItem(track.artist or t("unknown"))
                 artist_item.setForeground(QBrush(QColor("#b0b0b0")))
                 self._tracks_table.setItem(row, 1, artist_item)
 
                 # Album
-                album_item = QTableWidgetItem(track.album or "Unknown")
+                album_item = QTableWidgetItem(track.album or t("unknown"))
                 album_item.setForeground(QBrush(QColor("#b0b0b0")))
                 self._tracks_table.setItem(row, 2, album_item)
 
@@ -624,12 +630,12 @@ class LibraryView(QWidget):
 
         tracks = self._db.search_tracks(query)
         self._populate_table(tracks)
-        self._status_label.setText(f'{len(tracks)} results for "{query}"')
+        self._status_label.setText(f'{len(tracks)} {t("results_for")} "{query}"')
 
     def _on_current_track_changed(self, track_dict: dict):
         """Handle current track change from player."""
         if track_dict:
-            new_track_id = track_dict.get('id')
+            new_track_id = track_dict.get("id")
             old_track_id = self._current_playing_track_id
             self._current_playing_track_id = new_track_id
 
@@ -644,7 +650,9 @@ class LibraryView(QWidget):
         # Update the icon when playing/paused without reloading
         self._update_playing_icon_state()
 
-    def _update_playing_indicator_in_table(self, old_track_id: Optional[int], new_track_id: Optional[int]):
+    def _update_playing_indicator_in_table(
+        self, old_track_id: Optional[int], new_track_id: Optional[int]
+    ):
         """Update playing indicator by modifying existing items instead of reloading."""
         from PySide6.QtGui import QFont, QBrush, QColor
 
@@ -659,9 +667,13 @@ class LibraryView(QWidget):
     def _update_playing_icon_state(self):
         """Update the playing/paused icon for current track."""
         if self._current_playing_track_id is not None:
-            self._set_track_playing_status(self._current_playing_track_id, True, update_icon_only=True)
+            self._set_track_playing_status(
+                self._current_playing_track_id, True, update_icon_only=True
+            )
 
-    def _set_track_playing_status(self, track_id: int, is_playing: bool, update_icon_only: bool = False):
+    def _set_track_playing_status(
+        self, track_id: int, is_playing: bool, update_icon_only: bool = False
+    ):
         """Set the playing status for a specific track in the table."""
         from PySide6.QtGui import QFont, QBrush, QColor
 
@@ -802,30 +814,30 @@ class LibraryView(QWidget):
         """)
 
         # Add to queue action
-        add_action = menu.addAction("➕ Add to Queue")
+        add_action = menu.addAction(t("add_to_queue"))
         add_action.triggered.connect(lambda: self._add_selected_to_queue())
 
         # Play action
-        play_action = menu.addAction("▶️ Play")
+        play_action = menu.addAction(t("play"))
         play_action.triggered.connect(lambda: self._play_selected_track())
 
         menu.addSeparator()
 
         # Add to playlist action
-        add_to_playlist_action = menu.addAction("📋 Add to Playlist")
+        add_to_playlist_action = menu.addAction(t("add_to_playlist"))
         add_to_playlist_action.triggered.connect(lambda: self._add_to_playlist())
 
         # Favorite action - check if already favorited
         if self._current_view == "favorites" or is_favorited:
-            favorite_action = menu.addAction("❌ Remove from Favorites")
+            favorite_action = menu.addAction(t("remove_from_favorites"))
         else:
-            favorite_action = menu.addAction("⭐ Add to Favorites")
+            favorite_action = menu.addAction(t("add_to_favorites"))
         favorite_action.triggered.connect(lambda: self._toggle_favorite_selected())
 
         menu.addSeparator()
 
         # Edit media info action
-        edit_action = menu.addAction("✏️ Edit Media Info")
+        edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
 
         menu.exec_(self._tracks_table.mapToGlobal(pos))
@@ -890,19 +902,19 @@ class LibraryView(QWidget):
         if added_count > 0 and removed_count == 0:
             QMessageBox.information(
                 self,
-                "Added to Favorites",
+                t("added_to_favorites"),
                 f"Added {added_count} track{'s' if added_count > 1 else ''} to favorites",
             )
         elif removed_count > 0 and added_count == 0:
             QMessageBox.information(
                 self,
-                "Removed from Favorites",
+                t("removed_from_favorites"),
                 f"Removed {removed_count} track{'s' if removed_count > 1 else ''} from favorites",
             )
         else:
             QMessageBox.information(
                 self,
-                "Updated Favorites",
+                t("updated_favorites"),
                 f"Added {added_count}, removed {removed_count}",
             )
 
@@ -931,8 +943,8 @@ class LibraryView(QWidget):
         if not playlists:
             reply = QMessageBox.question(
                 self,
-                "No Playlists",
-                "You don't have any playlists yet.\nWould you like to create one?",
+                t("no_playlists"),
+                t("no_playlists_message"),
                 QMessageBox.Yes | QMessageBox.No,
             )
 
@@ -955,19 +967,19 @@ class LibraryView(QWidget):
             if duplicate_count == 0:
                 QMessageBox.information(
                     self,
-                    "Success",
+                    t("success"),
                     f'Added {added_count} track{"s" if added_count > 1 else ""} to "{playlist.name}"',
                 )
             elif added_count == 0:
                 QMessageBox.warning(
                     self,
-                    "Duplicate",
+                    t("duplicate"),
                     f'All {duplicate_count} track{"s" if duplicate_count > 1 else ""} already in "{playlist.name}"',
                 )
             else:
                 QMessageBox.information(
                     self,
-                    "Partially Added",
+                    t("partially_added"),
                     f"Added {added_count}, skipped {duplicate_count} duplicate{'s' if duplicate_count > 1 else ''}",
                 )
             return
@@ -981,7 +993,7 @@ class LibraryView(QWidget):
         )
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Select Playlist")
+        dialog.setWindowTitle(t("select_playlist"))
         dialog.setMinimumWidth(400)
         dialog.setStyleSheet("""
             QDialog {
@@ -1017,8 +1029,11 @@ class LibraryView(QWidget):
 
         layout = QVBoxLayout(dialog)
 
+        s = "s" if len(track_ids) > 1 else ""
         label = QLabel(
-            f"Add {len(track_ids)} track{'s' if len(track_ids) > 1 else ''} to playlist:"
+            t("add_to_playlist_message")
+            .replace("{count}", str(len(track_ids)))
+            .replace("{s}", s)
         )
         layout.addWidget(label)
 
@@ -1050,19 +1065,19 @@ class LibraryView(QWidget):
                     if duplicate_count == 0:
                         QMessageBox.information(
                             self,
-                            "Success",
+                            t("success"),
                             f'Added {added_count} track{"s" if added_count > 1 else ""} to "{playlist_name}"',
                         )
                     elif added_count == 0:
                         QMessageBox.warning(
                             self,
-                            "Duplicate",
+                            t("duplicate"),
                             f'All {duplicate_count} track{"s" if duplicate_count > 1 else ""} already in "{playlist_name}"',
                         )
                     else:
                         QMessageBox.information(
                             self,
-                            "Partially Added",
+                            t("partially_added"),
                             f"Added {added_count}, skipped {duplicate_count} duplicate{'s' if duplicate_count > 1 else ''}",
                         )
 
@@ -1097,7 +1112,7 @@ class LibraryView(QWidget):
             return
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Edit Media Info")
+        dialog.setWindowTitle(t("edit_media_info_title"))
         dialog.setMinimumWidth(450)
         dialog.setStyleSheet("""
             QDialog {
@@ -1146,27 +1161,27 @@ class LibraryView(QWidget):
         form_layout.setLabelAlignment(Qt.AlignRight)
 
         title_input = QLineEdit(track.title or "")
-        title_input.setPlaceholderText("Enter title")
+        title_input.setPlaceholderText(t("enter_title"))
         artist_input = QLineEdit(track.artist or "")
-        artist_input.setPlaceholderText("Enter artist")
+        artist_input.setPlaceholderText(t("enter_artist"))
         album_input = QLineEdit(track.album or "")
-        album_input.setPlaceholderText("Enter album")
+        album_input.setPlaceholderText(t("enter_album"))
 
         path_label = QLabel(track.path)
         path_label.setStyleSheet("color: #808080; font-size: 11px;")
         path_label.setWordWrap(True)
 
-        form_layout.addRow("Title:", title_input)
-        form_layout.addRow("Artist:", artist_input)
-        form_layout.addRow("Album:", album_input)
-        form_layout.addRow("File:", path_label)
+        form_layout.addRow(t("title") + ":", title_input)
+        form_layout.addRow(t("artist") + ":", artist_input)
+        form_layout.addRow(t("album") + ":", album_input)
+        form_layout.addRow(t("file") + ":", path_label)
 
         layout.addLayout(form_layout)
 
         buttons = QDialogButtonBox()
-        ok_button = QPushButton("Save")
+        ok_button = QPushButton(t("save"))
         ok_button.setObjectName("saveBtn")
-        cancel_button = QPushButton("Cancel")
+        cancel_button = QPushButton(t("cancel"))
         cancel_button.setProperty("role", "cancel")
 
         buttons.addButton(ok_button, QDialogButtonBox.AcceptRole)
@@ -1187,12 +1202,10 @@ class LibraryView(QWidget):
                 self._db.update_track(
                     track_id, title=new_title, artist=new_artist, album=new_album
                 )
-                QMessageBox.information(
-                    self, "Success", "Media information saved successfully."
-                )
+                QMessageBox.information(self, t("success"), t("media_saved"))
                 self.refresh()
             else:
-                QMessageBox.warning(self, "Error", "Failed to save media information.")
+                QMessageBox.warning(self, "Error", t("media_save_failed"))
 
             dialog.accept()
 
