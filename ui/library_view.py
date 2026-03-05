@@ -26,6 +26,7 @@ from pathlib import Path
 
 from database import DatabaseManager, Track
 from player import PlayerController
+from player.engine import PlayerState
 
 
 class LibraryView(QWidget):
@@ -53,6 +54,7 @@ class LibraryView(QWidget):
         self._player = player
         self._current_view = "all"  # all, favorites, history
         self._current_playing_track_id = None  # Track currently playing
+        self._current_playing_row = -1  # Row of currently playing track
 
         self._setup_ui()
         self._setup_connections()
@@ -110,23 +112,59 @@ class LibraryView(QWidget):
         view_selector = QHBoxLayout()
         view_selector.setSpacing(10)
 
+        # Get emoji-supporting font
+        from PySide6.QtGui import QFontDatabase, QFont
+        emoji_fonts = [
+            "Segoe UI Emoji",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Symbola",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        ]
+        available_families = QFontDatabase.families()
+        emoji_font = None
+        for font_name in emoji_fonts:
+            if any(font_name.lower() in f.lower() for f in available_families):
+                emoji_font = font_name
+                break
+
+        # Create view buttons with emoji font
         self._btn_all = QPushButton("🎵 All Tracks")
         self._btn_all.setCheckable(True)
         self._btn_all.setChecked(True)
         self._btn_all.setObjectName("viewBtn")
         self._btn_all.setCursor(Qt.PointingHandCursor)
+        self._btn_all.setMinimumWidth(120)  # Ensure enough width for text
+        if emoji_font:
+            btn_font = QFont()
+            btn_font.setFamily(emoji_font)
+            btn_font.setPointSize(13)
+            self._btn_all.setFont(btn_font)
         view_selector.addWidget(self._btn_all)
 
         self._btn_artists = QPushButton("🎤 Artists")
         self._btn_artists.setCheckable(True)
         self._btn_artists.setObjectName("viewBtn")
         self._btn_artists.setCursor(Qt.PointingHandCursor)
+        self._btn_artists.setMinimumWidth(110)  # Ensure enough width for text
+        if emoji_font:
+            btn_font = QFont()
+            btn_font.setFamily(emoji_font)
+            btn_font.setPointSize(13)
+            self._btn_artists.setFont(btn_font)
         view_selector.addWidget(self._btn_artists)
 
         self._btn_albums = QPushButton("💿 Albums")
         self._btn_albums.setCheckable(True)
         self._btn_albums.setObjectName("viewBtn")
         self._btn_albums.setCursor(Qt.PointingHandCursor)
+        self._btn_albums.setMinimumWidth(100)  # Ensure enough width for text
+        if emoji_font:
+            btn_font = QFont()
+            btn_font.setFamily(emoji_font)
+            btn_font.setPointSize(13)
+            self._btn_albums.setFont(btn_font)
         view_selector.addWidget(self._btn_albums)
 
         # Style the view buttons
@@ -155,6 +193,11 @@ class LibraryView(QWidget):
                 background-color: #1ed760;
             }
         """
+
+        # Apply styles to all buttons
+        self._btn_all.setStyleSheet(view_button_style)
+        self._btn_artists.setStyleSheet(view_button_style)
+        self._btn_albums.setStyleSheet(view_button_style)
         self._btn_all.setStyleSheet(view_button_style)
         self._btn_artists.setStyleSheet(view_button_style)
         self._btn_albums.setStyleSheet(view_button_style)
@@ -309,6 +352,10 @@ class LibraryView(QWidget):
         self._btn_artists.clicked.connect(lambda: self._change_view("artists"))
         self._btn_albums.clicked.connect(lambda: self._change_view("albums"))
 
+        # Connect to player engine signals
+        self._player.engine.current_track_changed.connect(self._on_current_track_changed)
+        self._player.engine.state_changed.connect(self._on_player_state_changed)
+
     def refresh(self):
         """Refresh the library view."""
         if self._current_view == "all":
@@ -446,12 +493,35 @@ class LibraryView(QWidget):
             # Batch size for UI updates (process in chunks to avoid blocking)
             batch_size = 50
             total_tracks = len(tracks)
+            playing_row = -1  # Track which row has the playing song
 
             for row, track in enumerate(tracks):
-                # Title
-                title_item = QTableWidgetItem(track.title or track.path.split("/")[-1])
+                # Title - add play icon if currently playing
+                is_currently_playing = (track.id == self._current_playing_track_id)
+                if is_currently_playing:
+                    playing_row = row
+
+                # Determine icon based on player state
+                icon_prefix = ""
+                if is_currently_playing:
+                    if self._player.engine.state == PlayerState.PLAYING:
+                        icon_prefix = "▶️ "
+                    else:
+                        icon_prefix = "⏸️ "
+
+                title_text = f"{icon_prefix}{track.title or track.path.split('/')[-1]}"
+                title_item = QTableWidgetItem(title_text)
                 title_item.setData(Qt.UserRole, track.id)
                 title_item.setForeground(QBrush(QColor("#e0e0e0")))
+
+                # Make currently playing row bold and green
+                if is_currently_playing:
+                    from PySide6.QtGui import QFont
+                    font = title_item.font()
+                    font.setBold(True)
+                    title_item.setFont(font)
+                    title_item.setForeground(QBrush(QColor("#1db954")))
+
                 self._tracks_table.setItem(row, 0, title_item)
 
                 # Artist
@@ -497,6 +567,122 @@ class LibraryView(QWidget):
         tracks = self._db.search_tracks(query)
         self._populate_table(tracks)
         self._status_label.setText(f'{len(tracks)} results for "{query}"')
+
+    def _on_current_track_changed(self, track_dict: dict):
+        """Handle current track change from player."""
+        if track_dict:
+            new_track_id = track_dict.get('id')
+            old_track_id = self._current_playing_track_id
+            self._current_playing_track_id = new_track_id
+
+            # Update the playing indicator in the table without reloading
+            self._update_playing_indicator_in_table(old_track_id, new_track_id)
+
+            # Scroll to the playing track
+            self._scroll_to_playing_track()
+
+    def _on_player_state_changed(self, state: PlayerState):
+        """Handle player state change (play/pause)."""
+        # Update the icon when playing/paused without reloading
+        self._update_playing_icon_state()
+
+    def _update_playing_indicator_in_table(self, old_track_id: Optional[int], new_track_id: Optional[int]):
+        """Update playing indicator by modifying existing items instead of reloading."""
+        from PySide6.QtGui import QFont, QBrush, QColor
+
+        # Remove playing indicator from old track
+        if old_track_id is not None:
+            self._set_track_playing_status(old_track_id, False)
+
+        # Add playing indicator to new track
+        if new_track_id is not None:
+            self._set_track_playing_status(new_track_id, True)
+
+    def _update_playing_icon_state(self):
+        """Update the playing/paused icon for current track."""
+        if self._current_playing_track_id is not None:
+            self._set_track_playing_status(self._current_playing_track_id, True, update_icon_only=True)
+
+    def _set_track_playing_status(self, track_id: int, is_playing: bool, update_icon_only: bool = False):
+        """Set the playing status for a specific track in the table."""
+        from PySide6.QtGui import QFont, QBrush, QColor
+
+        # Find the row with this track
+        for row in range(self._tracks_table.rowCount()):
+            title_item = self._tracks_table.item(row, 0)
+            if title_item:
+                item_track_id = title_item.data(Qt.UserRole)
+                if item_track_id == track_id:
+                    # Get the original title without icon
+                    current_text = title_item.text()
+                    # Remove any existing icons
+                    original_title = current_text.replace("▶️ ", "").replace("⏸️ ", "")
+
+                    if is_playing:
+                        # Determine which icon to show
+                        if self._player.engine.state == PlayerState.PLAYING:
+                            icon = "▶️ "
+                        else:
+                            icon = "⏸️ "
+
+                        new_text = f"{icon}{original_title}"
+
+                        # Update text
+                        title_item.setText(new_text)
+
+                        # Update font and color
+                        if not update_icon_only:
+                            font = title_item.font()
+                            font.setBold(True)
+                            title_item.setFont(font)
+                            title_item.setForeground(QBrush(QColor("#1db954")))
+                    else:
+                        # Remove playing indicator
+                        title_item.setText(original_title)
+
+                        # Reset font and color
+                        if not update_icon_only:
+                            font = title_item.font()
+                            font.setBold(False)
+                            title_item.setFont(font)
+                            title_item.setForeground(QBrush(QColor("#e0e0e0")))
+                    break
+
+    def _scroll_to_playing_track(self):
+        """Scroll to the currently playing track."""
+        if self._current_playing_track_id is None:
+            return
+
+        # Find the row with the current playing track
+        for row in range(self._tracks_table.rowCount()):
+            title_item = self._tracks_table.item(row, 0)
+            if title_item:
+                track_id = title_item.data(Qt.UserRole)
+                if track_id == self._current_playing_track_id:
+                    # Select the row
+                    self._tracks_table.selectRow(row)
+                    # Scroll to the item
+                    self._tracks_table.scrollToItem(title_item)
+                    break
+
+    def _select_track_by_id(self, track_id: int):
+        """
+        Select a track by its ID.
+
+        Args:
+            track_id: Track ID to select
+        """
+        # Find the row with the track
+        for row in range(self._tracks_table.rowCount()):
+            title_item = self._tracks_table.item(row, 0)
+            if title_item:
+                item_track_id = title_item.data(Qt.UserRole)
+                if item_track_id == track_id:
+                    # Clear previous selection
+                    self._tracks_table.clearSelection()
+                    # Select the row
+                    self._tracks_table.selectRow(row)
+                    break
 
     def _on_item_double_clicked(self, item: QTableWidgetItem):
         """Handle item double click."""

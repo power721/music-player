@@ -20,6 +20,7 @@ from PySide6.QtGui import QFont, QAction, QColor, QBrush
 from typing import List
 
 from player import PlayerController
+from player.engine import PlayerState
 from utils import format_duration
 
 
@@ -59,11 +60,36 @@ class QueueView(QWidget):
         header_layout.setSpacing(10)
 
         title = QLabel("🎶 Play Queue")
-        title.setStyleSheet("""
-            color: #1db954;
-            font-size: 24px;
-            font-weight: bold;
-        """)
+
+        # Set emoji-supporting font for title
+        from PySide6.QtGui import QFontDatabase, QFont
+        emoji_fonts = [
+            "Segoe UI Emoji",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Symbola",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        ]
+        available_families = QFontDatabase.families()
+        emoji_font = None
+        for font_name in emoji_fonts:
+            if any(font_name.lower() in f.lower() for f in available_families):
+                emoji_font = font_name
+                break
+
+        if emoji_font:
+            title_font = QFont()
+            title_font.setFamily(emoji_font)
+            title_font.setPointSize(24)
+            title_font.setBold(True)
+            title.setFont(title_font)
+        else:
+            title.setStyleSheet("""
+                color: #1db954;
+                font-size: 24px;
+                font-weight: bold;
+            """)
         header_layout.addWidget(title)
 
         header_layout.addStretch()
@@ -185,6 +211,9 @@ class QueueView(QWidget):
         self._player.engine.current_track_changed.connect(
             self._on_current_track_changed
         )
+        self._player.engine.state_changed.connect(
+            self._on_player_state_changed
+        )
 
     def _start_auto_refresh(self):
         """Start auto-refresh timer."""
@@ -199,6 +228,7 @@ class QueueView(QWidget):
         # Get current playlist from engine
         playlist = self._player.engine.playlist
         current_index = self._player.engine.current_index
+        is_playing = self._player.engine.state == PlayerState.PLAYING
 
         # Save current selection
         selected_items = self._queue_list.selectedItems()
@@ -214,8 +244,13 @@ class QueueView(QWidget):
             title = track.get("title", "Unknown")
             artist = track.get("artist", "Unknown")
 
-            # Create item with formatted text
-            item_text = f"{i + 1}. {title} - {artist}"
+            # Add play/pause icon for current track
+            if i == current_index:
+                icon = "▶️ " if is_playing else "⏸️ "
+                item_text = f"{i + 1}. {icon}{title} - {artist}"
+            else:
+                item_text = f"{i + 1}. {title} - {artist}"
+
             item = QListWidgetItem(item_text)
             item.setData(Qt.UserRole, track)
 
@@ -240,32 +275,88 @@ class QueueView(QWidget):
         # Update current track styling
         self._update_current_track_indicator()
 
+        # Scroll to current track after a short delay
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(100, self._scroll_to_current_track)
+
         # Update status
         self._status_label.setText(f"{len(playlist)} tracks in queue")
 
     def _update_current_track_indicator(self):
         """Update the visual indicator for current track."""
         current_index = self._player.engine.current_index
+        is_playing = self._player.engine.state == PlayerState.PLAYING
 
         for i in range(self._queue_list.count()):
             item = self._queue_list.item(i)
+            track = item.data(Qt.UserRole)
+
             if i == current_index:
                 item.setBackground(QColor("#1db954"))
                 item.setForeground(QColor("#000000"))
+
+                # Update the text with play/pause icon
+                if track and isinstance(track, dict):
+                    title = track.get("title", "Unknown")
+                    artist = track.get("artist", "Unknown")
+                    icon = "▶️ " if is_playing else "⏸️ "
+                    item_text = f"{i + 1}. {icon}{title} - {artist}"
+                    item.setText(item_text)
             else:
                 item.setBackground(Qt.transparent)
                 item.setForeground(QColor("#e0e0e0"))
+
+                # Remove icon if it was previously added
+                if track and isinstance(track, dict):
+                    title = track.get("title", "Unknown")
+                    artist = track.get("artist", "Unknown")
+                    # Check if text has icon and remove it
+                    current_text = item.text()
+                    if "▶️ " in current_text or "⏸️ " in current_text:
+                        item_text = f"{i + 1}. {title} - {artist}"
+                        item.setText(item_text)
 
     def _on_current_track_changed(self, track_dict):
         """Handle current track change."""
         self._update_current_track_indicator()
 
-        # Scroll to current track
+        # Scroll to current track with delay to ensure UI is updated
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(100, self._scroll_to_current_track)
+
+    def _scroll_to_current_track(self):
+        """Scroll to the current playing track."""
         current_index = self._player.engine.current_index
         if 0 <= current_index < self._queue_list.count():
-            self._queue_list.scrollToItem(
-                self._queue_list.item(current_index), QListWidget.PositionAtCenter
-            )
+            item = self._queue_list.item(current_index)
+            if item:
+                self._queue_list.scrollToItem(item, QListWidget.PositionAtCenter)
+
+    def _select_track_by_id(self, track_id: int):
+        """
+        Select a track by its ID.
+
+        Args:
+            track_id: Track ID to select
+        """
+        # Find the item with the track
+        for i in range(self._queue_list.count()):
+            item = self._queue_list.item(i)
+            if item:
+                track = item.data(Qt.UserRole)
+                if track and isinstance(track, dict):
+                    item_track_id = track.get("id")
+                    if item_track_id == track_id:
+                        # Clear previous selection
+                        self._queue_list.clearSelection()
+                        # Select the item
+                        item.setSelected(True)
+                        break
+
+    def _on_player_state_changed(self, state: PlayerState):
+        """Handle player state change (play/pause)."""
+        # Update the play/pause icon
+        self._update_current_track_indicator()
 
     def _on_rows_moved(self):
         """Handle row move (drag and drop reorder)."""

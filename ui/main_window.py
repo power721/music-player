@@ -136,6 +136,8 @@ class MainWindow(QMainWindow):
 
     def _create_sidebar(self) -> QWidget:
         """Create the sidebar navigation."""
+        from PySide6.QtGui import QFontDatabase, QFont
+
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
 
@@ -143,10 +145,35 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 20, 10, 10)
         layout.setSpacing(5)
 
+        # Get emoji-supporting font
+        emoji_fonts = [
+            "Segoe UI Emoji",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Symbola",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        ]
+        available_families = QFontDatabase.families()
+        emoji_font = None
+        for font_name in emoji_fonts:
+            if any(font_name.lower() in f.lower() for f in available_families):
+                emoji_font = font_name
+                break
+
         # Logo
         logo_label = QLabel("🎵 Harmony")
         logo_label.setObjectName("logo")
         logo_label.setAlignment(Qt.AlignCenter)
+
+        # Set emoji font for logo
+        if emoji_font:
+            logo_font = QFont()
+            logo_font.setFamily(emoji_font)
+            logo_font.setPointSize(16)
+            logo_font.setBold(True)
+            logo_label.setFont(logo_font)
+
         layout.addWidget(logo_label)
 
         layout.addSpacing(20)
@@ -176,31 +203,32 @@ class MainWindow(QMainWindow):
             }
         """
 
-        self._nav_library = QPushButton("🎼 Library")
-        self._nav_library.setCheckable(True)
+        # Create navigation buttons with emoji font
+        nav_buttons = [
+            ("_nav_library", "🎼 Library"),
+            ("_nav_playlists", "📋 Playlists"),
+            ("_nav_queue", "🎶 Queue"),
+            ("_nav_favorites", "⭐ Favorites"),
+            ("_nav_history", "🕐 History"),
+        ]
+
+        for attr_name, text in nav_buttons:
+            btn = QPushButton(text)
+            btn.setCheckable(True)
+
+            # Set emoji font
+            if emoji_font:
+                btn_font = QFont()
+                btn_font.setFamily(emoji_font)
+                btn_font.setPointSize(14)
+                btn.setFont(btn_font)
+
+            btn.setStyleSheet(nav_style)
+            setattr(self, attr_name, btn)
+            layout.addWidget(btn)
+
+        # Set library as checked
         self._nav_library.setChecked(True)
-        self._nav_library.setStyleSheet(nav_style)
-        layout.addWidget(self._nav_library)
-
-        self._nav_playlists = QPushButton("📋 Playlists")
-        self._nav_playlists.setCheckable(True)
-        self._nav_playlists.setStyleSheet(nav_style)
-        layout.addWidget(self._nav_playlists)
-
-        self._nav_queue = QPushButton("🎶 Queue")
-        self._nav_queue.setCheckable(True)
-        self._nav_queue.setStyleSheet(nav_style)
-        layout.addWidget(self._nav_queue)
-
-        self._nav_favorites = QPushButton("⭐ Favorites")
-        self._nav_favorites.setCheckable(True)
-        self._nav_favorites.setStyleSheet(nav_style)
-        layout.addWidget(self._nav_favorites)
-
-        self._nav_history = QPushButton("🕐 History")
-        self._nav_history.setCheckable(True)
-        self._nav_history.setStyleSheet(nav_style)
-        layout.addWidget(self._nav_history)
 
         layout.addStretch()
 
@@ -527,6 +555,15 @@ class MainWindow(QMainWindow):
         # Reset lyric line tracking
         self._current_lyric_line = None
         self._lyric_line_anchors = {}
+
+        # Sync selection in both library and queue views
+        if track_dict:
+            track_id = track_dict.get("id")
+            if track_id:
+                # Select in library view
+                self._library_view._select_track_by_id(track_id)
+                # Select in queue view (if it exists in queue)
+                self._queue_view._select_track_by_id(track_id)
 
         if not track_dict:
             self._lyrics_browser.setHtml(

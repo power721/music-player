@@ -39,6 +39,20 @@ class PlayerControls(QWidget):
         self._position_timer.timeout.connect(self._update_position_display)
         self._position_timer.start(100)
 
+        # Initialize favorite button state if there's a current track
+        QTimer.singleShot(0, self._initialize_favorite_button)
+
+    def _initialize_favorite_button(self):
+        """Initialize favorite button state based on current track."""
+        current_track = self._player.engine.current_track
+        if current_track:
+            track_id = current_track.get('id')
+            if track_id:
+                is_fav = self._player.is_favorite(track_id)
+                self._favorite_btn.setChecked(is_fav)
+                self._favorite_btn.setText('☆')
+                self._update_favorite_button_style(is_fav)
+
     def _setup_ui(self):
         """Setup the user interface."""
         self.setObjectName('playerControls')
@@ -151,6 +165,7 @@ class PlayerControls(QWidget):
         # Shuffle button
         self._shuffle_btn = self._create_control_button('🔀')
         self._shuffle_btn.setCheckable(True)
+        self._shuffle_btn.setFixedSize(40, 40)
         controls_layout.addWidget(self._shuffle_btn)
 
         controls_layout.addStretch()
@@ -176,6 +191,7 @@ class PlayerControls(QWidget):
         # Repeat button
         self._repeat_btn = self._create_control_button('🔁')
         self._repeat_btn.setCheckable(True)
+        self._repeat_btn.setFixedSize(40, 40)
         controls_layout.addWidget(self._repeat_btn)
 
         layout.addLayout(controls_layout)
@@ -214,30 +230,34 @@ class PlayerControls(QWidget):
         return widget
 
     def _create_control_button(self, text: str) -> QPushButton:
-        """Create a control button with styling."""
+        """Create a control button with emoji support."""
         btn = QPushButton(text)
         btn.setObjectName('controlBtn')
         btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet("""
-            QPushButton#controlBtn {
-                background: transparent;
-                border: none;
-                color: #b3b3b3;
-                font-size: 18px;
-            }
-            QPushButton#controlBtn:hover {
-                color: #ffffff;
-            }
-            QPushButton#playPauseBtn {
-                background: #ffffff;
-                border-radius: 22px;
-                color: #000000;
-                font-size: 20px;
-            }
-            QPushButton#playPauseBtn:hover {
-                transform: scale(1.05);
-            }
-        """)
+        # Use a font that supports emoji
+        from PySide6.QtGui import QFontDatabase, QFont
+        font = QFont()
+        # Try common emoji-supporting fonts in order
+        emoji_fonts = [
+            "Segoe UI Emoji",
+            "Apple Color Emoji",
+            "Noto Color Emoji",
+            "Symbola",
+            "Arial Unicode MS",
+            "DejaVu Sans",
+        ]
+        # Get available font families
+        available_families = QFontDatabase.families()
+        # Find first available emoji font
+        for emoji_font in emoji_fonts:
+            if any(emoji_font.lower() in f.lower() for f in available_families):
+                font.setFamily(emoji_font)
+                break
+        else:
+            # Fallback to system default
+            font = btn.font()
+        font.setPointSize(18)
+        btn.setFont(font)
         return btn
 
     def _apply_styles(self):
@@ -247,21 +267,50 @@ class PlayerControls(QWidget):
                 background-color: #181818;
                 border-top: 1px solid #282828;
             }
+            QPushButton#controlBtn {
+                background: transparent;
+                border: none;
+                color: #b3b3b3;
+            }
+            QPushButton#controlBtn:hover {
+                color: #ffffff;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+            }
+            QPushButton#controlBtn[active="true"] {
+                color: #1db954;
+            }
+            QPushButton#controlBtn[active="true"]:hover {
+                color: #1ed760;
+            }
+            QPushButton#playPauseBtn {
+                background: #ffffff;
+                border-radius: 22px;
+                color: #000000;
+                font-size: 22px;
+            }
+            QPushButton#playPauseBtn:hover {
+                background: #1db954;
+                color: #000000;
+            }
             QPushButton#favoriteBtn {
                 background: transparent;
                 border: 2px solid #b3b3b3;
                 color: #b3b3b3;
                 border-radius: 20px;
-                font-size: 20px;
+                font-size: 28px;
             }
             QPushButton#favoriteBtn:hover {
-                border-color: #1db954;
-                color: #1db954;
+                border-color: #ff4444;
+                color: #ff4444;
             }
             QPushButton#favoriteBtn:checked {
-                background-color: #1db954;
-                border-color: #1db954;
+                background-color: #ff4444;
+                border-color: #ff4444;
                 color: #ffffff;
+            }
+            QPushButton#favoriteBtn:checked:hover {
+                background-color: #ff6666;
             }
             QSlider#progressSlider::groove:horizontal {
                 height: 4px;
@@ -317,6 +366,37 @@ class PlayerControls(QWidget):
         self._player.engine.position_changed.connect(self._on_position_changed)
         self._player.engine.duration_changed.connect(self._on_duration_changed)
         self._player.engine.current_track_changed.connect(self._on_track_changed)
+
+        # Sync button states with current player mode
+        self._sync_button_states()
+
+    def _sync_button_states(self):
+        """Sync button states with current player mode."""
+        current_mode = self._player.engine.play_mode
+
+        # Sync shuffle button
+        if current_mode in (PlayMode.RANDOM, PlayMode.RANDOM_LOOP, PlayMode.RANDOM_TRACK_LOOP):
+            self._shuffle_btn.setChecked(True)
+            self._shuffle_btn.setText('🔀')
+            self._update_button_style(self._shuffle_btn, active=True)
+        else:
+            self._shuffle_btn.setChecked(False)
+            self._shuffle_btn.setText('🔀')
+            self._update_button_style(self._shuffle_btn, active=False)
+
+        # Sync repeat button
+        if current_mode in (PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM_LOOP):
+            self._repeat_btn.setChecked(True)
+            self._repeat_btn.setText('🔁')
+            self._update_button_style(self._repeat_btn, active=True)
+        elif current_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
+            self._repeat_btn.setChecked(True)
+            self._repeat_btn.setText('🔂')
+            self._update_button_style(self._repeat_btn, active=True)
+        else:
+            self._repeat_btn.setChecked(False)
+            self._repeat_btn.setText('🔁')
+            self._update_button_style(self._repeat_btn, active=False)
 
     def _toggle_play_pause(self):
         """Toggle play/pause."""
@@ -384,39 +464,139 @@ class PlayerControls(QWidget):
         """Toggle favorite status."""
         is_fav = self._player.toggle_favorite()
         self._favorite_btn.setChecked(is_fav)
-        self._favorite_btn.setText('⭐' if is_fav else '☆')
+        self._favorite_btn.setText('☆')
+        self._update_favorite_button_style(is_fav)
+
+    def _update_favorite_button_style(self, is_favorite: bool):
+        """Update favorite button style based on favorite status."""
+        if is_favorite:
+            # Red style for favorited tracks
+            self._favorite_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #ff4444;
+                    border: 2px solid #ff4444;
+                    color: #ffffff;
+                    border-radius: 20px;
+                    font-size: 28px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #ff6666;
+                    border-color: #ff6666;
+                }
+            """)
+        else:
+            # Default style (clear to use stylesheet)
+            self._favorite_btn.setStyleSheet("""
+                QPushButton {
+                    background: transparent;
+                    border: 2px solid #b3b3b3;
+                    color: #b3b3b3;
+                    border-radius: 20px;
+                    font-size: 28px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    border-color: #ff4444;
+                    color: #ff4444;
+                }
+            """)
 
     def _toggle_shuffle(self):
         """Toggle shuffle mode."""
+        current_mode = self._player.engine.play_mode
+
         if self._shuffle_btn.isChecked():
-            self._player.engine.set_play_mode(PlayMode.RANDOM)
-            self._shuffle_btn.setStyleSheet(self._shuffle_btn.styleSheet() + " color: #1db954;")
+            # Enable shuffle - preserve current loop state
+            if current_mode == PlayMode.PLAYLIST_LOOP:
+                # Switch to random + playlist loop
+                self._player.engine.set_play_mode(PlayMode.RANDOM_LOOP)
+            elif current_mode == PlayMode.LOOP:
+                # Switch to random + track loop
+                self._player.engine.set_play_mode(PlayMode.RANDOM_TRACK_LOOP)
+            elif current_mode == PlayMode.SEQUENTIAL:
+                # Switch to random
+                self._player.engine.set_play_mode(PlayMode.RANDOM)
+            # Already in a random mode, no change needed
+            self._shuffle_btn.setText('🔀')
+            self._update_button_style(self._shuffle_btn, active=True)
         else:
-            self._player.engine.set_play_mode(PlayMode.SEQUENTIAL)
-            self._shuffle_btn.setStyleSheet(self._shuffle_btn.styleSheet().replace(" color: #1db954;", ""))
+            # Disable shuffle - preserve loop state
+            if current_mode == PlayMode.RANDOM_LOOP:
+                self._player.engine.set_play_mode(PlayMode.PLAYLIST_LOOP)
+            elif current_mode == PlayMode.RANDOM_TRACK_LOOP:
+                self._player.engine.set_play_mode(PlayMode.LOOP)
+            elif current_mode == PlayMode.RANDOM:
+                self._player.engine.set_play_mode(PlayMode.SEQUENTIAL)
+            self._shuffle_btn.setText('🔀')
+            self._update_button_style(self._shuffle_btn, active=False)
+
+    def _update_button_style(self, button: QPushButton, active: bool):
+        """Update button style based on active state."""
+        from PySide6.QtGui import QPalette
+
+        if active:
+            # Set white background and green color for active state
+            button.setStyleSheet("""
+                QPushButton {
+                    background: #ffffff;
+                    border: none;
+                    color: #1db954;
+                    border-radius: 6px;
+                    padding: 0px;
+                }
+                QPushButton:hover {
+                    color: #1ed760;
+                    background: #ffffff;
+                }
+            """)
+        else:
+            # Clear inline style to use default from stylesheet
+            button.setStyleSheet("")
 
     def _toggle_repeat(self):
         """Toggle repeat mode."""
         current_mode = self._player.engine.play_mode
 
         if current_mode == PlayMode.SEQUENTIAL:
+            # Sequential -> Playlist Loop
             self._player.engine.set_play_mode(PlayMode.PLAYLIST_LOOP)
             self._repeat_btn.setText('🔁')
             self._repeat_btn.setChecked(True)
+            self._update_button_style(self._repeat_btn, active=True)
         elif current_mode == PlayMode.PLAYLIST_LOOP:
+            # Playlist Loop -> Track Loop
             self._player.engine.set_play_mode(PlayMode.LOOP)
             self._repeat_btn.setText('🔂')
-        else:
+        elif current_mode == PlayMode.LOOP:
+            # Track Loop -> Sequential
             self._player.engine.set_play_mode(PlayMode.SEQUENTIAL)
             self._repeat_btn.setText('🔁')
             self._repeat_btn.setChecked(False)
+            self._update_button_style(self._repeat_btn, active=False)
+        elif current_mode == PlayMode.RANDOM:
+            # Random -> Random + Playlist Loop
+            self._player.engine.set_play_mode(PlayMode.RANDOM_LOOP)
+            self._repeat_btn.setText('🔁')
+            self._repeat_btn.setChecked(True)
+            self._update_button_style(self._repeat_btn, active=True)
+        elif current_mode == PlayMode.RANDOM_LOOP:
+            # Random Loop -> Random + Track Loop
+            self._player.engine.set_play_mode(PlayMode.RANDOM_TRACK_LOOP)
+            self._repeat_btn.setText('🔂')
+        elif current_mode == PlayMode.RANDOM_TRACK_LOOP:
+            # Random Track Loop -> Random
+            self._player.engine.set_play_mode(PlayMode.RANDOM)
+            self._repeat_btn.setText('🔁')
+            self._repeat_btn.setChecked(False)
+            self._update_button_style(self._repeat_btn, active=False)
 
     def _on_state_changed(self, state: PlayerState):
         """Handle player state change."""
         if state == PlayerState.PLAYING:
             self._play_pause_btn.setText('⏸')
         else:
-            self._play_pause_btn.setText('▶️')
+            self._play_pause_btn.setText('▶')
 
     def _on_position_changed(self, position_ms: int):
         """Handle position change."""
@@ -447,7 +627,8 @@ class PlayerControls(QWidget):
             if track_id:
                 is_fav = self._player.is_favorite(track_id)
                 self._favorite_btn.setChecked(is_fav)
-                self._favorite_btn.setText('⭐' if is_fav else '☆')
+                self._favorite_btn.setText('☆')
+                self._update_favorite_button_style(is_fav)
 
             # Clear cover immediately, load in background
             self._cover_label.clear()
@@ -457,6 +638,10 @@ class PlayerControls(QWidget):
             self._title_label.setText('Not Playing')
             self._artist_label.setText('')
             self._cover_label.clear()
+            # Reset favorite button style
+            self._favorite_btn.setChecked(False)
+            self._favorite_btn.setText('☆')
+            self._update_favorite_button_style(False)
 
     def _load_cover_art_async(self, track_dict: dict):
         """Load cover art in background thread."""

@@ -9,6 +9,7 @@ from PySide6.QtCore import QUrl
 from .engine import PlayerEngine, PlayMode, PlayerState
 from database import DatabaseManager, Track
 from services import MetadataService
+from utils import ConfigManager
 
 
 class PlayerController:
@@ -28,6 +29,7 @@ class PlayerController:
         """
         self._db = db_manager
         self._engine = PlayerEngine()
+        self._config = ConfigManager()
 
         # Store current track ID for history
         self._current_track_id: Optional[int] = None
@@ -35,6 +37,11 @@ class PlayerController:
         # Connect engine signals
         self._engine.current_track_changed.connect(self._on_track_changed)
         self._engine.position_changed.connect(self._on_position_changed)
+        self._engine.play_mode_changed.connect(self._on_play_mode_changed)
+        self._engine.volume_changed.connect(self._on_volume_changed)
+
+        # Restore saved settings
+        self._restore_settings()
 
     @property
     def engine(self) -> PlayerEngine:
@@ -286,6 +293,40 @@ class PlayerController:
         """
         Handle position change.
         """
+
+    def _on_play_mode_changed(self, mode: PlayMode):
+        """
+        Handle play mode change and save to config.
+
+        Args:
+            mode: New play mode
+        """
+        # Save the integer value of the enum
+        self._config.set_play_mode(mode.value)
+
+    def _on_volume_changed(self, volume: int):
+        """
+        Handle volume change and save to config.
+
+        Args:
+            volume: New volume level (0-100)
+        """
+        self._config.set_volume(volume)
+
+    def _restore_settings(self):
+        """Restore saved settings from config."""
+        # Restore play mode (convert int to PlayMode)
+        saved_mode_int = self._config.get_play_mode()
+        try:
+            saved_mode = PlayMode(saved_mode_int)
+            self._engine.set_play_mode(saved_mode)
+        except ValueError:
+            # Invalid mode, use default
+            self._engine.set_play_mode(PlayMode.SEQUENTIAL)
+
+        # Restore volume
+        saved_volume = self._config.get_volume()
+        self._engine.set_volume(saved_volume)
 
     def toggle_favorite(self, track_id: int = None) -> bool:
         """

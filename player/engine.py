@@ -13,6 +13,8 @@ class PlayMode(Enum):
     LOOP = 1        # Loop the current track
     PLAYLIST_LOOP = 2  # Loop the entire playlist
     RANDOM = 3      # Random playback
+    RANDOM_LOOP = 4 # Random playback with playlist loop
+    RANDOM_TRACK_LOOP = 5  # Random playback with track loop
 
 
 class PlayerState(Enum):
@@ -42,6 +44,7 @@ class PlayerEngine(QObject):
     volume_changed = Signal(int)
     track_finished = Signal()
     error_occurred = Signal(str)
+    play_mode_changed = Signal(PlayMode)  # Emitted when play mode changes
 
     def __init__(self, parent=None):
         """Initialize the player engine."""
@@ -189,14 +192,14 @@ class PlayerEngine(QObject):
         if not self._playlist:
             return
 
-        if self._play_mode == PlayMode.RANDOM:
+        if self._play_mode in (PlayMode.RANDOM, PlayMode.RANDOM_LOOP):
             import random
             self._current_index = random.randint(0, len(self._playlist) - 1)
         else:
             self._current_index += 1
 
         if self._current_index >= len(self._playlist):
-            if self._play_mode == PlayMode.PLAYLIST_LOOP:
+            if self._play_mode in (PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM_LOOP):
                 self._current_index = 0
             else:
                 self._current_index = len(self._playlist) - 1
@@ -216,7 +219,7 @@ class PlayerEngine(QObject):
         else:
             self._current_index -= 1
             if self._current_index < 0:
-                if self._play_mode == PlayMode.PLAYLIST_LOOP:
+                if self._play_mode in (PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM_LOOP):
                     self._current_index = len(self._playlist) - 1
                 else:
                     self._current_index = 0
@@ -261,6 +264,7 @@ class PlayerEngine(QObject):
             mode: PlayMode to set
         """
         self._play_mode = mode
+        self.play_mode_changed.emit(mode)
 
     def _load_track(self, index: int):
         """Load a track for playback."""
@@ -293,10 +297,12 @@ class PlayerEngine(QObject):
             self.track_finished.emit()
 
             # Auto-play next based on mode
-            if self._play_mode == PlayMode.LOOP:
+            if self._play_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
+                # Track loop modes
                 self.seek(0)
                 self.play()
-            elif self._play_mode in (PlayMode.SEQUENTIAL, PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM):
+            elif self._play_mode in (PlayMode.SEQUENTIAL, PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM, PlayMode.RANDOM_LOOP):
+                # Modes that advance to next track
                 self.play_next()
 
     def _on_error(self, error, error_string):
