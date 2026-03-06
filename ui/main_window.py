@@ -839,17 +839,51 @@ class MainWindow(QMainWindow):
         text_edit = QTextEdit()
         text_edit.setPlaceholderText(t("enter_lyrics_here"))
 
-        # Load existing lyrics if available
-        lyrics = LyricsService.get_lyrics(track.path, track.title, track.artist)
-        if lyrics:
-            # Format as LRC
-            lrc_lines = []
-            for time, text in lyrics:
-                minutes = int(time // 60)
-                seconds = int(time % 60)
-                milliseconds = int((time % 1) * 100)
-                lrc_lines.append(f"[{minutes:02d}:{seconds:02d}.{milliseconds:02d}]{text}")
-            text_edit.setPlainText('\n'.join(lrc_lines))
+        # Load existing lyrics if available (read directly from file to ensure fresh content)
+        from pathlib import Path
+
+        track_file = Path(track.path)
+        lrc_path = track_file.with_suffix('.lrc')
+
+        lyrics_content = None
+
+        # Try multiple encodings
+        encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'big5', 'utf-16']
+
+        # Try main location first
+        if lrc_path.exists():
+            for encoding in encodings:
+                try:
+                    with open(lrc_path, 'r', encoding=encoding) as f:
+                        lyrics_content = f.read()
+                    print(f"Loaded lyrics from {lrc_path} with {encoding} encoding")
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+                except Exception as e:
+                    print(f"Error reading {lrc_path}: {e}")
+                    break
+
+        # Try alternative location
+        if not lyrics_content:
+            lyrics_dir = track_file.parent / 'lyrics'
+            alt_lrc_path = lyrics_dir / f"{track_file.stem}.lrc"
+            if alt_lrc_path.exists():
+                for encoding in encodings:
+                    try:
+                        with open(alt_lrc_path, 'r', encoding=encoding) as f:
+                            lyrics_content = f.read()
+                        print(f"Loaded lyrics from {alt_lrc_path} with {encoding} encoding")
+                        break
+                    except (UnicodeDecodeError, UnicodeError):
+                        continue
+                    except Exception as e:
+                        print(f"Error reading {alt_lrc_path}: {e}")
+                        break
+
+        # Load lyrics into editor if found
+        if lyrics_content and lyrics_content.strip():
+            text_edit.setPlainText(lyrics_content)
 
         layout.addWidget(text_edit)
 

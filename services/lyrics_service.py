@@ -83,12 +83,19 @@ class LyricsService:
             lrc_path = lyrics_dir / f"{track_file.stem}.lrc"
 
         if lrc_path.exists():
-            try:
-                with open(lrc_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                return parse_lrc(content)
-            except Exception as e:
-                print(f"Error loading local lyrics: {e}")
+            # Try multiple encodings to support different file sources
+            encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'big5', 'utf-16']
+
+            for encoding in encodings:
+                try:
+                    with open(lrc_path, 'r', encoding=encoding) as f:
+                        content = f.read()
+                    return parse_lrc(content)
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+                except Exception as e:
+                    print(f"Error loading local lyrics: {e}")
+                    break
 
         return None
 
