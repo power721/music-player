@@ -88,14 +88,14 @@ class PlaylistView(QWidget):
         layout.setSpacing(10)
 
         # Title
-        title = QLabel("📋 " + t("playlists"))
-        title.setStyleSheet("""
+        self._playlist_list_title = QLabel("📋 " + t("playlists"))
+        self._playlist_list_title.setStyleSheet("""
             color: #1db954;
             font-size: 20px;
             font-weight: bold;
             margin-bottom: 10px;
         """)
-        layout.addWidget(title)
+        layout.addWidget(self._playlist_list_title)
 
         # New playlist button
         self._new_playlist_btn = QPushButton(t("new_playlist"))
@@ -326,6 +326,28 @@ class PlaylistView(QWidget):
             item = QListWidgetItem(playlist.name)
             item.setData(Qt.UserRole, playlist.id)
             self._playlist_list.addItem(item)
+
+        # Update UI texts
+        self._update_ui_texts()
+
+    def _update_ui_texts(self):
+        """Update UI texts after language change."""
+        # Update playlist list title
+        self._playlist_list_title.setText("📋 " + t("playlists"))
+
+        # Update playlist title label in content panel
+        if not self._current_playlist_id:
+            self._playlist_title.setText(t("select_playlist_placeholder"))
+
+        # Update button texts
+        self._new_playlist_btn.setText(t("new_playlist"))
+        self._play_playlist_btn.setText(t("play"))
+        self._delete_playlist_btn.setText("🗑️ " + t("delete_playlist"))
+
+        # Update table headers
+        self._tracks_table.setHorizontalHeaderLabels(
+            [t("title"), t("artist"), t("album"), t("duration")]
+        )
 
     def _create_playlist(self):
         """Create a new playlist."""

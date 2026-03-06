@@ -280,10 +280,10 @@ class MainWindow(QMainWindow):
         # Title with download button
         title_layout = QHBoxLayout()
 
-        title = QLabel(t("lyrics"))
-        title.setObjectName("lyricsTitle")
-        title.setAlignment(Qt.AlignLeft)
-        title_layout.addWidget(title)
+        self._lyrics_title = QLabel(t("lyrics"))
+        self._lyrics_title.setObjectName("lyricsTitle")
+        self._lyrics_title.setAlignment(Qt.AlignLeft)
+        title_layout.addWidget(self._lyrics_title)
 
         title_layout.addStretch()
 
@@ -559,7 +559,8 @@ class MainWindow(QMainWindow):
         self._add_music_btn.setText(t("add_music"))
 
         # Update lyrics panel
-        # (labels will be refreshed when track changes)
+        self._lyrics_title.setText(t("lyrics"))
+        self._download_lyrics_btn.setText(t("download"))
 
         # Refresh views
         self._library_view.refresh()

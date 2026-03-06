@@ -62,39 +62,17 @@ class QueueView(QWidget):
         header_layout.setContentsMargins(0, 10, 0, 10)
         header_layout.setSpacing(10)
 
-        title = QLabel(t("play_queue"))
-
-        # Set emoji-supporting font for title
-        from PySide6.QtGui import QFontDatabase, QFont
-
-        emoji_fonts = [
-            "Segoe UI Emoji",
-            "Apple Color Emoji",
-            "Noto Color Emoji",
-            "Symbola",
-            "Arial Unicode MS",
-            "DejaVu Sans",
-        ]
-        available_families = QFontDatabase.families()
-        emoji_font = None
-        for font_name in emoji_fonts:
-            if any(font_name.lower() in f.lower() for f in available_families):
-                emoji_font = font_name
-                break
-
-        if emoji_font:
-            title_font = QFont()
-            title_font.setFamily(emoji_font)
-            title_font.setPointSize(24)
-            title_font.setBold(True)
-            title.setFont(title_font)
-        else:
-            title.setStyleSheet("""
+        self._title_label = QLabel(t("play_queue"))
+        self._title_label.setObjectName("queueTitle")
+        self._title_label.setStyleSheet("""
+            QLabel#queueTitle {
                 color: #1db954;
-                font-size: 24px;
+                font-size: 28px;
                 font-weight: bold;
-            """)
-        header_layout.addWidget(title)
+                padding: 10px;
+            }
+        """)
+        header_layout.addWidget(self._title_label)
 
         header_layout.addStretch()
 
@@ -125,9 +103,9 @@ class QueueView(QWidget):
         layout.addWidget(self._status_label)
 
         # Add track hint
-        hint = QLabel(t("tip_right_click"))
-        hint.setStyleSheet("color: #606060; font-size: 11px;")
-        layout.addWidget(hint)
+        self._hint_label = QLabel(t("tip_right_click"))
+        self._hint_label.setStyleSheet("color: #606060; font-size: 11px;")
+        layout.addWidget(self._hint_label)
 
         # Apply modern styles
         self.setStyleSheet("""
@@ -276,6 +254,9 @@ class QueueView(QWidget):
 
     def _refresh_queue(self):
         """Refresh the queue display."""
+        # Update UI texts
+        self._update_ui_texts()
+
         # Get current playlist from engine
         playlist = self._player.engine.playlist
         current_index = self._player.engine.current_index
@@ -333,6 +314,21 @@ class QueueView(QWidget):
 
         # Update status
         self._status_label.setText(f"{len(playlist)} {t('tracks_in_queue')}")
+
+    def _update_ui_texts(self):
+        """Update UI texts after language change."""
+        # Update title
+        self._title_label.setText(t("play_queue"))
+
+        # Update clear button
+        self._clear_btn.setText(t("clear_queue"))
+
+        # Update status
+        playlist = self._player.engine.playlist
+        self._status_label.setText(f"{len(playlist)} {t('tracks_in_queue')}")
+
+        # Update hint
+        self._hint_label.setText(t("tip_right_click"))
 
     def _update_current_track_indicator(self):
         """Update the visual indicator for current track."""

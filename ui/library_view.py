@@ -403,6 +403,28 @@ class LibraryView(QWidget):
 
     def refresh(self):
         """Refresh the library view."""
+        # Update UI texts
+        self._search_input.setPlaceholderText(t("search_tracks"))
+
+        # Update filter buttons
+        self._btn_all.setText(t("all_tracks"))
+        self._btn_artists.setText(t("artists"))
+        self._btn_albums.setText(t("albums"))
+
+        # Update table headers
+        self._tracks_table.setHorizontalHeaderLabels(
+            [t("title"), t("artist"), t("album"), t("duration"), ""]
+        )
+
+        # Update title based on current view
+        if self._current_view == "all":
+            self._title_label.setText(t("library"))
+        elif self._current_view == "favorites":
+            self._title_label.setText("⭐ " + t("favorites"))
+        elif self._current_view == "history":
+            self._title_label.setText("🕐 " + t("history"))
+
+        # Reload data
         if self._current_view == "all":
             if self._current_sub_view == "artists":
                 self._load_artists()
