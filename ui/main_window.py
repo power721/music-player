@@ -677,9 +677,25 @@ class MainWindow(QMainWindow):
             }
         """)
 
+        # 下载歌词
         download_action = menu.addAction(t("download_lyrics"))
         download_action.triggered.connect(self._download_lyrics)
 
+        # 手动输入歌词
+        edit_action = menu.addAction(t("edit_lyrics"))
+        edit_action.triggered.connect(self._edit_lyrics)
+
+        # 删除歌词文件
+        delete_action = menu.addAction(t("delete_lyrics"))
+        delete_action.triggered.connect(self._delete_lyrics)
+
+        menu.addSeparator()
+
+        # 打开文件位置
+        open_location_action = menu.addAction(t("open_file_location"))
+        open_location_action.triggered.connect(self._open_lyrics_file_location)
+
+        # 刷新歌词
         refresh_action = menu.addAction(t("refresh"))
         refresh_action.triggered.connect(self._refresh_lyrics)
 
@@ -697,6 +713,231 @@ class MainWindow(QMainWindow):
                     "id": track.id,
                 }
                 self._on_track_changed(track_dict)
+
+    def _edit_lyrics(self):
+        """Edit lyrics manually."""
+        from PySide6.QtWidgets import (
+            QDialog,
+            QVBoxLayout,
+            QHBoxLayout,
+            QTextEdit,
+            QPushButton,
+            QLabel,
+            QMessageBox,
+        )
+        from services import LyricsService
+        from utils import parse_lrc
+
+        if not self._player.current_track_id:
+            return
+
+        track = self._db.get_track(self._player.current_track_id)
+        if not track:
+            return
+
+        # Create dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle(t("edit_lyrics_title"))
+        dialog.setMinimumSize(600, 500)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #282828;
+                color: #ffffff;
+            }
+            QLabel {
+                color: #ffffff;
+                font-size: 13px;
+            }
+            QTextEdit {
+                background-color: #181818;
+                color: #e0e0e0;
+                border: 1px solid #404040;
+                border-radius: 4px;
+                padding: 10px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 13px;
+            }
+            QPushButton {
+                background-color: #1db954;
+                color: #000000;
+                border: none;
+                padding: 8px 20px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #1ed760;
+            }
+            QPushButton[role="cancel"] {
+                background-color: #404040;
+                color: #ffffff;
+            }
+            QPushButton[role="cancel"]:hover {
+                background-color: #505050;
+            }
+        """)
+
+        layout = QVBoxLayout(dialog)
+
+        # Info label
+        info_label = QLabel(f"{track.title} - {track.artist}")
+        info_label.setStyleSheet("color: #1db954; font-size: 14px; padding: 5px;")
+        layout.addWidget(info_label)
+
+        # Help text
+        help_label = QLabel(t("lyrics_format_help"))
+        help_label.setStyleSheet("color: #808080; font-size: 11px; padding: 5px;")
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+
+        # Text editor
+        text_edit = QTextEdit()
+        text_edit.setPlaceholderText(t("enter_lyrics_here"))
+
+        # Load existing lyrics if available
+        lyrics = LyricsService.get_lyrics(track.path, track.title, track.artist)
+        if lyrics:
+            # Format as LRC
+            lrc_lines = []
+            for time, text in lyrics:
+                minutes = int(time // 60)
+                seconds = int(time % 60)
+                milliseconds = int((time % 1) * 100)
+                lrc_lines.append(f"[{minutes:02d}:{seconds:02d}.{milliseconds:02d}]{text}")
+            text_edit.setPlainText('\n'.join(lrc_lines))
+
+        layout.addWidget(text_edit)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton(t("cancel"))
+        cancel_btn.setProperty("role", "cancel")
+
+        save_btn = QPushButton(t("save"))
+        save_btn.setObjectName("saveBtn")
+
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(save_btn)
+
+        layout.addLayout(button_layout)
+
+        # Save function
+        def save_lyrics():
+            content = text_edit.toPlainText().strip()
+            if not content:
+                QMessageBox.warning(dialog, t("warning"), t("lyrics_cannot_be_empty"))
+                return
+
+            # Parse lyrics
+            parsed_lyrics = parse_lrc(content)
+            if not parsed_lyrics:
+                QMessageBox.warning(dialog, t("warning"), t("invalid_lyrics_format"))
+                return
+
+            # Save lyrics
+            if LyricsService.save_lyrics(track.path, parsed_lyrics):
+                QMessageBox.information(dialog, t("success"), t("lyrics_saved"))
+                # Refresh lyrics display
+                self._refresh_lyrics()
+                dialog.accept()
+            else:
+                QMessageBox.warning(dialog, "Error", t("lyrics_save_failed"))
+
+        save_btn.clicked.connect(save_lyrics)
+        cancel_btn.clicked.connect(dialog.reject)
+
+        dialog.exec()
+
+    def _delete_lyrics(self):
+        """Delete lyrics file."""
+        from PySide6.QtWidgets import QMessageBox
+        from services import LyricsService
+
+        if not self._player.current_track_id:
+            return
+
+        track = self._db.get_track(self._player.current_track_id)
+        if not track:
+            return
+
+        # Check if lyrics file exists
+        if not LyricsService.lyrics_file_exists(track.path):
+            QMessageBox.information(self, t("info"), t("no_lyrics_file_to_delete"))
+            return
+
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            t("confirm_delete_lyrics"),
+            t("confirm_delete_lyrics_message"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            if LyricsService.delete_lyrics(track.path):
+                QMessageBox.information(self, t("success"), t("lyrics_deleted"))
+                # Refresh lyrics display
+                self._refresh_lyrics()
+            else:
+                QMessageBox.warning(self, "Error", t("lyrics_delete_failed"))
+
+    def _open_lyrics_file_location(self):
+        """Open the lyrics file location for the current track."""
+        import platform
+        import subprocess
+        import shutil
+        from pathlib import Path
+        from PySide6.QtWidgets import QMessageBox
+
+        if not self._player.current_track_id:
+            return
+
+        track = self._db.get_track(self._player.current_track_id)
+        if not track:
+            return
+
+        track_file = Path(track.path)
+
+        # Find lyrics file
+        lrc_path = track_file.with_suffix(".lrc")
+
+        if not lrc_path.exists():
+            QMessageBox.information(self, t("info"), t("lyrics_file_not_found"))
+            return
+
+        try:
+            system = platform.system()
+
+            if system == "Windows":
+                subprocess.Popen(["explorer", f"/select,{lrc_path}"])
+
+            elif system == "Darwin":
+                subprocess.Popen(["open", "-R", str(lrc_path)])
+
+            else:
+                # Linux
+                # Try to select file in supported file managers
+                file_managers = {
+                    "nautilus": ["nautilus", "--select", str(lrc_path)],
+                    "dolphin": ["dolphin", "--select", str(lrc_path)],
+                    "caja": ["caja", "--select", str(lrc_path)],
+                    "nemo": ["nemo", str(lrc_path)],
+                }
+
+                for fm, cmd in file_managers.items():
+                    if shutil.which(fm):
+                        subprocess.Popen(cmd)
+                        return
+
+                # fallback
+                subprocess.Popen(["xdg-open", str(lrc_path.parent)])
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"{t('open_file_location_failed')}: {e}")
 
     def _add_to_queue(self, track_ids: list):
         """Add tracks to the play queue."""

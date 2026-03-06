@@ -247,6 +247,63 @@ class LyricsService:
             return False
 
     @classmethod
+    def delete_lyrics(cls, track_path: str) -> bool:
+        """
+        Delete lyrics file for a track.
+
+        Args:
+            track_path: Path to the audio file
+
+        Returns:
+            True if deleted successfully
+        """
+        try:
+            track_file = Path(track_path)
+            lrc_path = track_file.with_suffix('.lrc')
+
+            # Try main location
+            if lrc_path.exists():
+                lrc_path.unlink()
+                return True
+
+            # Try alternative location
+            lyrics_dir = track_file.parent / 'lyrics'
+            alt_lrc_path = lyrics_dir / f"{track_file.stem}.lrc"
+
+            if alt_lrc_path.exists():
+                alt_lrc_path.unlink()
+                return True
+
+            return False
+
+        except Exception as e:
+            print(f"Error deleting lyrics: {e}")
+            return False
+
+    @classmethod
+    def lyrics_file_exists(cls, track_path: str) -> bool:
+        """
+        Check if a lyrics file exists for a track.
+
+        Args:
+            track_path: Path to the audio file
+
+        Returns:
+            True if lyrics file exists
+        """
+        track_file = Path(track_path)
+        lrc_path = track_file.with_suffix('.lrc')
+
+        if lrc_path.exists():
+            return True
+
+        # Try alternative location
+        lyrics_dir = track_file.parent / 'lyrics'
+        alt_lrc_path = lyrics_dir / f"{track_file.stem}.lrc"
+
+        return alt_lrc_path.exists()
+
+    @classmethod
     def get_unsynchronized_lyrics(cls, track_path: str, title: str, artist: str) -> Optional[str]:
         """
         Get plain text (unsynchronized) lyrics.

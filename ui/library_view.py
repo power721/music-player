@@ -1,6 +1,7 @@
 """
 Library view widget for browsing the music library.
 """
+import shutil
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -948,6 +949,10 @@ class LibraryView(QWidget):
         edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
 
+        # Open file location action
+        open_location_action = menu.addAction(t("open_file_location"))
+        open_location_action.triggered.connect(lambda: self._open_file_location())
+
         menu.exec_(self._tracks_table.mapToGlobal(pos))
 
     def _add_selected_to_queue(self):
@@ -1452,3 +1457,64 @@ class LibraryView(QWidget):
         cancel_button.clicked.connect(dialog.reject)
 
         dialog.exec_()
+
+    def _open_file_location(self):
+        """Open the file location in system file manager."""
+        import platform
+        import subprocess
+        from pathlib import Path
+        from PySide6.QtWidgets import QMessageBox
+
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        # Get first selected track
+        track_id = None
+        for item in selected_items:
+            if item.column() == 0:
+                track_id = item.data(Qt.UserRole)
+                break
+
+        if not track_id:
+            return
+
+        track = self._db.get_track(track_id)
+        if not track:
+            return
+
+        file_path = Path(track.path)
+        if not file_path.exists():
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Error", t("file_not_found"))
+            return
+
+        try:
+            system = platform.system()
+
+            if system == "Windows":
+                subprocess.Popen(["explorer", f"/select,{file_path}"])
+
+            elif system == "Darwin":
+                subprocess.Popen(["open", "-R", str(file_path)])
+
+            else:
+                # Linux
+                # Try to select file in supported file managers
+                file_managers = {
+                    "nautilus": ["nautilus", "--select", str(file_path)],
+                    "dolphin": ["dolphin", "--select", str(file_path)],
+                    "caja": ["caja", "--select", str(file_path)],
+                    "nemo": ["nemo", str(file_path)],
+                }
+
+                for fm, cmd in file_managers.items():
+                    if shutil.which(fm):
+                        subprocess.Popen(cmd)
+                        return
+
+                # fallback
+                subprocess.Popen(["xdg-open", str(file_path.parent)])
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"{t('open_file_location_failed')}: {e}")
