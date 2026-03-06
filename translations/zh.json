@@ -98,5 +98,7 @@
     "select_fields_to_update": "请至少选择一个要更新的字段",
     "enter_artist_or_album": "请输入歌手或专辑名称",
     "saving": "保存中",
-    "batch_save_success": "成功更新"
+    "batch_save_success": "成功更新",
+    "in_favorites": "在收藏中",
+    "in_history": "在历史中"
 }

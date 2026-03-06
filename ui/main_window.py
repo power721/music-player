@@ -787,7 +787,7 @@ class MainWindow(QMainWindow):
             }
 
             .container {
-                padding: 35vh 20px;
+                padding: 20vh 20px;
                 line-height: 2.4;
                 font-size: 16px;
                 color: #666666;

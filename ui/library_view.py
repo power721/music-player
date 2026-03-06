@@ -7,12 +7,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QAbstractItemView,
     QPushButton,
     QLabel,
-    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
@@ -20,9 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QIcon
 from typing import List, Optional
-from pathlib import Path
 
 from database import DatabaseManager, Track
 from player import PlayerController
@@ -57,6 +52,7 @@ class LibraryView(QWidget):
         self._current_sub_view = "all"  # all, artists, albums (for library view)
         self._current_playing_track_id = None  # Track currently playing
         self._current_playing_row = -1  # Row of currently playing track
+        self._view_search_texts = {"all": "", "favorites": "", "history": ""}  # 保存每个视图的搜索文本
 
         self._setup_ui()
         self._setup_connections()
@@ -89,6 +85,7 @@ class LibraryView(QWidget):
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText(t("search_tracks"))
         self._search_input.setFixedWidth(300)
+        self._search_input.setClearButtonEnabled(True)  # 启用清除按钮
         self._search_input.setStyleSheet("""
             QLineEdit {
                 background-color: #2a2a2a;
@@ -102,8 +99,26 @@ class LibraryView(QWidget):
                 border: 2px solid #1db954;
                 background-color: #2d2d2d;
             }
+            /* 占位符文本样式 */
             QLineEdit::placeholder {
                 color: #808080;
+            }
+            /* 清除按钮样式 */
+            QLineEdit::clear-button {
+                subcontrol-origin: padding;
+                subcontrol-position: right;
+                width: 18px;
+                height: 18px;
+                margin-right: 8px;
+                border-radius: 9px;
+                background-color: #505050;
+            }
+            QLineEdit::clear-button:hover {
+                background-color: #606060;
+                border: 1px solid #707070;
+            }
+            QLineEdit::clear-button:pressed {
+                background-color: #404040;
             }
         """)
         header_layout.addWidget(self._search_input)
@@ -401,9 +416,22 @@ class LibraryView(QWidget):
 
     def show_all(self):
         """Show all tracks."""
+        # 保存当前视图的搜索文本
+        self._view_search_texts[self._current_view] = self._search_input.text()
+
         self._current_view = "all"
         self._title_label.setText(t("library"))
-        self._load_all_tracks()
+
+        # 恢复 Library 视图的搜索文本
+        saved_text = self._view_search_texts.get("all", "")
+        self._search_input.setText(saved_text)
+
+        if saved_text:
+            # 如果有保存的搜索文本，执行搜索
+            self._on_search(saved_text)
+        else:
+            # 否则加载所有歌曲
+            self._load_all_tracks()
         # Show view buttons
         self._btn_all.setVisible(True)
         self._btn_artists.setVisible(True)
@@ -425,9 +453,23 @@ class LibraryView(QWidget):
 
     def show_favorites(self):
         """Show favorite tracks."""
+        # 保存当前视图的搜索文本
+        self._view_search_texts[self._current_view] = self._search_input.text()
+
         self._current_view = "favorites"
         self._title_label.setText("⭐ " + t("favorites"))
-        self._load_favorites()
+
+        # 恢复 Favorites 视图的搜索文本
+        saved_text = self._view_search_texts.get("favorites", "")
+        self._search_input.setText(saved_text)
+
+        if saved_text:
+            # 如果有保存的搜索文本，执行搜索
+            self._on_search(saved_text)
+        else:
+            # 否则加载所有收藏
+            self._load_favorites()
+
         # Hide view buttons
         self._btn_all.setVisible(False)
         self._btn_artists.setVisible(False)
@@ -435,12 +477,27 @@ class LibraryView(QWidget):
 
     def show_history(self):
         """Show play history."""
+        # 保存当前视图的搜索文本
+        self._view_search_texts[self._current_view] = self._search_input.text()
+
         self._current_view = "history"
         self._title_label.setText("🕐 " + t("history"))
-        self._load_history()
+
+        # 恢复 History 视图的搜索文本
+        saved_text = self._view_search_texts.get("history", "")
+        self._search_input.setText(saved_text)
+
+        if saved_text:
+            # 如果有保存的搜索文本，执行搜索
+            self._on_search(saved_text)
+        else:
+            # 否则加载历史记录
+            self._load_history()
+
         # Hide view buttons
         self._btn_all.setVisible(False)
         self._btn_artists.setVisible(False)
+        self._btn_albums.setVisible(False)
         self._btn_albums.setVisible(False)
 
     def _change_view(self, view_type: str):
@@ -465,7 +522,11 @@ class LibraryView(QWidget):
         self._loading_label.setVisible(True)
         self._tracks_table.setVisible(False)
 
-        tracks = self._db.get_all_tracks()
+        text = self._search_input.text()
+        if text:
+            tracks = self._db.search_tracks(text)
+        else:
+            tracks = self._db.get_all_tracks()
         self._populate_table(tracks)
         self._status_label.setText(f"{len(tracks)} {t('tracks')}")
 
@@ -622,15 +683,62 @@ class LibraryView(QWidget):
             # Re-enable updates
             self._tracks_table.setUpdatesEnabled(True)
 
+    def _filter_tracks_by_query(self, tracks: List[Track], query: str) -> List[Track]:
+        """Filter a list of tracks by search query."""
+        query_lower = query.lower()
+        return [
+            track for track in tracks
+            if self._track_matches_query(track, query_lower)
+        ]
+
+    def _track_matches_query(self, track: Track, query: str) -> bool:
+        """Check if a track matches the search query."""
+        query_lower = query.lower() if isinstance(query, str) else query
+
+        return (
+            (track.title and query_lower in track.title.lower()) or
+            (track.artist and query_lower in track.artist.lower()) or
+            (track.album and query_lower in track.album.lower())
+        )
+
     def _on_search(self, query: str):
-        """Handle search."""
+        """Handle search based on current view."""
+        # 保存当前视图的搜索文本
+        self._view_search_texts[self._current_view] = query
+
         if not query:
+            # 清空搜索时也清空保存的文本
+            self._view_search_texts[self._current_view] = ""
             self.refresh()
             return
 
-        tracks = self._db.search_tracks(query)
+        # 根据当前视图决定搜索范围
+        if self._current_view == "all":
+            # 在所有 tracks 中搜索
+            tracks = self._db.search_tracks(query)
+            status_text = f'{len(tracks)} {t("results_for")} "{query}"'
+
+        elif self._current_view == "favorites":
+            # 在收藏的 tracks 中搜索
+            all_favorites = self._db.get_favorites()
+            tracks = self._filter_tracks_by_query(all_favorites, query)
+            status_text = f'{len(tracks)} {t("results_for")} "{query}" {t("in_favorites")}'
+
+        elif self._current_view == "history":
+            # 在历史记录中搜索
+            history = self._db.get_play_history(limit=50)
+            tracks = []
+            for entry in history:
+                track = self._db.get_track(entry.track_id)
+                if track and self._track_matches_query(track, query):
+                    tracks.append(track)
+            status_text = f'{len(tracks)} {t("results_for")} "{query}" {t("in_history")}'
+        else:
+            tracks = []
+            status_text = f'0 {t("results_for")} "{query}"'
+
         self._populate_table(tracks)
-        self._status_label.setText(f'{len(tracks)} {t("results_for")} "{query}"')
+        self._status_label.setText(status_text)
 
     def _on_current_track_changed(self, track_dict: dict):
         """Handle current track change from player."""

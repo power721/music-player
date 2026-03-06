@@ -98,5 +98,7 @@
     "select_fields_to_update": "Please select at least one field to update",
     "enter_artist_or_album": "Please enter artist or album name",
     "saving": "Saving",
-    "batch_save_success": "Successfully updated"
+    "batch_save_success": "Successfully updated",
+    "in_favorites": "in favorites",
+    "in_history": "in history"
 }
