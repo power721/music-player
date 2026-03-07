@@ -292,6 +292,8 @@ class LyricsWidget(QWidget):
 
     def mousePressEvent(self, e):
 
-        if self.hover_index >= 0:
+        if e.button() == Qt.LeftButton and self.hover_index >= 0:
             t = self.lines[self.hover_index].start * 1000
             self.seekRequested.emit(int(t))
+
+        super().mousePressEvent(e)

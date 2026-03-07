@@ -689,7 +689,7 @@ class MainWindow(QMainWindow):
 
         class LyricsDownloadWorker(QObject):
             finished = Signal(bool)
-            lyrics_ready = Signal(list)
+            lyrics_ready = Signal(str)
             error_ready = Signal(str)
 
             def __init__(self, track_path, title, artist):
