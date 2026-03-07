@@ -1,11 +1,25 @@
 """
 Cloud drive view for browsing and playing cloud files.
 """
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QTableWidget, QTableWidgetItem,
-                               QHeaderView, QStackedWidget, QMessageBox, QMenu,
-                               QAbstractItemView, QListWidget, QListWidgetItem,
-                               QSplitter, QApplication)
+
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QStackedWidget,
+    QMessageBox,
+    QMenu,
+    QAbstractItemView,
+    QListWidget,
+    QListWidgetItem,
+    QSplitter,
+    QApplication,
+)
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QCursor, QColor, QBrush
 from typing import List, Optional
@@ -21,14 +35,16 @@ class CloudDriveView(QWidget):
     """View for browsing and playing cloud drive files"""
 
     track_double_clicked = Signal(str)  # Signal for playing track (temp file path)
-    play_cloud_files = Signal(str, int, list)  # Signal for playing multiple cloud files (temp_path, index, cloud_files)
+    play_cloud_files = Signal(
+        str, int, list
+    )  # Signal for playing multiple cloud files (temp_path, index, cloud_files)
 
     def __init__(self, db_manager, player, parent=None):
         super().__init__(parent)
         self._db = db_manager
         self._player = player
         self._current_account: Optional[CloudAccount] = None
-        self._current_parent_id = '0'  # Root folder
+        self._current_parent_id = "0"  # Root folder
         self._navigation_history = []  # For back navigation
         self._current_audio_files = []  # Track audio files in current folder
 
@@ -92,7 +108,9 @@ class CloudDriveView(QWidget):
         self._account_list.setAlternatingRowColors(True)
         self._account_list.itemClicked.connect(self._on_account_selected)
         self._account_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self._account_list.customContextMenuRequested.connect(self._show_account_context_menu)
+        self._account_list.customContextMenuRequested.connect(
+            self._show_account_context_menu
+        )
         layout.addWidget(self._account_list)
 
         return widget
@@ -347,7 +365,7 @@ class CloudDriveView(QWidget):
 
     def _load_accounts(self):
         """Load available cloud accounts"""
-        accounts = self._db.get_cloud_accounts(provider='quark')
+        accounts = self._db.get_cloud_accounts(provider="quark")
         self._populate_account_list(accounts)
 
         # Don't auto-load files on startup
@@ -378,8 +396,14 @@ class CloudDriveView(QWidget):
         account = item.data(Qt.UserRole)
         if account:
             self._current_account = account
-            self._current_parent_id = '0'  # Reset to root
+            self._current_parent_id = (
+                account.last_folder_id if account.last_folder_id else "0"
+            )
+            self._path_label.setText(
+                account.last_folder_path if account.last_folder_path else "/"
+            )
             self._navigation_history.clear()
+            self._back_btn.setEnabled(self._current_parent_id != "0")
             self._update_file_view()
 
     def _update_file_view(self):
@@ -405,14 +429,14 @@ class CloudDriveView(QWidget):
     def _on_login_success(self, account_info: dict):
         """Handle successful login."""
         account_id = self._db.create_cloud_account(
-            provider='quark',
-            account_name=account_info.get('account_email', 'Quark Account'),
-            account_email=account_info.get('account_email', ''),
-            access_token=account_info.get('access_token', '')
+            provider="quark",
+            account_name=account_info.get("account_email", "Quark Account"),
+            account_email=account_info.get("account_email", ""),
+            access_token=account_info.get("access_token", ""),
         )
 
         # Reload accounts
-        accounts = self._db.get_cloud_accounts(provider='quark')
+        accounts = self._db.get_cloud_accounts(provider="quark")
         self._populate_account_list(accounts)
 
         # Select the new account
@@ -435,8 +459,7 @@ class CloudDriveView(QWidget):
 
         # Get files from service (returns tuple: files, updated_token)
         result = QuarkDriveService.get_file_list(
-            self._current_account.access_token,
-            self._current_parent_id
+            self._current_account.access_token, self._current_parent_id
         )
 
         # Handle tuple return value
@@ -454,7 +477,7 @@ class CloudDriveView(QWidget):
         self._db.cache_cloud_files(self._current_account.id, files)
 
         # Save audio files for playlist playback
-        self._current_audio_files = [f for f in files if f.file_type == 'audio']
+        self._current_audio_files = [f for f in files if f.file_type == "audio"]
 
         # Update table
         self._populate_table(files)
@@ -474,7 +497,7 @@ class CloudDriveView(QWidget):
                 name_item.setData(Qt.UserRole, file)
                 name_item.setForeground(QBrush(QColor("#e0e0e0")))
 
-                if file.file_type == 'folder':
+                if file.file_type == "folder":
                     name_item.setText("📁 " + file.name)
 
                 self._file_table.setItem(row, 0, name_item)
@@ -498,11 +521,7 @@ class CloudDriveView(QWidget):
 
     def _get_file_type_label(self, file_type: str) -> str:
         """Get display label for file type."""
-        labels = {
-            'folder': t("folder"),
-            'audio': t("audio"),
-            'other': t("file")
-        }
+        labels = {"folder": t("folder"), "audio": t("audio"), "other": t("file")}
         return labels.get(file_type, t("file"))
 
     def _on_item_double_clicked(self, item: QTableWidgetItem):
@@ -511,16 +530,18 @@ class CloudDriveView(QWidget):
         if not file:
             return
 
-        if file.file_type == 'folder':
+        if file.file_type == "folder":
             # Navigate into folder
             self._navigate_to_folder(file.file_id, file.name)
-        elif file.file_type == 'audio':
+        elif file.file_type == "audio":
             # Play audio file
             self._play_audio_file(file)
 
     def _navigate_to_folder(self, folder_id: str, folder_name: str):
         """Navigate to a folder."""
-        self._navigation_history.append((self._current_parent_id, self._path_label.text()))
+        self._navigation_history.append(
+            (self._current_parent_id, self._path_label.text())
+        )
         self._current_parent_id = folder_id
 
         # Update path label
@@ -532,6 +553,13 @@ class CloudDriveView(QWidget):
         self._path_label.setText(new_path)
 
         self._back_btn.setEnabled(True)
+
+        # Save folder state
+        if self._current_account:
+            self._db.update_cloud_account_folder(
+                self._current_account.id, folder_id, new_path
+            )
+
         self._load_files()
 
     def _navigate_back(self):
@@ -544,13 +572,23 @@ class CloudDriveView(QWidget):
             if not self._navigation_history:
                 self._back_btn.setEnabled(False)
 
+            # Save folder state
+            if self._current_account:
+                self._db.update_cloud_account_folder(
+                    self._current_account.id, parent_id, path
+                )
+
             self._load_files()
 
     def _play_audio_file(self, file: CloudFile):
         """Play an audio file from cloud."""
         # Find index of this file in current folder's audio list
         try:
-            file_index = next(i for i, f in enumerate(self._current_audio_files) if f.file_id == file.file_id)
+            file_index = next(
+                i
+                for i, f in enumerate(self._current_audio_files)
+                if f.file_id == file.file_id
+            )
         except StopIteration:
             file_index = 0
 
@@ -562,9 +600,13 @@ class CloudDriveView(QWidget):
             file,
             file_index,
             self._current_audio_files,
-            self
+            self,
         )
-        download_thread.finished.connect(lambda path: self._on_file_downloaded(path, file_index, self._current_audio_files))
+        download_thread.finished.connect(
+            lambda path: self._on_file_downloaded(
+                path, file_index, self._current_audio_files
+            )
+        )
         download_thread.token_updated.connect(self._on_token_updated)
         download_thread.start()
 
@@ -578,6 +620,7 @@ class CloudDriveView(QWidget):
         """Handle completed file download."""
         if temp_path:
             import os
+
             if os.path.exists(temp_path):
                 # Get file name from audio_files list
                 if file_index < len(audio_files):
@@ -602,7 +645,7 @@ class CloudDriveView(QWidget):
             return
 
         file = item.data(Qt.UserRole)
-        if not file or file.file_type != 'audio':
+        if not file or file.file_type != "audio":
             return
 
         menu = QMenu(self)
@@ -683,8 +726,7 @@ class CloudDriveView(QWidget):
 
         # Get account info from service (returns tuple: info, updated_token)
         result = QuarkDriveService.get_account_info(
-            account.access_token,
-            account.account_email
+            account.access_token, account.account_email
         )
 
         # Handle tuple return value
@@ -707,11 +749,7 @@ class CloudDriveView(QWidget):
             self._status_label.setText("")
         else:
             self._status_label.setText(t("failed_to_get_account_info"))
-            QMessageBox.warning(
-                self,
-                t("error"),
-                t("failed_to_get_account_info")
-            )
+            QMessageBox.warning(self, t("error"), t("failed_to_get_account_info"))
 
     def _show_account_info_dialog(self, account: CloudAccount, account_info: dict):
         """Show account information dialog."""
@@ -719,16 +757,18 @@ class CloudDriveView(QWidget):
         dialog.setWindowTitle(t("account_info"))
 
         # Format timestamps
-        created_at_str = self._format_timestamp(account_info.get('created_at'))
-        exp_at_str = self._format_timestamp(account_info.get('exp_at'))
+        created_at_str = self._format_timestamp(account_info.get("created_at"))
+        exp_at_str = self._format_timestamp(account_info.get("exp_at"))
 
         # Format capacity
-        total_capacity_str = self._format_capacity(account_info.get('total_capacity', 0))
-        used_capacity_str = self._format_capacity(account_info.get('use_capacity', 0))
+        total_capacity_str = self._format_capacity(
+            account_info.get("total_capacity", 0)
+        )
+        used_capacity_str = self._format_capacity(account_info.get("use_capacity", 0))
 
         # Calculate usage percentage
-        total_cap = account_info.get('total_capacity', 0)
-        used_cap = account_info.get('use_capacity', 0)
+        total_cap = account_info.get("total_capacity", 0)
+        used_cap = account_info.get("use_capacity", 0)
         if total_cap > 0:
             usage_percent = (used_cap / total_cap) * 100
             usage_str = f"{usage_percent:.1f}%"
@@ -737,11 +777,11 @@ class CloudDriveView(QWidget):
 
         # Build info text
         info_text = f"""
-{t('account_name')}: {account_info.get('nickname', account.account_name)}
-{t('member_type')}: {account_info.get('member_type', 'unknown')}
-{t('account_created')}: {created_at_str}
-{t('vip_expires')}: {exp_at_str}
-{t('storage_used')}: {used_capacity_str} / {total_capacity_str} ({usage_str})
+{t("account_name")}: {account_info.get("nickname", account.account_name)}
+{t("member_type")}: {account_info.get("member_type", "unknown")}
+{t("account_created")}: {created_at_str}
+{t("vip_expires")}: {exp_at_str}
+{t("storage_used")}: {used_capacity_str} / {total_capacity_str} ({usage_str})
 """
 
         dialog.setText(info_text)
@@ -768,10 +808,11 @@ class CloudDriveView(QWidget):
 
         try:
             from datetime import datetime
+
             # Convert milliseconds to seconds
             timestamp_sec = timestamp_ms / 1000
             dt = datetime.fromtimestamp(timestamp_sec)
-            return dt.strftime('%Y-%m-%d %H:%M:%S')
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
             print(f"[DEBUG] Error formatting timestamp: {e}")
             return "N/A"
@@ -782,9 +823,9 @@ class CloudDriveView(QWidget):
             return "0 GB"
 
         try:
-            tb = bytes_size / (1024 ** 4)
-            gb = bytes_size / (1024 ** 3)
-            mb = bytes_size / (1024 ** 2)
+            tb = bytes_size / (1024**4)
+            gb = bytes_size / (1024**3)
+            mb = bytes_size / (1024**2)
 
             if tb >= 1:
                 return f"{tb:.2f} TB"
@@ -803,14 +844,14 @@ class CloudDriveView(QWidget):
             t("delete_account"),
             f"{t('delete_account_confirm')}\n\n{account.account_name}",
             QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.No,
         )
 
         if reply == QMessageBox.Yes:
             self._db.delete_cloud_account(account.id)
 
             # Reload accounts
-            accounts = self._db.get_cloud_accounts(provider='quark')
+            accounts = self._db.get_cloud_accounts(provider="quark")
             self._populate_account_list(accounts)
 
             # Reset current account if needed
@@ -830,12 +871,14 @@ class CloudDriveView(QWidget):
 
         # Update button texts
         self._add_account_btn.setText(t("add_account"))
-        if hasattr(self, '_back_btn'):
+        if hasattr(self, "_back_btn"):
             self._back_btn.setText("← " + t("back"))
 
         # Update table headers
-        if hasattr(self, '_file_table'):
-            self._file_table.setHorizontalHeaderLabels([t("title"), t("type"), t("size")])
+        if hasattr(self, "_file_table"):
+            self._file_table.setHorizontalHeaderLabels(
+                [t("title"), t("type"), t("size")]
+            )
 
         # Update title based on state
         if self._current_account:
@@ -858,20 +901,28 @@ class CloudFileDownloadThread(QThread):
     finished = Signal(str)  # Emits temp file path
     token_updated = Signal(str)  # Emits updated access token
 
-    def __init__(self, access_token: str, file: CloudFile, file_index: int = 0, audio_files: list = None, parent=None):
+    def __init__(
+        self,
+        access_token: str,
+        file: CloudFile,
+        file_index: int = 0,
+        audio_files: list = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self._access_token = access_token
         self._file = file
         self._file_index = file_index
         self._audio_files = audio_files or []
-        print(f"[DEBUG] CloudFileDownloadThread created for file: {file.name} (ID: {file.file_id}), index: {file_index}")
+        print(
+            f"[DEBUG] CloudFileDownloadThread created for file: {file.name} (ID: {file.file_id}), index: {file_index}"
+        )
 
     def run(self):
         """Download file in background thread."""
         # Get download URL
         result = QuarkDriveService.get_download_url(
-            self._access_token,
-            self._file.file_id
+            self._access_token, self._file.file_id
         )
 
         # Handle tuple return value
@@ -887,13 +938,12 @@ class CloudFileDownloadThread(QThread):
         if url:
             # Download to temp file
             import tempfile
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
                 temp_path = f.name
 
             success = QuarkDriveService.download_file(
-                url,
-                temp_path,
-                self._access_token
+                url, temp_path, self._access_token
             )
 
             if success:
@@ -904,5 +954,7 @@ class CloudFileDownloadThread(QThread):
         else:
             print(f"[DEBUG] Failed to get download URL for file: {self._file.name}")
             print(f"[DEBUG] File ID: {self._file.file_id}")
-            print(f"[DEBUG] Token length: {len(self._access_token) if self._access_token else 0}")
+            print(
+                f"[DEBUG] Token length: {len(self._access_token) if self._access_token else 0}"
+            )
             self.finished.emit("")

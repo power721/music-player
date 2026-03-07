@@ -8,7 +8,15 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from .models import Track, Playlist, PlaylistItem, PlayHistory, Favorite, CloudAccount, CloudFile
+from .models import (
+    Track,
+    Playlist,
+    PlaylistItem,
+    PlayHistory,
+    Favorite,
+    CloudAccount,
+    CloudFile,
+)
 
 
 class DatabaseManager:
@@ -124,10 +132,26 @@ class DatabaseManager:
                 refresh_token TEXT,
                 token_expires_at TIMESTAMP,
                 is_active BOOLEAN DEFAULT 1,
+                last_folder_id TEXT DEFAULT '0',
+                last_folder_path TEXT DEFAULT '/',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Add columns for existing databases (migration)
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_folder_id TEXT DEFAULT '0'"
+            )
+        except:
+            pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_folder_path TEXT DEFAULT '/'"
+            )
+        except:
+            pass
 
         # Create cloud_files table
         cursor.execute("""
@@ -670,9 +694,14 @@ class DatabaseManager:
 
     # Cloud account operations
 
-    def create_cloud_account(self, provider: str, account_name: str,
-                            account_email: str, access_token: str,
-                            refresh_token: str = "") -> int:
+    def create_cloud_account(
+        self,
+        provider: str,
+        account_name: str,
+        account_email: str,
+        access_token: str,
+        refresh_token: str = "",
+    ) -> int:
         """Create a new cloud account."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -683,7 +712,7 @@ class DatabaseManager:
             (provider, account_name, account_email, access_token, refresh_token)
             VALUES (?, ?, ?, ?, ?)
         """,
-            (provider, account_name, account_email, access_token, refresh_token)
+            (provider, account_name, account_email, access_token, refresh_token),
         )
 
         conn.commit()
@@ -701,7 +730,7 @@ class DatabaseManager:
                 WHERE provider = ? AND is_active = 1
                 ORDER BY created_at DESC
             """,
-                (provider,)
+                (provider,),
             )
         else:
             cursor.execute(
@@ -722,8 +751,12 @@ class DatabaseManager:
                 account_email=row["account_email"],
                 access_token=row["access_token"],
                 refresh_token=row["refresh_token"],
-                token_expires_at=datetime.fromisoformat(row["token_expires_at"]) if row["token_expires_at"] else None,
+                token_expires_at=datetime.fromisoformat(row["token_expires_at"])
+                if row["token_expires_at"]
+                else None,
                 is_active=bool(row["is_active"]),
+                last_folder_id=row["last_folder_id"] or "0",
+                last_folder_path=row["last_folder_path"] or "/",
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
@@ -746,15 +779,20 @@ class DatabaseManager:
                 account_email=row["account_email"],
                 access_token=row["access_token"],
                 refresh_token=row["refresh_token"],
-                token_expires_at=datetime.fromisoformat(row["token_expires_at"]) if row["token_expires_at"] else None,
+                token_expires_at=datetime.fromisoformat(row["token_expires_at"])
+                if row["token_expires_at"]
+                else None,
                 is_active=bool(row["is_active"]),
+                last_folder_id=row["last_folder_id"] or "0",
+                last_folder_path=row["last_folder_path"] or "/",
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
         return None
 
-    def update_cloud_account_token(self, account_id: int, access_token: str,
-                                  refresh_token: str = None) -> bool:
+    def update_cloud_account_token(
+        self, account_id: int, access_token: str, refresh_token: str = None
+    ) -> bool:
         """Update account tokens."""
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -766,7 +804,7 @@ class DatabaseManager:
                 SET access_token = ?, refresh_token = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """,
-                (access_token, refresh_token, account_id)
+                (access_token, refresh_token, account_id),
             )
         else:
             cursor.execute(
@@ -775,8 +813,27 @@ class DatabaseManager:
                 SET access_token = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """,
-                (access_token, account_id)
+                (access_token, account_id),
             )
+
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def update_cloud_account_folder(
+        self, account_id: int, folder_id: str, folder_path: str
+    ) -> bool:
+        """Update the last opened folder for an account."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE cloud_accounts
+            SET last_folder_id = ?, last_folder_path = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """,
+            (folder_id, folder_path, account_id),
+        )
 
         conn.commit()
         return cursor.rowcount > 0
@@ -792,7 +849,7 @@ class DatabaseManager:
             SET is_active = 0, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """,
-            (account_id,)
+            (account_id,),
         )
 
         conn.commit()
@@ -816,8 +873,17 @@ class DatabaseManager:
                 (account_id, file_id, parent_id, name, file_type, size, mime_type, duration, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (account_id, file.file_id, file.parent_id, file.name,
-                 file.file_type, file.size, file.mime_type, file.duration, file.metadata)
+                (
+                    account_id,
+                    file.file_id,
+                    file.parent_id,
+                    file.name,
+                    file.file_type,
+                    file.size,
+                    file.mime_type,
+                    file.duration,
+                    file.metadata,
+                ),
             )
 
         conn.commit()
@@ -834,7 +900,7 @@ class DatabaseManager:
             WHERE account_id = ? AND parent_id = ?
             ORDER BY file_type DESC, name ASC
         """,
-            (account_id, parent_id)
+            (account_id, parent_id),
         )
 
         rows = cursor.fetchall()
@@ -867,7 +933,7 @@ class DatabaseManager:
             SELECT * FROM cloud_files
             WHERE file_id = ? AND account_id = ?
         """,
-            (file_id, account_id)
+            (file_id, account_id),
         )
 
         row = cursor.fetchone()

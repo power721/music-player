@@ -1,6 +1,7 @@
 """
 Database models for the music player.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
@@ -9,6 +10,7 @@ from typing import Optional
 @dataclass
 class Track:
     """Represents a music track in the library."""
+
     id: Optional[int] = None
     path: str = ""
     title: str = ""
@@ -27,7 +29,7 @@ class Track:
         """Get display name for the track."""
         if self.title:
             return self.title
-        return self.path.split('/')[-1]
+        return self.path.split("/")[-1]
 
     @property
     def artist_album(self) -> str:
@@ -37,12 +39,13 @@ class Track:
             parts.append(self.artist)
         if self.album and self.album != self.artist:
             parts.append(self.album)
-        return ' - '.join(parts) if parts else 'Unknown'
+        return " - ".join(parts) if parts else "Unknown"
 
 
 @dataclass
 class Playlist:
     """Represents a playlist."""
+
     id: Optional[int] = None
     name: str = ""
     created_at: Optional[datetime] = None
@@ -55,6 +58,7 @@ class Playlist:
 @dataclass
 class PlaylistItem:
     """Represents an item in a playlist."""
+
     id: Optional[int] = None
     playlist_id: int = 0
     track_id: int = 0
@@ -64,6 +68,7 @@ class PlaylistItem:
 @dataclass
 class PlayHistory:
     """Represents a play history entry."""
+
     id: Optional[int] = None
     track_id: int = 0
     played_at: Optional[datetime] = None
@@ -77,6 +82,7 @@ class PlayHistory:
 @dataclass
 class Favorite:
     """Represents a favorite track."""
+
     id: Optional[int] = None
     track_id: int = 0
     created_at: Optional[datetime] = None
@@ -89,6 +95,7 @@ class Favorite:
 @dataclass
 class CloudAccount:
     """Represents a cloud storage account (Quark, OneDrive, etc.)"""
+
     id: Optional[int] = None
     provider: str = ""  # "quark", "onedrive", etc.
     account_name: str = ""  # User-defined name
@@ -97,6 +104,8 @@ class CloudAccount:
     refresh_token: str = ""  # For token refresh
     token_expires_at: Optional[datetime] = None
     is_active: bool = True
+    last_folder_id: str = "0"  # Last opened folder ID
+    last_folder_path: str = "/"  # Last opened folder path
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -110,6 +119,7 @@ class CloudAccount:
 @dataclass
 class CloudFile:
     """Cached metadata for cloud drive files"""
+
     id: Optional[int] = None
     account_id: int = 0
     file_id: str = ""  # Provider's file identifier
