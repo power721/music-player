@@ -28,7 +28,7 @@ import os
 from database.models import CloudAccount, CloudFile
 from services.quark_drive_service import QuarkDriveService
 from ui.cloud_login_dialog import CloudLoginDialog
-from utils import t
+from utils import t, format_duration
 
 
 class CloudDriveView(QWidget):
@@ -176,8 +176,8 @@ class CloudDriveView(QWidget):
         # File table with same styling as LibraryView
         self._file_table = QTableWidget()
         self._file_table.setObjectName("cloudFilesTable")
-        self._file_table.setColumnCount(3)
-        self._file_table.setHorizontalHeaderLabels([t("title"), t("type"), t("size")])
+        self._file_table.setColumnCount(4)
+        self._file_table.setHorizontalHeaderLabels([t("title"), t("type"), t("size"), t("duration")])
 
         # Configure table to match LibraryView
         self._file_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -190,6 +190,7 @@ class CloudDriveView(QWidget):
         header.setSectionResizeMode(0, QHeaderView.Stretch)  # Title column stretches
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Type auto-size
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Size auto-size
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Duration auto-size
 
         self._file_table.itemDoubleClicked.connect(self._on_item_double_clicked)
         self._file_table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -515,6 +516,14 @@ class CloudDriveView(QWidget):
                 size_item = QTableWidgetItem(size_text)
                 size_item.setForeground(QBrush(QColor("#909090")))
                 self._file_table.setItem(row, 2, size_item)
+
+                # Duration (only for audio files)
+                duration_text = ""
+                if file.file_type == "audio" and file.duration:
+                    duration_text = format_duration(file.duration)
+                duration_item = QTableWidgetItem(duration_text)
+                duration_item.setForeground(QBrush(QColor("#909090")))
+                self._file_table.setItem(row, 3, duration_item)
 
         finally:
             self._file_table.setUpdatesEnabled(True)
@@ -877,7 +886,7 @@ class CloudDriveView(QWidget):
         # Update table headers
         if hasattr(self, "_file_table"):
             self._file_table.setHorizontalHeaderLabels(
-                [t("title"), t("type"), t("size")]
+                [t("title"), t("type"), t("size"), t("duration")]
             )
 
         # Update title based on state
