@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSettings, QThread
 from typing import Optional
 
+from shiboken6 import isValid
+
 from database import DatabaseManager
 from player import PlayerController
 from player.engine import PlayerState
@@ -679,7 +681,7 @@ class MainWindow(QMainWindow):
             return
 
         # Clean up existing thread if any
-        if self._lyrics_thread and self._lyrics_thread.isRunning():
+        if self._lyrics_thread and isValid(self._lyrics_thread) and self._lyrics_thread.isRunning():
             self._lyrics_thread.quit()
             self._lyrics_thread.wait()
 

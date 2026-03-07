@@ -161,8 +161,11 @@ class LyricsService:
             if data.get('code') != 200 or not data.get('result', {}).get('songs'):
                 return ""
 
-            # Get first song's lyrics
             song_id = data['result']['songs'][0]['id']
+            for item in data['result']['songs']:
+                if item['artists'][0]['name'] == artist:
+                    song_id = item['id']
+                    break
 
             lyrics_url = f"https://music.163.com/api/song/lyric?id={song_id}&lv=1&kv=1&tv=-1"
             lyrics_response = requests.get(

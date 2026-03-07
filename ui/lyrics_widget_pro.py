@@ -286,10 +286,14 @@ class LyricsWidget(QWidget):
 
             if rect.contains(e.pos()):
                 self.hover_index = i
+                self.setCursor(Qt.PointingHandCursor)
+
                 self.update()
                 return
 
         self.hover_index = -1
+        self.unsetCursor()
+
         self.update()
 
     def mousePressEvent(self, e):
