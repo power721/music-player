@@ -1021,6 +1021,16 @@ class CloudDriveView(QWidget):
                                 updated_at=f.updated_at
                             )
                             self._current_audio_files[i] = updated_file
+
+                            # Update table item data
+                            for row in range(self._file_table.rowCount()):
+                                item = self._file_table.item(row, 0)
+                                if item:
+                                    table_file = item.data(Qt.UserRole)
+                                    if table_file and table_file.file_id == f.file_id:
+                                        item.setData(Qt.UserRole, updated_file)
+                                        break
+
                             break
             else:
                 self._status_label.setText(t("download_failed"))
