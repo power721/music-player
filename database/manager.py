@@ -152,6 +152,30 @@ class DatabaseManager:
             )
         except:
             pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_parent_folder_id TEXT DEFAULT '0'"
+            )
+        except:
+            pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_fid_path TEXT DEFAULT '0'"
+            )
+        except:
+            pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_playing_fid TEXT DEFAULT ''"
+            )
+        except:
+            pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_position REAL DEFAULT 0.0"
+            )
+        except:
+            pass
 
         # Add cloud_file_id column to tracks table for downloaded cloud files
         try:
@@ -791,8 +815,10 @@ class DatabaseManager:
                 if row["token_expires_at"]
                 else None,
                 is_active=bool(row["is_active"]),
-                last_folder_id=row["last_folder_id"] or "0",
                 last_folder_path=row["last_folder_path"] or "/",
+                last_fid_path=row["last_fid_path"] if "last_fid_path" in row.keys() else "0",
+                last_playing_fid=row["last_playing_fid"] if "last_playing_fid" in row.keys() else "",
+                last_position=row["last_position"] if "last_position" in row.keys() else 0.0,
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
@@ -819,8 +845,10 @@ class DatabaseManager:
                 if row["token_expires_at"]
                 else None,
                 is_active=bool(row["is_active"]),
-                last_folder_id=row["last_folder_id"] or "0",
                 last_folder_path=row["last_folder_path"] or "/",
+                last_fid_path=row["last_fid_path"] if "last_fid_path" in row.keys() else "0",
+                last_playing_fid=row["last_playing_fid"] if "last_playing_fid" in row.keys() else "",
+                last_position=row["last_position"] if "last_position" in row.keys() else 0.0,
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
@@ -856,7 +884,7 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_cloud_account_folder(
-        self, account_id: int, folder_id: str, folder_path: str
+        self, account_id: int, folder_id: str, folder_path: str, parent_folder_id: str = "0", fid_path: str = "0"
     ) -> bool:
         """Update the last opened folder for an account."""
         conn = self._get_connection()
@@ -865,11 +893,50 @@ class DatabaseManager:
         cursor.execute(
             """
             UPDATE cloud_accounts
-            SET last_folder_id = ?, last_folder_path = ?, updated_at = CURRENT_TIMESTAMP
+            SET last_folder_path = ?, last_fid_path = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """,
-            (folder_id, folder_path, account_id),
+            (folder_path, fid_path, account_id),
         )
+
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def update_cloud_account_playing_state(
+        self, account_id: int, playing_fid: str = None, position: float = None
+    ) -> bool:
+        """Update the last playing file and position for an account."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Build update query dynamically based on provided parameters
+        if playing_fid is not None and position is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_playing_fid = ?, last_position = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (playing_fid, position, account_id),
+            )
+        elif playing_fid is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_playing_fid = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (playing_fid, account_id),
+            )
+        elif position is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_position = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (position, account_id),
+            )
 
         conn.commit()
         return cursor.rowcount > 0

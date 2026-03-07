@@ -612,8 +612,9 @@ class MainWindow(QMainWindow):
         self._player.engine.load_playlist([track])
         self._player.engine.play()
 
-    def _play_cloud_playlist(self, temp_path: str, index: int, cloud_files):
+    def _play_cloud_playlist(self, temp_path: str, index: int, cloud_files, start_position: float = 0.0):
         """Play multiple cloud files as a playlist."""
+        from PySide6.QtCore import QTimer
         from database.models import CloudFile
 
         # Create a cloud playlist manager if needed
@@ -625,8 +626,8 @@ class MainWindow(QMainWindow):
                 self._config
             )
 
-        # Load the playlist
-        self._cloud_playlist_manager.load_playlist(cloud_files, index, temp_path)
+        # Load the playlist with start position
+        self._cloud_playlist_manager.load_playlist(cloud_files, index, temp_path, start_position)
 
 
 
@@ -1242,12 +1243,13 @@ class CloudPlaylistManager:
         self._current_index = 0
         self._downloaded_files = {}  # Maps cloud_file_id to temp_path
 
-    def load_playlist(self, cloud_files, start_index, first_file_path):
+    def load_playlist(self, cloud_files, start_index, first_file_path, start_position: float = 0.0):
         """Load cloud file playlist and start playback."""
         from PySide6.QtCore import QTimer
 
         self._cloud_files = cloud_files
         self._current_index = start_index
+        self._start_position = start_position  # Save for later seek
 
         # Store first file path
         first_file = cloud_files[start_index]
@@ -1282,6 +1284,11 @@ class CloudPlaylistManager:
         # Connect signal AFTER playback has started using QTimer to ensure main thread
         QTimer.singleShot(0, self._connect_track_changed_signal)
 
+        # Schedule seek if start_position is specified
+        if start_position > 0:
+            # Wait longer for playback to start (1 second)
+            QTimer.singleShot(1000, self._seek_to_start_position)
+
     def _save_playback_state(self, cloud_file):
         """Save current cloud playback state to config."""
         if hasattr(self._cloud_view, '_config_manager') and self._cloud_view._config_manager:
@@ -1310,6 +1317,17 @@ class CloudPlaylistManager:
         self._player_engine.current_track_changed.connect(
             self.on_track_changed
         )
+
+    def _seek_to_start_position(self):
+        """Seek to the saved start position after playback begins."""
+        if hasattr(self, '_start_position') and self._start_position > 0:
+            try:
+                # Convert seconds to milliseconds
+                position_ms = int(self._start_position * 1000)
+                self._player_engine.seek(position_ms)
+                print(f"Seeking to {self._start_position:.2f}s ({position_ms}ms)")
+            except Exception as e:
+                print(f"Error seeking to position: {e}")
 
     def on_track_changed(self, track_dict):
         """Handle track change to download files on demand."""

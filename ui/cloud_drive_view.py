@@ -36,8 +36,8 @@ class CloudDriveView(QWidget):
 
     track_double_clicked = Signal(str)  # Signal for playing track (temp file path)
     play_cloud_files = Signal(
-        str, int, list
-    )  # Signal for playing multiple cloud files (temp_path, index, cloud_files)
+        str, int, list, float
+    )  # Signal for playing multiple cloud files (temp_path, index, cloud_files, start_position)
 
     def __init__(self, db_manager, player, config_manager=None, parent=None):
         super().__init__(parent)
@@ -46,8 +46,16 @@ class CloudDriveView(QWidget):
         self._config_manager = config_manager
         self._current_account: Optional[CloudAccount] = None
         self._current_parent_id = "0"  # Root folder
-        self._navigation_history = []  # For back navigation
+        self._parent_dir_id = None  # Parent directory ID for back navigation
+        self._navigation_history = []  # Navigation stack for multi-level back: [(parent_id, path), ...]
         self._current_audio_files = []  # Track audio files in current folder
+        self._last_playing_fid = ""  # Last playing file ID from database
+        self._last_position = 0.0  # Last playback position from database
+        self._fid_path = []  # List of folder IDs in current path (e.g., ["0", "fid1", "fid2"])
+        self._position_save_timer = QTimer()  # Timer for saving playback position
+        self._position_save_timer.timeout.connect(self._save_playback_position)
+        self._position_save_timer.setInterval(5000)  # Save every 5 seconds
+        self._current_playing_file_id = ""  # Currently playing file ID
 
         self._setup_ui()
         self._load_accounts()
@@ -366,12 +374,57 @@ class CloudDriveView(QWidget):
         """)
 
     def _load_accounts(self):
-        """Load available cloud accounts"""
+        """Load available cloud accounts and auto-select the last used account."""
         accounts = self._db.get_cloud_accounts(provider="quark")
         self._populate_account_list(accounts)
 
-        # Don't auto-load files on startup
-        # Files will only load when user clicks on an account
+        # Auto-select the first account to restore last session
+        if accounts and not self._current_account:
+            # Select the first account in the list
+            first_item = self._account_list.item(0)
+            if first_item:
+                account = first_item.data(Qt.UserRole)
+                if account:
+                    self._account_list.setCurrentItem(first_item)
+                    self._current_account = account
+
+                    # Restore last saved folder path
+                    saved_path = account.last_folder_path if account.last_folder_path else "/"
+                    self._path_label.setText(saved_path)
+
+                    # Restore fid_path
+                    if account.last_fid_path and account.last_fid_path != "0":
+                        # Parse fid_path string like "/fid1/fid2/fid3" into list
+                        self._fid_path = account.last_fid_path.strip("/").split("/")
+                        if self._fid_path == [""]:
+                            self._fid_path = []
+                    else:
+                        self._fid_path = []
+
+                    # Current folder ID is the last item in fid_path, or "0" if empty
+                    if self._fid_path:
+                        self._current_parent_id = self._fid_path[-1]
+                    else:
+                        self._current_parent_id = "0"
+
+                    # Clear navigation history
+                    self._navigation_history.clear()
+
+                    # Enable back button if not at root
+                    can_go_back = len(self._fid_path) > 0
+                    self._back_btn.setEnabled(can_go_back)
+
+                    # Store last playing state for later restoration
+                    self._last_playing_fid = account.last_playing_fid
+                    self._last_position = account.last_position
+
+                    # Load files for the restored folder
+                    self._update_file_view()
+
+                    # Try to restore playback after files are loaded
+                    if account.last_playing_fid:
+                        # Use QTimer to defer playback until files are loaded
+                        QTimer.singleShot(1000, self._restore_playback)
 
     def _populate_account_list(self, accounts: List[CloudAccount]):
         """Populate the account list widget."""
@@ -398,15 +451,42 @@ class CloudDriveView(QWidget):
         account = item.data(Qt.UserRole)
         if account:
             self._current_account = account
-            self._current_parent_id = (
-                account.last_folder_id if account.last_folder_id else "0"
-            )
-            self._path_label.setText(
-                account.last_folder_path if account.last_folder_path else "/"
-            )
+
+            # Restore last saved folder path
+            saved_path = account.last_folder_path if account.last_folder_path else "/"
+            self._path_label.setText(saved_path)
+
+            # Restore fid_path
+            if account.last_fid_path and account.last_fid_path != "0":
+                # Parse fid_path string like "/fid1/fid2/fid3" into list
+                self._fid_path = account.last_fid_path.strip("/").split("/")
+                if self._fid_path == [""]:
+                    self._fid_path = []
+            else:
+                self._fid_path = []
+
+            # Current folder ID is the last item in fid_path, or "0" if empty
+            if self._fid_path:
+                self._current_parent_id = self._fid_path[-1]
+            else:
+                self._current_parent_id = "0"
+
+            # Clear navigation history when switching accounts
             self._navigation_history.clear()
-            self._back_btn.setEnabled(self._current_parent_id != "0")
+
+            # Enable back button if not at root
+            can_go_back = len(self._fid_path) > 0
+            self._back_btn.setEnabled(can_go_back)
+
+            # Store last playing state for later restoration
+            self._last_playing_fid = account.last_playing_fid
+            self._last_position = account.last_position
+
             self._update_file_view()
+
+            # Try to restore playback after files are loaded
+            if account.last_playing_fid:
+                QTimer.singleShot(1000, self._restore_playback)
 
     def _update_file_view(self):
         """Update the file view based on current account."""
@@ -476,10 +556,18 @@ class CloudDriveView(QWidget):
             self._current_account.access_token = updated_token
 
         # Cache files in database
-        self._db.cache_cloud_files(self._current_account.id, files)
+        if files and len(files) > 0:
+            self._current_parent_id = files[0].parent_id
+            can_go_back = self._current_parent_id != "0"
+            self._back_btn.setEnabled(can_go_back)
+            self._db.cache_cloud_files(self._current_account.id, files)
 
-        # Reload files from database to get local_path information
+            # Reload files from database to get local_path information
         files = self._db.get_cloud_files(self._current_account.id, self._current_parent_id)
+
+        # Save the first file's parent_id (current folder's parent) for back navigation
+        # If we have files and we're not at root, the first file's parent_id can help us
+        # But actually, we save the parent when navigating INTO a folder
 
         # Save audio files for playlist playback
         self._current_audio_files = [f for f in files if f.file_type == "audio"]
@@ -552,13 +640,20 @@ class CloudDriveView(QWidget):
 
     def _navigate_to_folder(self, folder_id: str, folder_name: str):
         """Navigate to a folder."""
-        self._navigation_history.append(
-            (self._current_parent_id, self._path_label.text())
-        )
+        # Save current parent_id for history
+        parent_id = self._current_parent_id
+        current_path = self._path_label.text()
+
+        # Save to navigation history
+        self._navigation_history.append((parent_id, current_path))
+
+        # Build fid_path: append current folder ID to the path
+        self._fid_path.append(folder_id)
+        fid_path_str = "/" + "/".join(self._fid_path)
+
         self._current_parent_id = folder_id
 
         # Update path label
-        current_path = self._path_label.text()
         if current_path == "/":
             new_path = f"/{folder_name}"
         else:
@@ -567,34 +662,174 @@ class CloudDriveView(QWidget):
 
         self._back_btn.setEnabled(True)
 
-        # Save folder state
-        if self._current_account:
-            self._db.update_cloud_account_folder(
-                self._current_account.id, folder_id, new_path
-            )
-
+        # Don't save to database - only save when playing a file
         self._load_files()
 
     def _navigate_back(self):
-        """Navigate to previous folder."""
+        """Navigate to previous folder in history."""
         if self._navigation_history:
+            # Pop the previous state from navigation history
             parent_id, path = self._navigation_history.pop()
+
+            # Update fid_path: remove the last folder ID
+            if self._fid_path:
+                self._fid_path.pop()
+
+            # Navigate to previous folder
             self._current_parent_id = parent_id
             self._path_label.setText(path)
 
-            if not self._navigation_history:
-                self._back_btn.setEnabled(False)
+            # Update back button state
+            self._back_btn.setEnabled(len(self._navigation_history) > 0 or len(self._fid_path) > 0)
 
-            # Save folder state
-            if self._current_account:
-                self._db.update_cloud_account_folder(
-                    self._current_account.id, parent_id, path
-                )
-
+            # Don't save to database - only save when playing a file
             self._load_files()
+
+        elif len(self._fid_path) > 0:
+            # History is empty but we have fid_path - use it to go back
+
+            # Remove the last folder from fid_path
+            self._fid_path.pop()
+
+            # Determine parent folder ID from fid_path
+            if len(self._fid_path) > 0:
+                # Get the parent folder ID (last item in fid_path)
+                parent_folder_id = self._fid_path[-1]
+            else:
+                # Back to root
+                parent_folder_id = "0"
+
+            # Calculate parent path
+            current_path = self._path_label.text()
+            if current_path != "/":
+                path_parts = current_path.rstrip("/").split("/")
+                if len(path_parts) > 1:
+                    parent_path = "/".join(path_parts[:-1])
+                    if not parent_path:
+                        parent_path = "/"
+                else:
+                    parent_path = "/"
+            else:
+                parent_path = "/"
+
+            # Navigate to parent folder
+            self._current_parent_id = parent_folder_id
+            self._path_label.setText(parent_path)
+            self._back_btn.setEnabled(len(self._fid_path) > 0)
+
+            # Don't save to database - only save when playing a file
+            self._load_files()
+
+        else:
+            # Navigate to root
+            self._current_parent_id = "0"
+            self._path_label.setText("/")
+            self._fid_path = []
+            self._back_btn.setEnabled(False)
+
+            # Don't save to database
+            self._load_files()
+
+    def _restore_playback(self):
+        """Restore last playback state if available."""
+        if not self._last_playing_fid:
+            return
+
+        # Find the file in current folder's audio list
+        file_to_play = None
+        file_index = 0
+        for i, audio_file in enumerate(self._current_audio_files):
+            if audio_file.file_id == self._last_playing_fid:
+                file_to_play = audio_file
+                file_index = i
+                break
+
+        if file_to_play:
+            self._status_label.setText(f"🎵 恢复播放: {file_to_play.name}")
+
+            # Play the file (will start from saved position)
+            self._play_audio_file(file_to_play)
+
+            # Note: Position restoration would require seeking after playback starts
+            # This depends on PlayerController/PlayerEngine implementation
+        else:
+            self._status_label.setText(f"⚠️ 上次播放的文件不在当前文件夹")
+
+        # Clear the restoration state
+        self._last_playing_fid = ""
+        self._last_position = 0.0
+
+    def _save_playback_position(self):
+        """Save current playback position periodically."""
+        if not self._current_account or not self._player:
+            return
+
+        # Get current position from player engine
+        try:
+            # Get position from player engine (returns milliseconds)
+            if hasattr(self._player, 'engine'):
+                player_engine = self._player.engine
+                if hasattr(player_engine, 'position'):
+                    current_position_ms = player_engine.position()
+                else:
+                    return
+            else:
+                return
+
+            # Convert milliseconds to seconds for storage
+            current_position = current_position_ms / 1000.0
+
+            # Get currently playing file ID
+            if not hasattr(self, '_current_playing_file_id') or not self._current_playing_file_id:
+                return
+
+            # Save position to database (in seconds)
+            self._db.update_cloud_account_playing_state(
+                self._current_account.id,
+                position=current_position
+            )
+
+        except Exception as e:
+            pass  # Silently fail for position saving errors
 
     def _play_audio_file(self, file: CloudFile):
         """Play an audio file from cloud."""
+        # Track the currently playing file
+        self._current_playing_file_id = file.file_id
+
+        # Save current path and playing state to database when starting playback
+        if self._current_account:
+            # Build fid_path string
+            fid_path_str = "/" + "/".join(self._fid_path) if self._fid_path else "0"
+            current_path = self._path_label.text()
+
+            # Save folder path and fid_path
+            self._db.update_cloud_account_folder(
+                self._current_account.id,
+                self._current_parent_id,
+                current_path,
+                "0",
+                fid_path_str
+            )
+
+            # Save playing state (start from beginning or saved position)
+            start_position = 0.0
+            if self._last_playing_fid == file.file_id:
+                # This is the same file that was playing before
+                start_position = self._last_position
+                if start_position > 0:
+                    self._status_label.setText(
+                        f"🎵 恢复播放: {file.name} (从 {int(start_position // 60)}:{int(start_position % 60):02d} 开始)")
+
+            self._db.update_cloud_account_playing_state(
+                self._current_account.id,
+                playing_fid=file.file_id,
+                position=start_position
+            )
+
+            # Start the position save timer
+            self._position_save_timer.start()
+
         # Find index of this file in current folder's audio list
         try:
             file_index = next(
@@ -629,7 +864,10 @@ class CloudDriveView(QWidget):
                 self._status_label.setText(f"{t('file_size_mismatch')}: {file.name} ({size_mb:.1f} MB)")
             else:
                 # File exists and size matches
-                self._status_label.setText(f"{t('using_cached_file')}: {file.name}")
+                if start_position == 0:
+                    self._status_label.setText(f"{t('using_cached_file')}: {file.name}")
+                # else: already set message above about resuming
+
         else:
             # File doesn't exist or no size info
             size_info = ""
@@ -649,23 +887,26 @@ class CloudDriveView(QWidget):
         )
         download_thread.finished.connect(
             lambda path: self._on_file_downloaded(
-                path, file_index, self._current_audio_files, file.name
+                path, file_index, self._current_audio_files, file.name, start_position
             )
         )
         download_thread.file_exists.connect(
             lambda path: self._on_file_exists(
-                path, file_index, self._current_audio_files, file.name
+                path, file_index, self._current_audio_files, file.name, start_position
             )
         )
         download_thread.token_updated.connect(self._on_token_updated)
         download_thread.start()
 
-    def _on_file_exists(self, temp_path: str, file_index: int, audio_files: list, file_name: str):
+    def _on_file_exists(self, temp_path: str, file_index: int, audio_files: list, file_name: str,
+                        start_position: float = 0.0):
         """Handle when file already exists locally."""
         import os
 
         if temp_path and os.path.exists(temp_path):
-            self._status_label.setText(f"{t('using_cached_file')} - {file_name}")
+            if start_position == 0:
+                self._status_label.setText(f"{t('using_cached_file')} - {file_name}")
+            # else: message already set in _play_audio_file
 
             # Save local path to database
             if file_index < len(audio_files):
@@ -677,8 +918,8 @@ class CloudDriveView(QWidget):
                         temp_path
                     )
 
-            # Emit signal with playlist info
-            self.play_cloud_files.emit(temp_path, file_index, audio_files)
+            # Emit signal with playlist info and start position
+            self.play_cloud_files.emit(temp_path, file_index, audio_files, start_position)
 
             # Update current audio files list with local path
             if file_index < len(self._current_audio_files):
@@ -705,7 +946,6 @@ class CloudDriveView(QWidget):
                         self._current_audio_files[i] = updated_file
                         break
         else:
-            print(f"[DEBUG] ERROR: Existing file not found: {temp_path}")
             self._status_label.setText(t("download_failed"))
 
     def _on_token_updated(self, updated_token: str):
@@ -714,7 +954,8 @@ class CloudDriveView(QWidget):
             self._db.update_cloud_account_token(self._current_account.id, updated_token)
             self._current_account.access_token = updated_token
 
-    def _on_file_downloaded(self, temp_path: str, file_index: int, audio_files: list, file_name: str = None):
+    def _on_file_downloaded(self, temp_path: str, file_index: int, audio_files: list, file_name: str = None,
+                            start_position: float = 0.0):
         """Handle completed file download."""
         if temp_path:
             import os
@@ -730,7 +971,8 @@ class CloudDriveView(QWidget):
                 file_size = os.path.getsize(temp_path)
                 size_mb = file_size / (1024 * 1024)
 
-                self._status_label.setText(f"{t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
+                if start_position == 0:
+                    self._status_label.setText(f"{t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
 
                 # Save local path to database
                 if file_index < len(audio_files):
@@ -742,8 +984,8 @@ class CloudDriveView(QWidget):
                             temp_path
                         )
 
-                # Emit signal with playlist info
-                self.play_cloud_files.emit(temp_path, file_index, audio_files)
+                # Emit signal with playlist info and start position
+                self.play_cloud_files.emit(temp_path, file_index, audio_files, start_position)
 
                 # Update current audio files list with local path
                 if file_index < len(self._current_audio_files):
@@ -770,10 +1012,8 @@ class CloudDriveView(QWidget):
                             self._current_audio_files[i] = updated_file
                             break
             else:
-                print(f"[DEBUG] ERROR: Downloaded file does not exist: {temp_path}")
                 self._status_label.setText(t("download_failed"))
         else:
-            print(f"[DEBUG] ERROR: Download returned empty path")
             self._status_label.setText(t("download_failed"))
 
     def _show_context_menu(self, pos):
@@ -902,8 +1142,6 @@ class CloudDriveView(QWidget):
 
     def _get_account_info(self, account: CloudAccount):
         """Get and display account information."""
-        print(f"[DEBUG] Getting account info for: {account.account_name}")
-
         self._status_label.setText(f"{t('loading')} {t('account_info')}...")
 
         # Get account info from service (returns tuple: info, updated_token)
@@ -996,7 +1234,6 @@ class CloudDriveView(QWidget):
             dt = datetime.fromtimestamp(timestamp_sec)
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
-            print(f"[DEBUG] Error formatting timestamp: {e}")
             return "N/A"
 
     def _format_capacity(self, bytes_size: int) -> str:
@@ -1005,9 +1242,9 @@ class CloudDriveView(QWidget):
             return "0 GB"
 
         try:
-            tb = bytes_size / (1024**4)
-            gb = bytes_size / (1024**3)
-            mb = bytes_size / (1024**2)
+            tb = bytes_size / (1024 ** 4)
+            gb = bytes_size / (1024 ** 3)
+            mb = bytes_size / (1024 ** 2)
 
             if tb >= 1:
                 return f"{tb:.2f} TB"
@@ -1016,7 +1253,6 @@ class CloudDriveView(QWidget):
             else:
                 return f"{mb:.2f} MB"
         except Exception as e:
-            print(f"[DEBUG] Error formatting capacity: {e}")
             return "N/A"
 
     def _delete_account(self, account: CloudAccount):
@@ -1376,9 +1612,7 @@ class CloudDriveView(QWidget):
                 break
 
         if not target_account:
-            print(f"[DEBUG] Account {account_id} not found for state restoration")
             return False
-
         # Set current account
         self._current_account = target_account
         self._current_parent_id = file_path
@@ -1420,7 +1654,6 @@ class CloudDriveView(QWidget):
 
                     # Auto-play the file if requested and it's an audio file
                     if auto_play and cloud_file.file_type == 'audio':
-                        print(f"[DEBUG] Auto-playing restored cloud file: {cloud_file.name}")
                         # Use a small delay to ensure UI is ready
                         QTimer.singleShot(300, lambda: self._play_audio_file(cloud_file))
                     break
@@ -1448,13 +1681,13 @@ class CloudFileDownloadThread(QThread):
     file_exists = Signal(str)  # Emits local file path when file already exists
 
     def __init__(
-        self,
-        access_token: str,
-        file: CloudFile,
-        file_index: int = 0,
-        audio_files: list = None,
-        config_manager=None,
-        parent=None,
+            self,
+            access_token: str,
+            file: CloudFile,
+            file_index: int = 0,
+            audio_files: list = None,
+            config_manager=None,
+            parent=None,
     ):
         super().__init__(parent)
         self._access_token = access_token
@@ -1462,9 +1695,7 @@ class CloudFileDownloadThread(QThread):
         self._file_index = file_index
         self._audio_files = audio_files or []
         self._config_manager = config_manager
-        print(
-            f"[DEBUG] CloudFileDownloadThread created for file: {file.name} (ID: {file.file_id}), index: {file_index}"
-        )
+        pass  # Thread created
 
     def run(self):
         """Download file in background thread."""
@@ -1499,15 +1730,13 @@ class CloudFileDownloadThread(QThread):
 
                 if size_diff <= tolerance:
                     # File size matches, use existing file
-                    print(f"[DEBUG] File already exists with correct size: {local_file_path} ({file_size} bytes)")
                     self.file_exists.emit(str(local_file_path))
                     return
                 else:
                     # File size mismatch, need to re-download
-                    print(f"[DEBUG] File exists but size mismatch: expected ~{expected_size}, got {file_size}. Will re-download.")
+                    pass
             else:
                 # No size info available, use existing file
-                print(f"[DEBUG] File exists (no size verification): {local_file_path} ({file_size} bytes)")
                 self.file_exists.emit(str(local_file_path))
                 return
 
@@ -1536,7 +1765,6 @@ class CloudFileDownloadThread(QThread):
                     tolerance = expected_size * 0.01
 
                     if size_diff > tolerance:
-                        print(f"[DEBUG] Deleting old file with wrong size: {local_file_path}")
                         local_file_path.unlink()
 
             # Download to persistent location
@@ -1555,29 +1783,20 @@ class CloudFileDownloadThread(QThread):
                         tolerance = expected_size * 0.01  # 1% tolerance
 
                         if size_diff <= tolerance:
-                            print(f"[DEBUG] File downloaded and verified: {local_file_path} ({downloaded_size} bytes)")
                             self.finished.emit(str(local_file_path))
                             return
                         else:
-                            print(f"[DEBUG] Downloaded file size mismatch: expected ~{expected_size}, got {downloaded_size}")
                             # Delete incomplete file
                             local_file_path.unlink()
                             self.finished.emit("")
                     else:
                         # No size info, assume download was successful
-                        print(f"[DEBUG] File downloaded (no size verification): {local_file_path} ({downloaded_size} bytes)")
                         self.finished.emit(str(local_file_path))
                         return
                 else:
-                    print(f"[DEBUG] Download succeeded but file not found: {local_file_path}")
                     self.finished.emit("")
             else:
-                print(f"[DEBUG] Download failed for file: {self._file.name}")
                 self.finished.emit("")
         else:
-            print(f"[DEBUG] Failed to get download URL for file: {self._file.name}")
-            print(f"[DEBUG] File ID: {self._file.file_id}")
-            print(
-                f"[DEBUG] Token length: {len(self._access_token) if self._access_token else 0}"
-            )
+            self.finished.emit("")
             self.finished.emit("")

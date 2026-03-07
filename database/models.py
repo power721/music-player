@@ -104,8 +104,10 @@ class CloudAccount:
     refresh_token: str = ""  # For token refresh
     token_expires_at: Optional[datetime] = None
     is_active: bool = True
-    last_folder_id: str = "0"  # Last opened folder ID
-    last_folder_path: str = "/"  # Last opened folder path
+    last_folder_path: str = "/"  # Last opened folder display path (e.g., /音乐/test)
+    last_fid_path: str = "0"  # FID path (e.g., /fid1/fid2/fid3) for navigation
+    last_playing_fid: str = ""  # Last playing file ID
+    last_position: float = 0.0  # Last playback position in seconds
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
