@@ -179,5 +179,10 @@
     "deleting_old_file": "Deleting old file, re-downloading",
     "download_complete": "Download complete",
     "verifying_file": "Verifying file",
-    "file_info": "File Info"
+    "file_info": "File Info",
+    "no_track_playing": "No track playing",
+    "cloud_lyrics_edit_not_supported": "Editing lyrics for cloud files is not supported.",
+    "cloud_lyrics_delete_not_supported": "Deleting lyrics for cloud files is not supported.",
+    "cloud_lyrics_location_not_supported": "Opening lyrics location for cloud files is not supported.",
+    "cloud_lyrics_download_not_supported": "Downloading lyrics for cloud files is not supported."
 }

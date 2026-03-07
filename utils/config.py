@@ -1,8 +1,18 @@
 """
 Configuration manager for the music player.
 """
+import logging
 
 import json
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 from pathlib import Path
 from typing import Any, Dict
 
@@ -33,7 +43,7 @@ class ConfigManager:
                 with open(self._config_path, 'r', encoding='utf-8') as f:
                     self._config = json.load(f)
             except (json.JSONDecodeError, IOError) as e:
-                print(f"Error loading config: {e}")
+                logger.error(f"Error loading config from {self._config_path}: {e}", exc_info=True)
                 self._config = {}
         else:
             self._config = {}
@@ -45,7 +55,7 @@ class ConfigManager:
             with open(self._config_path, 'w', encoding='utf-8') as f:
                 json.dump(self._config, f, indent=4)
         except IOError as e:
-            print(f"Error saving config: {e}")
+            logger.error(f"Error saving config to {self._config_path}: {e}", exc_info=True)
 
     def get(self, key: str, default: Any = None) -> Any:
         """

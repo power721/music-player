@@ -1,8 +1,18 @@
 """
 Library view widget for browsing the music library.
 """
+import logging
 
 import shutil
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -1497,6 +1507,7 @@ class LibraryView(QWidget):
                 form_layout.addRow(t("file") + ":", info_container)
 
             except Exception as e:
+                logger.error(f"Error displaying track info: {e}", exc_info=True)
                 # Fallback to just show path if there's an error
                 path_label = QLabel(first_track.path)
                 path_label.setStyleSheet("color: #808080; font-size: 11px;")
@@ -1708,6 +1719,7 @@ class LibraryView(QWidget):
                 subprocess.Popen(["xdg-open", str(file_path.parent)])
 
         except Exception as e:
+            logger.error(f"Failed to open file location: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"{t('open_file_location_failed')}: {e}")
 
     def _remove_from_library(self):

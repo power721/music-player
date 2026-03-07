@@ -1,6 +1,7 @@
 """
 Player controls widget for playback control.
 """
+import logging
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -21,6 +22,15 @@ import threading
 from player import PlayerController
 from player.engine import PlayerState, PlayMode
 from utils import format_time, t
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 
 class PlayerControls(QWidget):
@@ -675,7 +685,7 @@ class PlayerControls(QWidget):
                 if cover_path:
                     return cover_path
             except Exception as e:
-                print(f"Cover load error: {e}")
+                logger.error(f"Cover load error for track {track.get('title', 'Unknown')}: {e}", exc_info=True)
             return None
 
         def show_cover(cover_path):

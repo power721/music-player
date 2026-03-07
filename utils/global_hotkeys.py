@@ -9,7 +9,18 @@ Note: True global hotkeys require platform-specific implementations:
 This is a simplified implementation using Qt's shortcuts
 which work when the window has focus.
 """
+import logging
+
 from PySide6.QtWidgets import QApplication
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 
@@ -167,7 +178,7 @@ def setup_media_key_handler(player: PlayerController):
             _setup_windows_media_keys(player)
 
     except Exception as e:
-        print(f"Could not setup media key handler: {e}")
+        logger.error(f"Could not setup media key handler: {e}", exc_info=True)
 
 
 def _setup_linux_media_keys(player: PlayerController):

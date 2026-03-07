@@ -2,6 +2,17 @@
 Cloud drive view for browsing and playing cloud files.
 """
 
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -790,7 +801,7 @@ class CloudDriveView(QWidget):
             )
 
         except Exception as e:
-            pass  # Silently fail for position saving errors
+            logger.error(f"Error saving playback position: {e}", exc_info=True)
 
     def _play_audio_file(self, file: CloudFile):
         """Play an audio file from cloud."""
@@ -1234,6 +1245,7 @@ class CloudDriveView(QWidget):
             dt = datetime.fromtimestamp(timestamp_sec)
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
+            logger.error(f"Error formatting timestamp: {e}", exc_info=True)
             return "N/A"
 
     def _format_capacity(self, bytes_size: int) -> str:
@@ -1253,6 +1265,7 @@ class CloudDriveView(QWidget):
             else:
                 return f"{mb:.2f} MB"
         except Exception as e:
+            logger.error(f"Error formatting capacity: {e}", exc_info=True)
             return "N/A"
 
     def _delete_account(self, account: CloudAccount):
@@ -1432,6 +1445,7 @@ class CloudDriveView(QWidget):
             form_layout.addRow(t("file") + ":", info_container)
 
         except Exception as e:
+            logger.error(f"Error showing file info dialog for {file.name}: {e}", exc_info=True)
             # Fallback to just show path if there's an error
             path_label = QLabel(file.local_path)
             path_label.setStyleSheet("color: #808080; font-size: 11px;")
@@ -1536,6 +1550,7 @@ class CloudDriveView(QWidget):
                 subprocess.Popen(["xdg-open", str(file_path.parent)])
 
         except Exception as e:
+            logger.error(f"Failed to open file location for {file_path}: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"Failed to open file location: {e}")
 
     def _change_download_dir(self):

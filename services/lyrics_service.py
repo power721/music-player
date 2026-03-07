@@ -2,6 +2,18 @@
 Lyrics service for fetching and parsing lyrics.
 """
 import re
+import logging
+
+from pathlib import Path
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 from pathlib import Path
 from typing import Optional, List, Tuple
 import requests
@@ -95,7 +107,7 @@ class LyricsService:
                 except (UnicodeDecodeError, UnicodeError):
                     continue
                 except Exception as e:
-                    print(f"Error loading local lyrics: {e}")
+                    logger.error(f"Error loading local lyrics from {lrc_path}: {e}", exc_info=True)
                     break
 
         return ""
@@ -124,7 +136,7 @@ class LyricsService:
                 if lyrics:
                     return lyrics
             except Exception as e:
-                print(f"Error fetching lyrics from {source.__name__}: {e}")
+                logger.error(f"Error fetching lyrics from {source.__name__}: {e}", exc_info=True)
                 continue
 
         return ""
@@ -289,6 +301,11 @@ class LyricsService:
         Returns:
             True if saved successfully
         """
+        # Skip saving if track_path is empty or invalid
+        if not track_path or track_path in ('.', '', '/'):
+            logger.debug(f"Skipping lyrics save for invalid track path: {track_path}")
+            return False
+
         try:
             track_file = Path(track_path)
             lrc_path = track_file.with_suffix('.lrc')
@@ -299,7 +316,7 @@ class LyricsService:
             return True
 
         except Exception as e:
-            print(f"Error saving lyrics: {e}")
+            logger.error(f"Error saving lyrics to {track_path}: {e}", exc_info=True)
             return False
 
     @classmethod
@@ -313,6 +330,10 @@ class LyricsService:
         Returns:
             True if deleted successfully
         """
+        # Skip if track_path is empty or invalid
+        if not track_path or track_path in ('.', '', '/'):
+            return False
+
         try:
             track_file = Path(track_path)
             lrc_path = track_file.with_suffix('.lrc')
@@ -324,7 +345,7 @@ class LyricsService:
             return False
 
         except Exception as e:
-            print(f"Error deleting lyrics: {e}")
+            logger.error(f"Error deleting lyrics file for {track_path}: {e}", exc_info=True)
             return False
 
     @classmethod

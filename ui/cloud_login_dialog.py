@@ -1,6 +1,8 @@
 """
 Cloud login dialog for QR code authentication.
 """
+import logging
+
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QProgressBar, QMessageBox)
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -9,6 +11,15 @@ import qrcode
 from io import BytesIO
 from services.quark_drive_service import QuarkDriveService
 from utils import t
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 
 class CloudLoginDialog(QDialog):
@@ -124,6 +135,7 @@ class CloudLoginDialog(QDialog):
             self._qr_label.setPixmap(scaled_pixmap)
             self._status_label.setText(t("scan_with_quark"))
         except Exception as e:
+            logger.error(f"Error generating QR code: {e}", exc_info=True)
             self._status_label.setText(t("qr_code_error") + f": {e}")
 
     def _start_polling(self):

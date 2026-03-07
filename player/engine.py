@@ -1,10 +1,21 @@
 """
 Audio playback engine using Qt Multimedia.
 """
+import logging
+
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtCore import QUrl, QObject, Signal, QTimer
 from typing import Optional, List
 from enum import Enum
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 
 class PlayMode(Enum):
@@ -130,7 +141,7 @@ class PlayerEngine(QObject):
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
             except Exception as e:
-                print(f"Failed to delete temp file: {e}")
+                logger.error(f"Failed to delete temp file {temp_file}: {e}", exc_info=True)
         self._temp_files.clear()
 
     def add_track(self, track: dict):

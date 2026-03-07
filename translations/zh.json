@@ -179,5 +179,10 @@
     "deleting_old_file": "删除旧文件，重新下载中",
     "download_complete": "下载完成",
     "verifying_file": "正在验证文件",
-    "file_info": "文件信息"
+    "file_info": "文件信息",
+    "no_track_playing": "没有正在播放的歌曲",
+    "cloud_lyrics_edit_not_supported": "不支持编辑网盘文件的歌词。",
+    "cloud_lyrics_delete_not_supported": "不支持删除网盘文件的歌词。",
+    "cloud_lyrics_location_not_supported": "不支持打开网盘文件的歌词位置。",
+    "cloud_lyrics_download_not_supported": "不支持下载网盘文件的歌词。"
 }

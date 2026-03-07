@@ -2,6 +2,16 @@
 Main application window for the music player.
 """
 import re
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import (
@@ -654,6 +664,10 @@ class MainWindow(QMainWindow):
         artist = track_dict.get("artist", "")
         path = track_dict.get("path", "")
 
+        # Skip loading lyrics for cloud files (empty path)
+        if not path or path.strip() in ('', '.', '/'):
+            return
+
         # Try to load lyrics
         lyrics = LyricsService.get_lyrics(path, title, artist)
         if lyrics:
@@ -674,12 +688,36 @@ class MainWindow(QMainWindow):
 
     def _download_lyrics(self):
         """Download lyrics for current track."""
-        if not self._player.current_track_id:
+        # Check if we're playing a track
+        current_track = self._player.engine.current_track
+        if not current_track:
             return
 
-        track = self._db.get_track(self._player.current_track_id)
-        if not track:
-            return
+        # Check if this is a cloud file (no id or empty id)
+        is_cloud_file = not current_track.get("id")
+
+        if is_cloud_file:
+            # For cloud files, use the current track info directly
+            track_path = current_track.get("path", "")
+            track_title = current_track.get("title", "")
+            track_artist = current_track.get("artist", "")
+
+            if not track_path:
+                # Cannot download lyrics for cloud files without local path
+                QMessageBox.warning(self, t("error"), t("cloud_lyrics_download_not_supported"))
+                return
+        else:
+            # For local files, get from database
+            if not self._player.current_track_id:
+                return
+
+            track = self._db.get_track(self._player.current_track_id)
+            if not track:
+                return
+
+            track_path = track.path
+            track_title = track.title
+            track_artist = track.artist
 
         # Clean up existing thread if any
         if self._lyrics_thread and isValid(self._lyrics_thread) and self._lyrics_thread.isRunning():
@@ -719,7 +757,7 @@ class MainWindow(QMainWindow):
 
         # Create and start thread
         self._lyrics_thread = QThread()
-        self._lyrics_worker = LyricsDownloadWorker(track.path, track.title, track.artist)
+        self._lyrics_worker = LyricsDownloadWorker(track_path, track_title, track_artist)
         self._lyrics_worker.moveToThread(self._lyrics_thread)
 
         self._lyrics_thread.started.connect(self._lyrics_worker.run)
@@ -810,12 +848,36 @@ class MainWindow(QMainWindow):
         from services import LyricsService
         from utils import parse_lrc
 
-        if not self._player.current_track_id:
+        # Check if we're playing a track
+        current_track = self._player.engine.current_track
+        if not current_track:
+            QMessageBox.information(self, t("info"), t("no_track_playing"))
             return
 
-        track = self._db.get_track(self._player.current_track_id)
-        if not track:
-            return
+        # Check if this is a cloud file (no id or empty id)
+        is_cloud_file = not current_track.get("id")
+
+        if is_cloud_file:
+            # For cloud files, use the current track info directly
+            track_path = current_track.get("path", "")
+            track_title = current_track.get("title", "Unknown")
+            track_artist = current_track.get("artist", "Unknown")
+
+            if not track_path:
+                QMessageBox.warning(self, t("error"), t("cloud_lyrics_edit_not_supported"))
+                return
+        else:
+            # For local files, get from database
+            if not self._player.current_track_id:
+                return
+
+            track = self._db.get_track(self._player.current_track_id)
+            if not track:
+                return
+
+            track_path = track.path
+            track_title = track.title
+            track_artist = track.artist
 
         # Create dialog
         dialog = QDialog(self)
@@ -863,7 +925,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(dialog)
 
         # Info label
-        info_label = QLabel(f"{track.title} - {track.artist}")
+        info_label = QLabel(f"{track_title} - {track_artist}")
         info_label.setStyleSheet("color: #1db954; font-size: 14px; padding: 5px;")
         layout.addWidget(info_label)
 
@@ -880,7 +942,7 @@ class MainWindow(QMainWindow):
         # Load existing lyrics if available (read directly from file to ensure fresh content)
         from pathlib import Path
 
-        track_file = Path(track.path)
+        track_file = Path(track_path)
         lrc_path = track_file.with_suffix('.lrc')
 
         lyrics_content = None
@@ -899,7 +961,7 @@ class MainWindow(QMainWindow):
                 except (UnicodeDecodeError, UnicodeError):
                     continue
                 except Exception as e:
-                    print(f"Error reading {lrc_path}: {e}")
+                    logger.error(f"Error reading {lrc_path}: {e}", exc_info=True)
                     break
 
         # Load lyrics into editor if found
@@ -937,7 +999,7 @@ class MainWindow(QMainWindow):
                 return
 
             # Save lyrics
-            if LyricsService.save_lyrics(track.path, content):
+            if LyricsService.save_lyrics(track_path, content):
                 QMessageBox.information(dialog, t("success"), t("lyrics_saved"))
                 # Refresh lyrics display
                 self._refresh_lyrics()
@@ -955,15 +1017,35 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QMessageBox
         from services import LyricsService
 
-        if not self._player.current_track_id:
+        # Check if we're playing a track
+        current_track = self._player.engine.current_track
+        if not current_track:
+            QMessageBox.information(self, t("info"), t("no_track_playing"))
             return
 
-        track = self._db.get_track(self._player.current_track_id)
-        if not track:
-            return
+        # Check if this is a cloud file (no id or empty id)
+        is_cloud_file = not current_track.get("id")
+
+        if is_cloud_file:
+            # For cloud files, use the current track info directly
+            track_path = current_track.get("path", "")
+
+            if not track_path:
+                QMessageBox.warning(self, t("error"), t("cloud_lyrics_delete_not_supported"))
+                return
+        else:
+            # For local files, get from database
+            if not self._player.current_track_id:
+                return
+
+            track = self._db.get_track(self._player.current_track_id)
+            if not track:
+                return
+
+            track_path = track.path
 
         # Check if lyrics file exists
-        if not LyricsService.lyrics_file_exists(track.path):
+        if not LyricsService.lyrics_file_exists(track_path):
             QMessageBox.information(self, t("info"), t("no_lyrics_file_to_delete"))
             return
 
@@ -977,7 +1059,7 @@ class MainWindow(QMainWindow):
         )
 
         if reply == QMessageBox.Yes:
-            if LyricsService.delete_lyrics(track.path):
+            if LyricsService.delete_lyrics(track_path):
                 # Clear lyrics immediately and reset state
                 self._current_lyric_line = None
                 self._lyrics_view.set_lyrics(t("no_lyrics"))
@@ -993,14 +1075,34 @@ class MainWindow(QMainWindow):
         from pathlib import Path
         from PySide6.QtWidgets import QMessageBox
 
-        if not self._player.current_track_id:
+        # Check if we're playing a track
+        current_track = self._player.engine.current_track
+        if not current_track:
+            QMessageBox.information(self, t("info"), t("no_track_playing"))
             return
 
-        track = self._db.get_track(self._player.current_track_id)
-        if not track:
-            return
+        # Check if this is a cloud file (no id or empty id)
+        is_cloud_file = not current_track.get("id")
 
-        track_file = Path(track.path)
+        if is_cloud_file:
+            # For cloud files, use the current track info directly
+            track_path = current_track.get("path", "")
+
+            if not track_path:
+                QMessageBox.warning(self, t("error"), t("cloud_lyrics_location_not_supported"))
+                return
+        else:
+            # For local files, get from database
+            if not self._player.current_track_id:
+                return
+
+            track = self._db.get_track(self._player.current_track_id)
+            if not track:
+                return
+
+            track_path = track.path
+
+        track_file = Path(track_path)
 
         # Find lyrics file
         lrc_path = track_file.with_suffix(".lrc")
@@ -1037,6 +1139,7 @@ class MainWindow(QMainWindow):
                 subprocess.Popen(["xdg-open", str(lrc_path.parent)])
 
         except Exception as e:
+            logger.error(f"Failed to open file location: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"{t('open_file_location_failed')}: {e}")
 
     def _add_to_queue(self, track_ids: list):
@@ -1183,7 +1286,7 @@ class MainWindow(QMainWindow):
                         if was_playing:
                             QTimer.singleShot(300, self._player.engine.play)
                     except Exception as e:
-                        print(f"Could not restore playback: {e}")
+                        logger.error(f"Could not restore playback: {e}", exc_info=True)
 
             QTimer.singleShot(100, restore_later)
 
@@ -1327,7 +1430,7 @@ class CloudPlaylistManager:
                 self._player_engine.seek(position_ms)
                 print(f"Seeking to {self._start_position:.2f}s ({position_ms}ms)")
             except Exception as e:
-                print(f"Error seeking to position: {e}")
+                logger.error(f"Error seeking to position: {e}", exc_info=True)
 
     def on_track_changed(self, track_dict):
         """Handle track change to download files on demand."""

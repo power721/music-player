@@ -1,7 +1,18 @@
 """
 Cover art service for extracting and fetching album covers.
 """
+import logging
+
 from pathlib import Path
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 from typing import Optional
 import requests
 import hashlib
@@ -77,7 +88,7 @@ class CoverService:
                 return str(cache_path)
 
         except Exception as e:
-            print(f"Error extracting embedded cover: {e}")
+            logger.error(f"Error extracting embedded cover from {file_path}: {e}", exc_info=True)
 
         return None
 
@@ -122,7 +133,7 @@ class CoverService:
                 if cover_data:
                     return cls._save_cover_to_cache(cover_data, cache_key)
             except Exception as e:
-                print(f"Error fetching cover from {source.__name__}: {e}")
+                logger.error(f"Error fetching cover from {source.__name__}: {e}", exc_info=True)
                 continue
 
         return None
@@ -288,7 +299,7 @@ class CoverService:
             return str(cache_path)
 
         except Exception as e:
-            print(f"Error saving cover to cache: {e}")
+            logger.error(f"Error saving cover to cache: {e}", exc_info=True)
             return None
 
     @classmethod
@@ -300,4 +311,4 @@ class CoverService:
                     if file.is_file():
                         file.unlink()
         except Exception as e:
-            print(f"Error clearing cover cache: {e}")
+            logger.error(f"Error clearing cover cache: {e}", exc_info=True)

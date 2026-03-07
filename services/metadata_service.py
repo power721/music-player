@@ -1,6 +1,7 @@
 """
 Metadata extraction service for audio files using mutagen.
 """
+import logging
 
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -11,6 +12,15 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.mp4 import MP4
 from mutagen.id3 import ID3NoHeaderError
 from mutagen.wave import WAVE
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 
 
 class MetadataService:
@@ -60,6 +70,10 @@ class MetadataService:
             "cover": None,
         }
 
+        # Skip invalid paths
+        if not file_path or file_path.strip() in ('', '.', '/'):
+            return metadata
+
         try:
             path = Path(file_path)
             if not path.exists():
@@ -90,7 +104,7 @@ class MetadataService:
                     metadata["duration"] = audio.info.length
 
         except Exception as e:
-            print(f"Error extracting metadata from {file_path}: {e}")
+            logger.error(f"Error extracting metadata from {file_path}: {e}", exc_info=True)
 
         # Fallback to filename if no title
         if not metadata["title"]:
@@ -256,7 +270,7 @@ class MetadataService:
                     f.write(metadata["cover"])
                 return True
             except Exception as e:
-                print(f"Error saving cover: {e}")
+                logger.error(f"Error saving cover to {output_path}: {e}", exc_info=True)
 
         return False
 
@@ -309,7 +323,7 @@ class MetadataService:
                 return True
 
         except Exception as e:
-            print(f"Error saving metadata to {file_path}: {e}")
+            logger.error(f"Error saving metadata to {file_path}: {e}", exc_info=True)
 
         return False
 
@@ -331,7 +345,7 @@ class MetadataService:
             if album is not None:
                 audio.tags["TALB"] = TALB(encoding=3, text=album)
         except Exception as e:
-            print(f"Error saving MP3 metadata: {e}")
+            logger.error(f"Error saving MP3 metadata: {e}", exc_info=True)
 
     @classmethod
     def _save_flac_metadata(cls, audio: FLAC, title: str, artist: str, album: str):
@@ -344,7 +358,7 @@ class MetadataService:
             if album is not None:
                 audio["album"] = [album]
         except Exception as e:
-            print(f"Error saving FLAC metadata: {e}")
+            logger.error(f"Error saving FLAC metadata: {e}", exc_info=True)
 
     @classmethod
     def _save_ogg_metadata(cls, audio: OggVorbis, title: str, artist: str, album: str):
@@ -357,7 +371,7 @@ class MetadataService:
             if album is not None:
                 audio["album"] = [album]
         except Exception as e:
-            print(f"Error saving OGG metadata: {e}")
+            logger.error(f"Error saving OGG metadata: {e}", exc_info=True)
 
     @classmethod
     def _save_mp4_metadata(cls, audio: MP4, title: str, artist: str, album: str):
@@ -370,7 +384,7 @@ class MetadataService:
             if album is not None:
                 audio["\xa9alb"] = [album]
         except Exception as e:
-            print(f"Error saving MP4 metadata: {e}")
+            logger.error(f"Error saving MP4 metadata: {e}", exc_info=True)
 
     @classmethod
     def _save_wav_metadata(cls, audio: WAVE, title: str, artist: str, album: str):
@@ -389,7 +403,7 @@ class MetadataService:
             if album is not None:
                 audio.tags["TALB"] = TALB(encoding=3, text=album)
         except Exception as e:
-            print(f"Error saving WAV metadata: {e}")
+            logger.error(f"Error saving WAV metadata: {e}", exc_info=True)
 
     @classmethod
     def _save_generic_metadata(cls, audio, title: str, artist: str, album: str):
@@ -402,4 +416,4 @@ class MetadataService:
             if album is not None:
                 audio["album"] = [album]
         except Exception as e:
-            print(f"Error saving generic metadata: {e}")
+            logger.error(f"Error saving generic metadata: {e}", exc_info=True)

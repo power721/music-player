@@ -1,7 +1,18 @@
 """
 Quark Drive cloud storage service.
 """
+import logging
+
 import requests
+
+# Configure logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
 import time
 from typing import Optional, Dict, List, Any
 from database.models import CloudFile
@@ -80,8 +91,7 @@ class QuarkDriveService:
                 print(f"[DEBUG] QR code generation failed with status: {data.get('status')}")
                 print(f"[DEBUG] Error message: {data.get('message')}")
         except Exception as e:
-            print(f"[DEBUG] Quark QR generation error: {e}")
-            import traceback
+            logger.error(f"Quark QR generation error: {e}", exc_info=True)
             print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return None
 
@@ -141,8 +151,7 @@ class QuarkDriveService:
                     return {'status': 'error', 'message': message}
 
             except Exception as e:
-                print(f"[DEBUG] Quark login poll error: {e}")
-                import traceback
+                logger.error(f"Quark login poll error: {e}", exc_info=True)
                 print(f"[DEBUG] Traceback: {traceback.format_exc()}")
 
         return {'status': 'timeout', 'message': 'Login timeout'}
@@ -217,8 +226,7 @@ class QuarkDriveService:
                 print(f"[DEBUG] File list API returned error: {data.get('status')}")
                 print(f"[DEBUG] Error message: {data.get('message')}")
         except Exception as e:
-            print(f"[DEBUG] Quark file list error: {e}")
-            import traceback
+            logger.error(f"Quark file list error: {e}", exc_info=True)
             print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return [], None
 
@@ -265,8 +273,7 @@ class QuarkDriveService:
                 print(f"[DEBUG] API returned error status: {response_data.get('status')}")
                 print(f"[DEBUG] API message: {response_data.get('message')}")
         except Exception as e:
-            print(f"[DEBUG] Quark download URL error: {e}")
-            import traceback
+            logger.error(f"Quark download URL error: {e}", exc_info=True)
             print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return None, None
 
@@ -348,8 +355,7 @@ class QuarkDriveService:
                 return None, None
 
         except Exception as e:
-            print(f"[DEBUG] Get account info error: {e}")
-            import traceback
+            logger.error(f"Get account info error: {e}", exc_info=True)
             return None, None
 
     @classmethod
@@ -388,5 +394,5 @@ class QuarkDriveService:
             else:
                 return False
         except Exception as e:
-            import traceback
+            logger.error(f"Quark cookie validation error: {e}", exc_info=True)
             return False
