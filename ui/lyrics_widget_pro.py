@@ -72,7 +72,7 @@ class LyricsWidget(QWidget):
 
         self.state = "no_lyrics"
 
-        self.margin_x = 40
+        self.margin_x = 20
 
         self.font_normal = QFont("Microsoft YaHei", 15)
         self.font_current = QFont("Microsoft YaHei", 18, QFont.Bold)

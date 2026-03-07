@@ -299,11 +299,7 @@ class PlayerEngine(QObject):
 
             url = QUrl.fromLocalFile(track['path'])
 
-            # Track temp files for cleanup
-            if track['path'].startswith('/tmp/') or '/tmp/' in track['path']:
-                if track['path'] not in self._temp_files:
-                    self._temp_files.append(track['path'])
-
+            print(f'Loading track from {url}')
             self._player.setSource(url)
             self.current_track_changed.emit(track)
 

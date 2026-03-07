@@ -52,9 +52,10 @@ class LyricsService:
             List of (time, text) tuples for synchronized lyrics, or None
         """
         # First try local .lrc file
-        lyrics = cls._get_local_lyrics(track_path)
-        if lyrics:
-            return lyrics
+        if track_path:
+            lyrics = cls._get_local_lyrics(track_path)
+            if lyrics:
+                return lyrics
 
         # Fall back to online sources (only if enabled)
         if cls.ENABLE_ONLINE:

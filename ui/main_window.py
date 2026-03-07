@@ -619,7 +619,8 @@ class MainWindow(QMainWindow):
             self._cloud_playlist_manager = CloudPlaylistManager(
                 self._cloud_drive_view,
                 self._player.engine,
-                self._db
+                self._db,
+                self._config
             )
 
         # Load the playlist
@@ -657,6 +658,8 @@ class MainWindow(QMainWindow):
         else:
             # Check if .lrc file exists nearby
             from pathlib import Path
+            if not path:
+                return
 
             track_path = Path(path)
             lrc_path = track_path.with_suffix(".lrc")
@@ -1227,10 +1230,11 @@ class MainWindow(QMainWindow):
 class CloudPlaylistManager:
     """Manages playback of cloud files with on-demand downloading."""
 
-    def __init__(self, cloud_drive_view, player_engine, db_manager):
+    def __init__(self, cloud_drive_view, player_engine, db_manager, config_manager):
         self._cloud_view = cloud_drive_view
         self._player_engine = player_engine
         self._db = db_manager
+        self._config_manager = config_manager
         self._cloud_files = []
         self._download_threads = []
         self._current_index = 0
@@ -1350,7 +1354,7 @@ class CloudPlaylistManager:
             cloud_file,
             index,
             self._cloud_files,
-            self._cloud_view
+            self._config_manager
         )
         self._download_threads.append(download_thread)
         download_thread.finished.connect(lambda path: self._on_file_downloaded(index, path))
