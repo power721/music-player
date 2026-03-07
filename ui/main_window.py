@@ -642,7 +642,7 @@ class MainWindow(QMainWindow):
                 # Select in queue view (if it exists in queue)
                 self._queue_view._select_track_by_id(track_id)
 
-        self._lyrics_view.set_lyrics("")
+        self._lyrics_view.set_lyrics(t("no_lyrics"))
         if not track_dict:
             return
 
@@ -667,7 +667,7 @@ class MainWindow(QMainWindow):
             lrc_alt = lyrics_dir / f"{track_path.stem}.lrc"
 
             if lrc_path.exists() or lrc_alt.exists():
-                self._lyrics_view.set_lyrics("")
+                self._lyrics_view.set_lyrics(t("lyrics_found_parse_failed") + "\n" + t("ensure_lrc_valid"))
 
     def _download_lyrics(self):
         """Download lyrics for current track."""
@@ -683,7 +683,7 @@ class MainWindow(QMainWindow):
             self._lyrics_thread.quit()
             self._lyrics_thread.wait()
 
-        self._lyrics_view.set_lyrics("")
+        self._lyrics_view.set_lyrics(t("no_lyrics"))
 
         from PySide6.QtCore import QObject
 
@@ -735,9 +735,9 @@ class MainWindow(QMainWindow):
     def _on_lyrics_download_error(self, error_type: str):
         """Handle lyrics download error."""
         if error_type == "parse_failed":
-            self._lyrics_view.set_lyrics("")
+            self._lyrics_view.set_lyrics(t("lyrics_downloaded_parsing_failed"))
         else:  # not_found
-            self._lyrics_view.set_lyrics("")
+            self._lyrics_view.set_lyrics(t("lyrics_not_found"))
 
     def _show_lyrics_context_menu(self, pos):
         """Show context menu for lyrics panel."""
@@ -977,7 +977,7 @@ class MainWindow(QMainWindow):
             if LyricsService.delete_lyrics(track.path):
                 # Clear lyrics immediately and reset state
                 self._current_lyric_line = None
-                self._lyrics_view.set_lyrics("")
+                self._lyrics_view.set_lyrics(t("no_lyrics"))
                 QMessageBox.information(self, t("success"), t("lyrics_deleted"))
             else:
                 QMessageBox.warning(self, "Error", t("lyrics_delete_failed"))

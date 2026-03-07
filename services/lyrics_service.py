@@ -59,7 +59,10 @@ class LyricsService:
 
         # Fall back to online sources (only if enabled)
         if cls.ENABLE_ONLINE:
-            return cls._get_online_lyrics(title, artist)
+            lyrics = cls._get_online_lyrics(title, artist)
+            if lyrics:
+                cls.save_lyrics(track_path, lyrics)
+            return lyrics
 
         return ""
 
@@ -138,6 +141,7 @@ class LyricsService:
                 'type': '1',
                 'limit': '5'
             }
+            print(f'search lyric from 163: {artist} {title}')
 
             response = requests.get(
                 search_url,
@@ -180,6 +184,7 @@ class LyricsService:
                 lrc_content = lyrics_data['lyric']
 
             if lrc_content:
+                print('get lyrics from 163')
                 return lrc_content
 
         except Exception as e:

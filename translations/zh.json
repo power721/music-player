@@ -15,6 +15,7 @@
     "download": "⬇ 下载",
     "not_playing": "当前无播放",
     "no_lyrics": "暂无歌词",
+    "lyrics_load_error": "歌词加载失败",
     "click_download": "点击「⬇ 下载」搜索在线歌词",
     "searching_lyrics": "正在搜索歌词...",
     "lyrics_not_found": "未能找到在线歌词",

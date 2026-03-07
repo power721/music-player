@@ -6,6 +6,8 @@ from PySide6.QtCore import Qt, QTimer, QRectF, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QWidget
 
+from utils import t
+
 
 # =============================
 # 数据结构
@@ -156,11 +158,11 @@ class LyricsWidget(QWidget):
         p.fillRect(self.rect(), QColor(0, 0, 0))
 
         if self.state == "no_lyrics":
-            self._draw_center(p, "暂无歌词")
+            self._draw_center(p, t("no_lyrics"))
             return
 
         if self.state == "error":
-            self._draw_center(p, "歌词加载失败")
+            self._draw_center(p, t("lyrics_load_error"))
             return
 
         center_y = self.height() / 2

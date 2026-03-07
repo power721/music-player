@@ -15,6 +15,7 @@
     "download": "⬇ Download",
     "not_playing": "No track playing",
     "no_lyrics": "No lyrics available",
+    "lyrics_load_error": "Lyrics load error",
     "click_download": "Click \"⬇ Download\" to search for lyrics online.",
     "searching_lyrics": "Searching for lyrics...",
     "lyrics_not_found": "Could not find lyrics online.",
