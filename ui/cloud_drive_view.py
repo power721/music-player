@@ -447,7 +447,6 @@ class CloudDriveView(QWidget):
 
         # Update token if changed
         if updated_token:
-            print(f"[DEBUG] Updating account token with new __puus cookie")
             self._db.update_cloud_account_token(self._current_account.id, updated_token)
             self._current_account.access_token = updated_token
 
@@ -456,7 +455,6 @@ class CloudDriveView(QWidget):
 
         # Save audio files for playlist playback
         self._current_audio_files = [f for f in files if f.file_type == 'audio']
-        print(f"[DEBUG] Found {len(self._current_audio_files)} audio files in current folder")
 
         # Update table
         self._populate_table(files)
@@ -550,16 +548,11 @@ class CloudDriveView(QWidget):
 
     def _play_audio_file(self, file: CloudFile):
         """Play an audio file from cloud."""
-        print(f"[DEBUG] User requested to play file: {file.name} (ID: {file.file_id})")
-        print(f"[DEBUG] Current account: {self._current_account.account_name if self._current_account else 'None'}")
-
         # Find index of this file in current folder's audio list
         try:
             file_index = next(i for i, f in enumerate(self._current_audio_files) if f.file_id == file.file_id)
         except StopIteration:
             file_index = 0
-
-        print(f"[DEBUG] File index in audio list: {file_index}/{len(self._current_audio_files)}")
 
         self._status_label.setText(f"{t('downloading')} {file.name}...")
 
@@ -578,22 +571,14 @@ class CloudDriveView(QWidget):
     def _on_token_updated(self, updated_token: str):
         """Handle updated access token from API calls."""
         if self._current_account and updated_token:
-            print(f"[DEBUG] Updating account token with __puus cookie")
             self._db.update_cloud_account_token(self._current_account.id, updated_token)
             self._current_account.access_token = updated_token
 
     def _on_file_downloaded(self, temp_path: str, file_index: int, audio_files: list):
         """Handle completed file download."""
-        print(f"[DEBUG] Download completed for file at index {file_index}")
-        print(f"[DEBUG] Temp file path: {temp_path}")
-        print(f"[DEBUG] Total audio files in playlist: {len(audio_files)}")
-
         if temp_path:
             import os
             if os.path.exists(temp_path):
-                file_size = os.path.getsize(temp_path)
-                print(f"[DEBUG] Downloaded file size: {file_size} bytes ({file_size/(1024*1024):.2f} MB)")
-
                 # Get file name from audio_files list
                 if file_index < len(audio_files):
                     file_name = audio_files[file_index].name
@@ -710,7 +695,6 @@ class CloudDriveView(QWidget):
 
         # Update token if changed
         if updated_token:
-            print(f"[DEBUG] Updating account token with __puus cookie")
             self._db.update_cloud_account_token(account.id, updated_token)
             account.access_token = updated_token
             # Also update current account if it's the same
@@ -884,10 +868,7 @@ class CloudFileDownloadThread(QThread):
 
     def run(self):
         """Download file in background thread."""
-        print(f"[DEBUG] Starting download thread for file: {self._file.name}")
-
         # Get download URL
-        print(f"[DEBUG] Fetching download URL...")
         result = QuarkDriveService.get_download_url(
             self._access_token,
             self._file.file_id
@@ -901,17 +882,13 @@ class CloudFileDownloadThread(QThread):
 
         # Emit token update signal if changed
         if updated_token:
-            print(f"[DEBUG] Download URL call returned updated token")
             self.token_updated.emit(updated_token)
 
         if url:
-            print(f"[DEBUG] Download URL obtained, starting file download...")
             # Download to temp file
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
                 temp_path = f.name
-
-            print(f"[DEBUG] Temporary file created: {temp_path}")
 
             success = QuarkDriveService.download_file(
                 url,
@@ -919,14 +896,10 @@ class CloudFileDownloadThread(QThread):
                 self._access_token
             )
 
-            print(f"[DEBUG] Download result: {'SUCCESS' if success else 'FAILED'}")
-
             if success:
-                print(f"[DEBUG] Emitting finished signal with temp path: {temp_path}")
                 self.finished.emit(temp_path)
                 return
             else:
-                print(f"[DEBUG] Download failed, emitting empty signal")
                 self.finished.emit("")
         else:
             print(f"[DEBUG] Failed to get download URL for file: {self._file.name}")

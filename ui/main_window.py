@@ -604,8 +604,6 @@ class MainWindow(QMainWindow):
         """Play multiple cloud files as a playlist."""
         from database.models import CloudFile
 
-        print(f"[DEBUG] Playing cloud playlist: {len(cloud_files)} files, starting at index {index}")
-
         # Create a cloud playlist manager if needed
         if not hasattr(self, '_cloud_playlist_manager'):
             self._cloud_playlist_manager = CloudPlaylistManager(
@@ -1386,8 +1384,6 @@ class CloudPlaylistManager:
             self.on_track_changed
         )
 
-        print(f"[DEBUG] Cloud playlist loaded and playing, signal connected for future track changes")
-
     def on_track_changed(self, track_dict):
         """Handle track change to download files on demand."""
         if not track_dict:
@@ -1396,7 +1392,6 @@ class CloudPlaylistManager:
         # Only trigger download if path is empty AND we have cloud files
         if not track_dict.get('path') and self._cloud_files:
             current_index = self._player_engine.current_index
-            print(f"[DEBUG] Track changed to index {current_index} with empty path, checking if download needed")
 
             # Check if this file needs downloading
             if 0 <= current_index < len(self._cloud_files):
@@ -1404,10 +1399,8 @@ class CloudPlaylistManager:
 
                 # Check if already downloaded
                 if cloud_file.file_id not in self._downloaded_files:
-                    print(f"[DEBUG] File at index {current_index} not downloaded yet, starting download")
                     self._download_and_play(current_index)
                 else:
-                    print(f"[DEBUG] File at index {current_index} already downloaded, updating path")
                     temp_path = self._downloaded_files[cloud_file.file_id]
                     self._update_track_path(current_index, temp_path)
 
@@ -1427,10 +1420,7 @@ class CloudPlaylistManager:
         # Get current account
         account = self._cloud_view._current_account
         if not account:
-            print(f"[DEBUG] No account for downloading cloud file")
             return
-
-        print(f"[DEBUG] Downloading cloud file on demand: {cloud_file.name}")
 
         # Download in background thread
         from ui.cloud_drive_view import CloudFileDownloadThread

@@ -2,7 +2,6 @@
 Quark Drive cloud storage service.
 """
 import requests
-import json
 import time
 from typing import Optional, Dict, List, Any
 from database.models import CloudFile
@@ -36,8 +35,6 @@ class QuarkDriveService:
 
         # Check if __puus is in response cookies
         if '__puus' in cookie_dict:
-            print(f"[DEBUG] Found __puus in response cookies: {cookie_dict['__puus'][:20]}...")
-
             # Parse existing cookie string
             existing_cookies = {}
             if access_token:
@@ -52,7 +49,6 @@ class QuarkDriveService:
 
             # Rebuild cookie string
             updated_cookie = '; '.join([f"{k}={v}" for k, v in existing_cookies.items()])
-            print(f"[DEBUG] Updated cookie with __puus")
             return updated_cookie
 
         return access_token
@@ -61,7 +57,6 @@ class QuarkDriveService:
     def generate_qr_code(cls) -> Optional[Dict[str, str]]:
         """Generate QR code for login"""
         try:
-            print(f"[DEBUG] Generating QR code for login...")
             t = int(time.time() * 1000)
             url = f"{cls.AUTH_URL}/cas/ajax/getTokenForQrcodeLogin"
             params = {
@@ -70,20 +65,13 @@ class QuarkDriveService:
                 'request_id': t
             }
 
-            print(f"[DEBUG] QR code request URL: {url}")
-            print(f"[DEBUG] QR code request params: {params}")
-
             response = requests.get(url, params=params, timeout=10)
-            print(f"[DEBUG] QR code response status: {response.status_code}")
 
             data = response.json()
-            print(f"[DEBUG] QR code response data: {data}")
 
             if data.get('status') == 2000000:
                 token = data['data']['members']['token']
                 qr_url = f"https://su.quark.cn/4_eMHBJ?token={token}&client_id={cls.CLIENT_ID}&ssb=weblogin&uc_param_str=&uc_biz_str=S%3Acustom%7COPT%3ASAREA%400%7COPT%3AIMMERSIVE%401%7COPT%3ABACK_BTN_STYLE%400"
-                print(f"[DEBUG] QR token generated: {token[:50]}...")
-                print(f"[DEBUG] QR URL: {qr_url[:100]}...")
                 return {
                     'token': token,
                     'qr_url': qr_url
@@ -114,34 +102,24 @@ class QuarkDriveService:
 
                 response = requests.get(url, params=params, timeout=10)
                 data = response.json()
-                print(f"[DEBUG] Poll response: {data}")
                 status = data.get('status')
                 message = data.get('message', '')
 
                 if status == 2000000:
                     # Success - extract cookie and user info
-                    print(f"[DEBUG] Login successful, extracting cookies...")
                     ticket = data['data']['members']['service_ticket']
-                    print(f"[DEBUG] Service ticket: {ticket[:50] if ticket else 'None'}...")
 
                     # Get account info with ticket
                     info_url = f"https://pan.quark.cn/account/info"
                     info_params = {'st': ticket, 'lw': 'scan'}
-                    print(f"[DEBUG] Getting account info from: {info_url}")
                     info_response = requests.get(info_url, params=info_params, timeout=10)
-
-                    print(f"[DEBUG] Account info response status: {info_response.status_code}")
-                    print(f"[DEBUG] Account info response cookies: {dict(info_response.cookies)}")
 
                     # Extract cookies
                     cookies = info_response.cookies
                     cookie_dict = {name: value for name, value in cookies.items()}
                     cookie_str = '; '.join([f"{k}={v}" for k, v in cookie_dict.items()])
-                    print(f"[DEBUG] Cookie string length: {len(cookie_str)}")
-                    print(f"[DEBUG] Cookie string preview: {cookie_str[:100]}...")
 
                     info_data = info_response.json()
-                    print(f"[DEBUG] Account info data: {info_data}")
 
                     nickname = info_data.get('data', {}).get('nickname', 'Unknown')
                     print(f"[DEBUG] User nickname: {nickname}")
@@ -153,7 +131,6 @@ class QuarkDriveService:
                     }
                 elif status == 50004001:
                     # Waiting for scan - return waiting status
-                    print(f"[DEBUG] Waiting for user to scan QR code")
                     return {'status': 'waiting', 'message': message or 'Waiting for scan'}
                 elif status == 50004002:
                     # QR expired
@@ -178,7 +155,6 @@ class QuarkDriveService:
             tuple: (files_list, updated_access_token or None)
         """
         try:
-            print(f"[DEBUG] Getting file list for parent_id: {parent_id}")
             url = f"{cls.BASE_URL}/1/clouddrive/file/sort"
             params = {
                 'pr': 'ucpro',
@@ -195,22 +171,14 @@ class QuarkDriveService:
             headers = cls.HEADERS.copy()
             headers['Cookie'] = access_token
 
-            print(f"[DEBUG] File list request URL: {url}")
-            print(f"[DEBUG] Request params: {params}")
-
             response = requests.get(url, params=params, headers=headers, timeout=30)
-            print(f"[DEBUG] File list response status: {response.status_code}")
 
             # Check for updated cookies
             updated_token = cls._update_cookie_from_response(access_token, response.cookies)
 
             data = response.json()
-            print(f"[DEBUG] File list response status: {data.get('status')}")
-            print(f"[DEBUG] File list response data keys: {list(data.get('data', {}).keys())}")
-
             if data.get('status') == 200:
                 files_list = data.get('data', {}).get('list', [])
-                print(f"[DEBUG] Files found: {len(files_list)}")
 
                 files = []
                 for i, item in enumerate(files_list):
@@ -220,26 +188,14 @@ class QuarkDriveService:
                     size = item.get('size', 0)
                     category = item.get('category', 0)
                     file_type_num = item.get('file_type', 0)  # Direct file type field
-
-                    print(f"[DEBUG] File {i+1}: {name}")
-                    print(f"[DEBUG]   - ID: {file_id}")
-                    print(f"[DEBUG]   - is_file: {is_file}")
-                    print(f"[DEBUG]   - category: {category}")
-                    print(f"[DEBUG]   - file_type: {file_type_num}")
-                    print(f"[DEBUG]   - size: {size}")
-                    if 'media_meta' in item:
-                        print(f"[DEBUG]   - media_meta: {item['media_meta']}")
+                    duration = None
 
                     # Determine file type
                     if not is_file:
                         file_type = 'folder'
                     elif category == 2 or file_type_num == 'audio':  # Audio category in Quark
                         file_type = 'audio'
-                        # Extract duration if available
-                        duration = None
-                        if 'media_meta' in item:
-                            duration = item['media_meta'].get('duration')
-                            print(f"[DEBUG]   - duration: {duration}")
+                        duration = item.get('duration', 0)
                     else:
                         file_type = 'other'
 
@@ -252,10 +208,6 @@ class QuarkDriveService:
                         duration=duration if file_type == 'audio' else None
                     )
                     files.append(cloud_file)
-
-                print(f"[DEBUG] Created {len(files)} CloudFile objects")
-                print(f"[DEBUG] Audio files: {sum(1 for f in files if f.file_type == 'audio')}")
-                print(f"[DEBUG] Folders: {sum(1 for f in files if f.file_type == 'folder')}")
 
                 # Return files and updated token if changed
                 if updated_token != access_token:
@@ -278,7 +230,6 @@ class QuarkDriveService:
             tuple: (download_url or None, updated_access_token or None)
         """
         try:
-            print(f"[DEBUG] Getting download URL for file_id: {file_id}")
             url = f"{cls.BASE_URL}/1/clouddrive/file/download"
             params = {
                 'pr': 'ucpro',
@@ -290,29 +241,19 @@ class QuarkDriveService:
 
             data = {'fids': [file_id]}
 
-            print(f"[DEBUG] Request URL: {url}")
-            print(f"[DEBUG] Request params: {params}")
-            print(f"[DEBUG] Request data: {data}")
-            print(f"[DEBUG] Cookie length: {len(access_token)}")
-
             response = requests.post(url, params=params, json=data,
                                     headers=headers, timeout=30)
-            print(f"[DEBUG] Response status code: {response.status_code}")
-            print(f"[DEBUG] Response headers: {dict(response.headers)}")
 
             # Check for updated cookies
             updated_token = cls._update_cookie_from_response(access_token, response.cookies)
 
             response_data = response.json()
-            print(f"[DEBUG] Response data: {response_data}")
 
             if response_data.get('status') == 200:
                 download_list = response_data.get('data', [])
-                print(f"[DEBUG] Download list count: {len(download_list)}")
 
                 if download_list:
                     download_url = download_list[0].get('download_url')
-                    print(f"[DEBUG] Download URL retrieved: {download_url[:100] if download_url else 'None'}...")
 
                     # Return URL and updated token if changed
                     if updated_token != access_token:
@@ -337,8 +278,6 @@ class QuarkDriveService:
             tuple: (account_info or None, updated_access_token or None)
         """
         try:
-            print(f"[DEBUG] Getting account info for: {account_email}")
-
             # First call: Get member info
             headers = {
                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
@@ -348,27 +287,22 @@ class QuarkDriveService:
             }
 
             url1 = "https://drive-pc.quark.cn/1/clouddrive/member?pr=ucpro&fr=pc&uc_param_str=&fetch_subscribe=true&_ch=home&fetch_identity=true"
-            print(f"[DEBUG] Member info URL: {url1}")
 
             response1 = requests.get(url1, headers=headers, timeout=30)
-            print(f"[DEBUG] Member info response status: {response1.status_code}")
 
             if response1.status_code != 200:
                 print(f"[DEBUG] Failed to get member info: {response1.status_code}")
                 return None, None
 
             data1 = response1.json()
-            print(f"[DEBUG] Member info data: {data1}")
 
             # Check for updated cookies from first response
             updated_token = cls._update_cookie_from_response(access_token, response1.cookies)
 
             # Second call: Get account nickname
             url2 = "https://pan.quark.cn/account/info?fr=pc&platform=pc"
-            print(f"[DEBUG] Account info URL: {url2}")
 
             response2 = requests.get(url2, headers=headers, timeout=30)
-            print(f"[DEBUG] Account info response status: {response2.status_code}")
 
             # Check for updated cookies from second response
             updated_token = cls._update_cookie_from_response(updated_token, response2.cookies)
@@ -379,7 +313,6 @@ class QuarkDriveService:
                 nickname = account_email
             else:
                 data2 = response2.json()
-                print(f"[DEBUG] Account info data: {data2}")
                 nickname = data2.get('data', {}).get('nickname', account_email)
 
             # Extract member info
@@ -407,20 +340,16 @@ class QuarkDriveService:
                     'use_capacity': use_capacity
                 }
 
-                print(f"[DEBUG] Account info extracted: {account_info}")
-
                 # Return info and updated token if changed
                 if updated_token != access_token:
                     return account_info, updated_token
                 return account_info, None
             else:
-                print(f"[DEBUG] Member info API returned error: {data1.get('status')}")
                 return None, None
 
         except Exception as e:
             print(f"[DEBUG] Get account info error: {e}")
             import traceback
-            print(f"[DEBUG] Traceback: {traceback.format_exc()}")
             return None, None
 
     @classmethod
@@ -428,9 +357,6 @@ class QuarkDriveService:
                      access_token: str = None) -> bool:
         """Download file from URL to destination"""
         try:
-            print(f"[DEBUG] Downloading file from URL: {url[:100]}...")
-            print(f"[DEBUG] Destination path: {dest_path}")
-
             headers = {}
             if access_token:
                 headers = {
@@ -439,17 +365,10 @@ class QuarkDriveService:
                     "referer": "https://pan.quark.cn/",
                     "cookie": access_token
                 }
-                print(f"[DEBUG] Using access token, headers set")
 
-            print(f"[DEBUG] Starting download request...")
             response = requests.get(url, headers=headers, timeout=60, stream=True)
-            print(f"[DEBUG] Download response status code: {response.status_code}")
-            print(f"[DEBUG] Download response headers: {dict(response.headers)}")
 
             if response.status_code == 200:
-                content_length = response.headers.get('Content-Length')
-                print(f"[DEBUG] Content-Length: {content_length} ({float(content_length)/(1024*1024):.2f} MB)" if content_length else "[DEBUG] No Content-Length header")
-
                 downloaded_size = 0
                 chunk_count = 0
 
@@ -460,27 +379,14 @@ class QuarkDriveService:
                             downloaded_size += len(chunk)
                             chunk_count += 1
 
-                            if chunk_count % 10 == 0:  # Log every 10 chunks
-                                print(f"[DEBUG] Downloaded {downloaded_size / (1024*1024):.2f} MB...")
-
-                print(f"[DEBUG] Download completed: {downloaded_size} bytes ({downloaded_size/(1024*1024):.2f} MB)")
-                print(f"[DEBUG] File saved to: {dest_path}")
-
                 # Verify file was created
                 import os
                 if os.path.exists(dest_path):
-                    file_size = os.path.getsize(dest_path)
-                    print(f"[DEBUG] Verified file exists, size: {file_size} bytes")
                     return True
                 else:
-                    print(f"[DEBUG] ERROR: File was not created at {dest_path}")
                     return False
             else:
-                print(f"[DEBUG] Download failed with status code: {response.status_code}")
-                print(f"[DEBUG] Response content: {response.text[:500]}")
                 return False
         except Exception as e:
-            print(f"[DEBUG] Quark file download error: {e}")
             import traceback
-            print(f"[DEBUG] Traceback: {traceback.format_exc()}")
             return False

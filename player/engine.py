@@ -294,7 +294,6 @@ class PlayerEngine(QObject):
 
             # Skip loading if path is empty (for cloud files not yet downloaded)
             if not track.get('path'):
-                print(f"[DEBUG] Skipping load for track with empty path at index {index}")
                 self.current_track_changed.emit(track)
                 return
 
