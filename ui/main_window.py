@@ -37,7 +37,7 @@ from shiboken6 import isValid
 from database import DatabaseManager
 from player import PlayerController
 from player.engine import PlayerState
-from services import LyricsService
+from services import LyricsService, MetadataService
 from ui.library_view import LibraryView
 from ui.lyrics_widget_pro import LyricsWidget
 from ui.playlist_view import PlaylistView
@@ -1501,6 +1501,12 @@ class CloudPlaylistManager:
         playlist = self._player_engine.playlist
         if 0 <= index < len(playlist):
             playlist[index]['path'] = temp_path
+            metadata = MetadataService.extract_metadata(temp_path)
+            if metadata:
+                track_title = metadata.get("title", "")
+                track_artist = metadata.get("artist", "")
+                playlist[index]['title'] = track_title
+                playlist[index]['artist'] = track_artist
 
             # Reload and play if this is current track
             if index == self._player_engine.current_index:
