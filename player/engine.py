@@ -69,6 +69,8 @@ class PlayerEngine(QObject):
         self._current_index: int = -1
         self._play_mode: PlayMode = PlayMode.SEQUENTIAL
         self._temp_files: List[str] = []  # Track temporary files for cleanup
+        self._pending_seek: int = 0  # Position to seek before playing (in ms)
+        self._pending_play: bool = False  # Whether to play after seek
 
         # Connect signals
         self._player.positionChanged.connect(self._on_position_changed)
@@ -210,6 +212,22 @@ class PlayerEngine(QObject):
             self._load_track(index)
             self._player.play()
 
+    def play_at_with_position(self, index: int, position_ms: int):
+        """
+        Load track and seek to position before starting playback.
+        This avoids the brief play-from-start issue.
+
+        Args:
+            index: Index of track to play
+            position_ms: Position to seek to before playing (in milliseconds)
+        """
+        if 0 <= index < len(self._playlist):
+            self._current_index = index
+            self._pending_seek = position_ms
+            self._pending_play = True
+            self._load_track(index)
+            # Don't call play() here - will play after media is loaded and seeked
+
     def play_next(self):
         """Play the next track."""
         if not self._playlist:
@@ -333,7 +351,15 @@ class PlayerEngine(QObject):
 
     def _on_media_status_changed(self, status):
         """Handle media status change."""
-        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+        if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            # Media is loaded and ready - now we can seek if needed
+            if self._pending_seek > 0:
+                self._player.setPosition(self._pending_seek)
+                self._pending_seek = 0
+                if self._pending_play:
+                    self._pending_play = False
+                    self._player.play()
+        elif status == QMediaPlayer.MediaStatus.EndOfMedia:
             self.track_finished.emit()
 
             # Auto-play next based on mode

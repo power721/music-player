@@ -1450,17 +1450,18 @@ class CloudPlaylistManager:
                     'album': ''
                 })
 
-        # Load into player and start playing FIRST
+        # Load into player and start playing
         self._player_engine.load_playlist(playlist)
-        self._player_engine.play_at(start_index)
+
+        # Use play_at_with_position to seek before playing if start_position is set
+        if start_position > 0:
+            position_ms = int(start_position * 1000)
+            self._player_engine.play_at_with_position(start_index, position_ms)
+        else:
+            self._player_engine.play_at(start_index)
 
         # Connect signal AFTER playback has started using QTimer to ensure main thread
         QTimer.singleShot(0, self._connect_track_changed_signal)
-
-        # Schedule seek if start_position is specified
-        if start_position > 0:
-            # Wait longer for playback to start (1 second)
-            QTimer.singleShot(1000, self._seek_to_start_position)
 
     def _save_playback_state(self, cloud_file):
         """Save current cloud playback state to config and database."""
