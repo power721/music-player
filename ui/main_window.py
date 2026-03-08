@@ -1380,6 +1380,19 @@ class CloudPlaylistManager:
         first_file = cloud_files[start_index]
         self._downloaded_files[first_file.file_id] = first_file_path
 
+        # Extract metadata from first file
+        first_title = first_file.name
+        first_artist = ""
+        first_album = ""
+        metadata = MetadataService.extract_metadata(first_file_path)
+        if metadata:
+            if metadata.get("title"):
+                first_title = metadata.get("title")
+            if metadata.get("artist"):
+                first_artist = metadata.get("artist")
+            if metadata.get("album"):
+                first_album = metadata.get("album")
+
         # Save playback state to config
         self._save_playback_state(first_file)
 
@@ -1389,17 +1402,17 @@ class CloudPlaylistManager:
             if i == start_index:
                 playlist.append({
                     'path': first_file_path,
-                    'title': cloud_file.name,
-                    'artist': 'Cloud',
-                    'album': 'Cloud'
+                    'title': first_title,
+                    'artist': first_artist,
+                    'album': first_album
                 })
             else:
                 # Placeholder paths for other files
                 playlist.append({
                     'path': '',  # Will be downloaded on demand
                     'title': cloud_file.name,
-                    'artist': 'Cloud',
-                    'album': 'Cloud'
+                    'artist': '',
+                    'album': ''
                 })
 
         # Load into player and start playing FIRST
@@ -1555,3 +1568,5 @@ class CloudPlaylistManager:
                     self._player_engine.current_track_changed.connect(
                         self.on_track_changed
                     )
+                    # Manually trigger lyrics loading with updated metadata
+                    self.on_track_changed(playlist[index])
