@@ -66,60 +66,42 @@ class PlayerController:
             True if track loaded successfully
         """
         track = self._db.get_track(track_id)
-        if not track or not Path(track.path).exists():
+        if not track:
             return False
 
-        # Check if current queue contains cloud files (tracks without id)
-        current_playlist = self._engine.playlist
-        has_cloud_files = any(t.get("id") is None for t in current_playlist)
+        # Skip cloud file virtual tracks (negative IDs)
+        if track_id < 0:
+            return False
 
-        # Always reload library when playing local tracks to clear cloud files
-        if has_cloud_files or len(current_playlist) == 0:
-            # Clear queue and load entire library
-            tracks = self._db.get_all_tracks()
-            track_dicts = []
-            start_index = 0
+        if not Path(track.path).exists():
+            return False
 
-            for i, t in enumerate(tracks):
-                if Path(t.path).exists():
-                    t_dict = {
-                        "id": t.id,
-                        "path": t.path,
-                        "title": t.title,
-                        "artist": t.artist,
-                        "album": t.album,
-                        "duration": t.duration,
-                    }
-                    if t.id == track_id:
-                        start_index = i
-                    track_dicts.append(t_dict)
+        # Clear current playlist first to ensure clean state
+        self._engine.clear_playlist()
+        self._engine.cleanup_temp_files()
 
-            self._engine.load_playlist(track_dicts)
-            self._engine.play_at(start_index)
-        else:
-            # Check if track is already in current queue
-            target_index = -1
-            for i, t in enumerate(current_playlist):
-                if t.get("id") == track_id:
-                    target_index = i
-                    break
+        # Load entire library
+        tracks = self._db.get_all_tracks()
+        track_dicts = []
+        start_index = 0
 
-            if target_index >= 0:
-                # Track is in queue, play it
-                self._engine.play_at(target_index)
-            else:
-                # Add to queue and play
-                track_dict = {
-                    "id": track.id,
-                    "path": track.path,
-                    "title": track.title,
-                    "artist": track.artist,
-                    "album": track.album,
-                    "duration": track.duration,
+        for i, t in enumerate(tracks):
+            # Only include local tracks (positive IDs) that exist
+            if t.id and t.id > 0 and Path(t.path).exists():
+                t_dict = {
+                    "id": t.id,
+                    "path": t.path,
+                    "title": t.title,
+                    "artist": t.artist,
+                    "album": t.album,
+                    "duration": t.duration,
                 }
-                self._engine.add_track(track_dict)
-                # Play the newly added track (last position)
-                self._engine.play_at(len(current_playlist))
+                if t.id == track_id:
+                    start_index = len(track_dicts)
+                track_dicts.append(t_dict)
+
+        self._engine.load_playlist(track_dicts)
+        self._engine.play_at(start_index)
 
         return True
 

@@ -63,7 +63,7 @@ class CloudDriveView(QWidget):
         self._last_playing_fid = ""  # Last playing file ID from database
         self._last_position = 0.0  # Last playback position from database
         self._fid_path = []  # List of folder IDs in current path (e.g., ["0", "fid1", "fid2"])
-        self._position_save_timer = QTimer()  # Timer for saving playback position
+        self._position_save_timer = QTimer(self)  # Timer for saving playback position
         self._position_save_timer.timeout.connect(self._save_playback_position)
         self._position_save_timer.setInterval(5000)  # Save every 5 seconds
         self._current_playing_file_id = ""  # Currently playing file ID
@@ -860,6 +860,10 @@ class CloudDriveView(QWidget):
         else:
             download_dir = Path("data/cloud_downloads")
 
+        # Convert to absolute path
+        if not download_dir.is_absolute():
+            download_dir = Path.cwd() / download_dir
+
         safe_filename = sanitize_filename(file.name)
         local_file_path = download_dir / safe_filename
 
@@ -1642,6 +1646,21 @@ class CloudDriveView(QWidget):
         self._current_account = target_account
         self._current_parent_id = file_path
 
+        # Restore _fid_path from account's last_fid_path
+        if target_account.last_fid_path and target_account.last_fid_path != "0":
+            self._fid_path = target_account.last_fid_path.strip("/").split("/")
+            if self._fid_path == [""]:
+                self._fid_path = []
+        else:
+            self._fid_path = []
+
+        # Update path label
+        self._path_label.setText(target_account.last_folder_path or "/")
+
+        # Update back button state
+        can_go_back = len(self._fid_path) > 0
+        self._back_btn.setEnabled(can_go_back)
+
         # Update UI to show selected account
         for i in range(self._account_list.count()):
             item = self._account_list.item(i)
@@ -1659,7 +1678,10 @@ class CloudDriveView(QWidget):
         # If file_fid is provided, try to select/highlight and optionally play the file
         if file_fid and hasattr(self, '_file_table'):
             # Use QTimer to wait for table to populate, then select/play the file
-            QTimer.singleShot(500, lambda: self._select_and_play_file_by_fid(file_fid, auto_play))
+            # Capture variables to avoid late binding issues
+            captured_fid = file_fid
+            captured_auto_play = auto_play
+            QTimer.singleShot(500, lambda: self._select_and_play_file_by_fid(captured_fid, captured_auto_play))
 
         return True
 
@@ -1680,7 +1702,9 @@ class CloudDriveView(QWidget):
                     # Auto-play the file if requested and it's an audio file
                     if auto_play and cloud_file.file_type == 'audio':
                         # Use a small delay to ensure UI is ready
-                        QTimer.singleShot(300, lambda: self._play_audio_file(cloud_file))
+                        # Capture cloud_file in a closure to avoid late binding
+                        captured_file = cloud_file
+                        QTimer.singleShot(300, lambda f=captured_file: self._play_audio_file(f))
                     break
 
     def _select_file_by_fid(self, file_fid: str):
@@ -1735,6 +1759,9 @@ class CloudFileDownloadThread(QThread):
 
         # Create download directory if it doesn't exist
         download_path = Path(download_dir)
+        # Convert to absolute path
+        if not download_path.is_absolute():
+            download_path = Path.cwd() / download_path
         download_path.mkdir(parents=True, exist_ok=True)
 
         # Use original filename

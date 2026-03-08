@@ -61,8 +61,8 @@ class PlayerEngine(QObject):
         """Initialize the player engine."""
         super().__init__(parent)
 
-        self._player = QMediaPlayer(parent)
-        self._audio_output = QAudioOutput(parent)
+        self._player = QMediaPlayer()
+        self._audio_output = QAudioOutput()
         self._player.setAudioOutput(self._audio_output)
 
         self._playlist: List[dict] = []  # List of track dictionaries

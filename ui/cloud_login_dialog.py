@@ -31,7 +31,7 @@ class CloudLoginDialog(QDialog):
         super().__init__(parent)
         self._qr_token = None
         self._qr_url = None  # Store QR URL for redisplay
-        self._poll_timer = QTimer()
+        self._poll_timer = QTimer(self)
         self._poll_attempts = 0
         self._setup_ui()
         self._start_login_flow()
