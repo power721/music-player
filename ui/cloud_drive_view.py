@@ -1625,7 +1625,7 @@ class CloudDriveView(QWidget):
                 if empty_label:
                     empty_label.setText(t("add_cloud_account"))
 
-    def restore_playback_state(self, account_id: int, file_path: str, file_fid: str, auto_play: bool = False, start_position: float = 0.0):
+    def restore_playback_state(self, account_id: int, file_path: str, file_fid: str, auto_play: bool = False, start_position: float = 0.0, local_path: str = ""):
         """
         Restore previous cloud playback state.
 
@@ -1635,11 +1635,22 @@ class CloudDriveView(QWidget):
             file_fid: File ID to highlight (optional)
             auto_play: Whether to auto-play the file (default: False)
             start_position: Position to start playback from (in seconds, default: 0.0)
+            local_path: Local path of the file for faster restore (optional)
         """
-        # Store file_fid, auto_play and start_position for later use
+        # Store file_fid, auto_play, start_position and local_path for later use
         self._restore_file_fid = file_fid
         self._restore_auto_play = auto_play
         self._restore_start_position = start_position
+        self._restore_local_path = local_path
+
+        # If we have a local path and it exists, use fast restore path
+        if local_path and auto_play:
+            import os
+            if os.path.exists(local_path):
+                print(f"[DEBUG] Fast restore using local path: {local_path}")
+                # Use fast restore directly
+                self._fast_restore_playback(account_id, file_fid, local_path, start_position)
+                return True
 
         # Select the account
         accounts = self._db.get_cloud_accounts()
@@ -1702,9 +1713,54 @@ class CloudDriveView(QWidget):
 
         return True
 
+    def _fast_restore_playback(self, account_id: int, file_fid: str, local_path: str, start_position: float):
+        """Fast restore playback using known local path without loading folder."""
+        from pathlib import Path
+        from database.models import CloudFile
+
+        # Select the account in UI
+        accounts = self._db.get_cloud_accounts()
+        target_account = None
+        for account in accounts:
+            if account.id == account_id:
+                target_account = account
+                break
+
+        if not target_account:
+            return False
+
+        # Set current account
+        self._current_account = target_account
+
+        # Update UI to show selected account
+        for i in range(self._account_list.count()):
+            item = self._account_list.item(i)
+            account = item.data(Qt.UserRole)
+            if account.id == account_id:
+                self._account_list.setCurrentItem(item)
+                break
+
+        # Update account title
+        self._account_title.setText(target_account.account_name)
+
+        # Create a minimal CloudFile for playback
+        file_name = Path(local_path).name
+        cloud_file = CloudFile(
+            file_id=file_fid,
+            name=file_name,
+            file_type='audio',
+            local_path=local_path
+        )
+
+        # Start playback directly
+        print(f"[DEBUG] Fast restore: playing {file_name} from {local_path}")
+        self._play_audio_file(cloud_file, start_position=start_position)
+        return True
+
     def _select_and_play_file_by_fid(self, file_fid: str, auto_play: bool = False):
         """Select and optionally play a file in the table by its file ID."""
-        print(f"[DEBUG] _select_and_play_file_by_fid: file_fid={file_fid}, auto_play={auto_play}")
+        start_pos = getattr(self, '_restore_start_position', 0.0)
+        print(f"[DEBUG] _select_and_play_file_by_fid: file_fid={file_fid}, auto_play={auto_play}, start_position={start_pos}")
         if not hasattr(self, '_file_table'):
             print("[DEBUG] _file_table not found")
             return

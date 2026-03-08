@@ -176,6 +176,12 @@ class DatabaseManager:
             )
         except:
             pass
+        try:
+            cursor.execute(
+                "ALTER TABLE cloud_accounts ADD COLUMN last_playing_local_path TEXT DEFAULT ''"
+            )
+        except:
+            pass
 
         # Add cloud_file_id column to tracks table for downloaded cloud files
         try:
@@ -858,6 +864,7 @@ class DatabaseManager:
                 last_fid_path=row["last_fid_path"] if "last_fid_path" in row.keys() else "0",
                 last_playing_fid=row["last_playing_fid"] if "last_playing_fid" in row.keys() else "",
                 last_position=row["last_position"] if "last_position" in row.keys() else 0.0,
+                last_playing_local_path=row["last_playing_local_path"] if "last_playing_local_path" in row.keys() else "",
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
@@ -912,14 +919,23 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_cloud_account_playing_state(
-        self, account_id: int, playing_fid: str = None, position: float = None
+        self, account_id: int, playing_fid: str = None, position: float = None, local_path: str = None
     ) -> bool:
         """Update the last playing file and position for an account."""
         conn = self._get_connection()
         cursor = conn.cursor()
 
         # Build update query dynamically based on provided parameters
-        if playing_fid is not None and position is not None:
+        if playing_fid is not None and position is not None and local_path is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_playing_fid = ?, last_position = ?, last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (playing_fid, position, local_path, account_id),
+            )
+        elif playing_fid is not None and position is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
@@ -927,6 +943,15 @@ class DatabaseManager:
                 WHERE id = ?
             """,
                 (playing_fid, position, account_id),
+            )
+        elif playing_fid is not None and local_path is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_playing_fid = ?, last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (playing_fid, local_path, account_id),
             )
         elif playing_fid is not None:
             cursor.execute(
@@ -945,6 +970,15 @@ class DatabaseManager:
                 WHERE id = ?
             """,
                 (position, account_id),
+            )
+        elif local_path is not None:
+            cursor.execute(
+                """
+                UPDATE cloud_accounts
+                SET last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+                (local_path, account_id),
             )
 
         conn.commit()

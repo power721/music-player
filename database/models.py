@@ -108,6 +108,7 @@ class CloudAccount:
     last_fid_path: str = "0"  # FID path (e.g., /fid1/fid2/fid3) for navigation
     last_playing_fid: str = ""  # Last playing file ID
     last_position: float = 0.0  # Last playback position in seconds
+    last_playing_local_path: str = ""  # Local path of last playing file for faster restore
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

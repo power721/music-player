@@ -1280,7 +1280,8 @@ class MainWindow(QMainWindow):
                             file_path=parent_id,
                             file_fid=account.last_playing_fid,
                             auto_play=was_playing,
-                            start_position=account.last_position or 0.0
+                            start_position=account.last_position or 0.0,
+                            local_path=account.last_playing_local_path or ""
                         )
 
                     QTimer.singleShot(200, restore_cloud_state)
@@ -1349,10 +1350,15 @@ class MainWindow(QMainWindow):
                         if 0 <= current_index < len(cloud_files):
                             current_file = cloud_files[current_index]
                             position_seconds = current_position / 1000.0
+                            # Get local path if available
+                            local_path = getattr(current_file, 'local_path', '') or ''
+                            if not local_path and hasattr(self._cloud_playlist_manager, '_downloaded_files'):
+                                local_path = self._cloud_playlist_manager._downloaded_files.get(current_file.file_id, '')
                             self._db.update_cloud_account_playing_state(
                                 account_id=account_id,
                                 playing_fid=current_file.file_id,
-                                position=position_seconds
+                                position=position_seconds,
+                                local_path=local_path
                             )
             elif self._player.current_track_id:
                 # Save local playback state
