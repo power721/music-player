@@ -362,7 +362,8 @@ class MainWindow(QMainWindow):
             setattr(self, attr_name, btn)
             layout.addWidget(btn)
 
-        # Set library as checked
+        # Navigation buttons will be set correctly during restore
+        # Default to library view initially
         self._nav_library.setChecked(True)
 
         layout.addStretch()
@@ -611,6 +612,7 @@ class MainWindow(QMainWindow):
 
         # Update nav button states
         self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
         self._nav_favorites.setChecked(True)
@@ -628,6 +630,7 @@ class MainWindow(QMainWindow):
 
         # Update nav button states
         self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
         self._nav_favorites.setChecked(False)
@@ -1348,15 +1351,19 @@ class MainWindow(QMainWindow):
             playback_position = self._config.get_playback_position()
             source = self._config.get_playback_source()
 
+            # Update navigation buttons immediately based on source
+            if source == "cloud":
+                if hasattr(self, '_nav_cloud'):
+                    self._nav_cloud.setChecked(True)
+                if hasattr(self, '_nav_library'):
+                    self._nav_library.setChecked(False)
+
             def restore_queue_state():
                 current_item = self._player.current_track
                 if current_item:
                     # Restore position if valid
                     if playback_position > 0:
-                        # Check if the restored track matches the saved track
-                        saved_track_id = self._config.get_current_track_id()
-                        if current_item.is_local and current_item.track_id == saved_track_id:
-                            self._player.engine.seek(playback_position)
+                        self._player.engine.seek(playback_position)
 
                     # Auto-play if was playing
                     if was_playing:
@@ -1368,8 +1375,6 @@ class MainWindow(QMainWindow):
                         account = self._db.get_cloud_account(current_item.cloud_account_id)
                         if account:
                             self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
-                            if hasattr(self, '_nav_cloud'):
-                                self._nav_cloud.setChecked(True)
 
             QTimer.singleShot(200, restore_queue_state)
             return
@@ -1465,8 +1470,12 @@ class MainWindow(QMainWindow):
         is_playing = self._player.state == PlayerState.PLAYING
         current_position = self._player.engine.position()
         current_index = self._player.engine.current_index
+        current_volume = self._player.volume
 
-        print(f"[DEBUG] closeEvent: index={current_index}, playing={is_playing}, position={current_position}")
+        print(f"[DEBUG] closeEvent: index={current_index}, playing={is_playing}, position={current_position}, volume={current_volume}")
+
+        # Save volume
+        self._config.set_volume(current_volume)
 
         # Save play queue
         try:
@@ -1474,16 +1483,21 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error saving play queue: {e}")
 
+        # Save playback position for queue restoration
+        if current_position > 0:
+            self._config.set_playback_position(current_position)
+
+        # Save was_playing state
+        self._config.set_was_playing(is_playing)
+
         try:
             if is_playing_cloud:
                 # Save cloud playback state
                 account_id = self._config.get_cloud_account_id()
                 if account_id:
                     self._config.set_playback_source("cloud")
-                    self._config.set_was_playing(is_playing)
                     # Clear local track info when playing cloud
                     self._config.set_current_track_id(0)
-                    self._config.set_playback_position(0)
 
                     # Save playback position to cloud_accounts table
                     current_item = self._player.current_track
@@ -1501,16 +1515,12 @@ class MainWindow(QMainWindow):
                 if current_item.is_local and current_item.track_id:
                     self._config.set_playback_source("local")
                     self._config.set_current_track_id(current_item.track_id)
-                    self._config.set_playback_position(current_position)
-                    self._config.set_was_playing(is_playing)
                     # Clear cloud info when playing local
                     self._config.clear_cloud_account_id()
             else:
                 # No track playing
                 source = self._config.get_playback_source()
-                if source == "cloud":
-                    self._config.set_was_playing(False)
-                else:
+                if source != "cloud":
                     self._config.set_playback_source("local")
                     self._config.set_current_track_id(0)
                     self._config.set_playback_position(0)

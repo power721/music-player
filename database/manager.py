@@ -354,6 +354,27 @@ class DatabaseManager:
             )
         return None
 
+    def get_track_by_cloud_file_id(self, cloud_file_id: str) -> Optional[Track]:
+        """Get a track by cloud file ID."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM tracks WHERE cloud_file_id = ?", (cloud_file_id,))
+        row = cursor.fetchone()
+
+        if row:
+            return Track(
+                id=row["id"],
+                path=row["path"],
+                title=row["title"],
+                artist=row["artist"],
+                album=row["album"],
+                duration=row["duration"],
+                cover_path=row["cover_path"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+            )
+        return None
+
     def get_all_tracks(self) -> List[Track]:
         """Get all tracks from the database, including downloaded cloud files."""
         conn = self._get_connection()

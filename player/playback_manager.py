@@ -433,9 +433,45 @@ class PlaybackManager(QObject):
         if item:
             self._event_bus.emit_track_change(item)
 
-            # Record play history for local tracks
+            # Record play history
             if item.is_local and item.track_id:
+                # Local track - use track_id directly
                 self._db.add_play_history(item.track_id)
+            elif item.is_cloud and item.local_path:
+                # Cloud file that has been downloaded
+                # Check if there's a Track record
+                track = self._db.get_track_by_path(item.local_path)
+                if not track:
+                    track = self._db.get_track_by_cloud_file_id(item.cloud_file_id)
+
+                if track and track.id:
+                    self._db.add_play_history(track.id)
+                else:
+                    # Create a new Track record for this cloud file
+                    from database.models import Track
+                    from pathlib import Path
+
+                    new_track = Track(
+                        path=item.local_path,
+                        title=item.title,
+                        artist=item.artist,
+                        album=item.album,
+                        duration=item.duration,
+                    )
+                    track_id = self._db.add_track(new_track)
+                    # Update the cloud_file_id for this track
+                    if track_id and item.cloud_file_id:
+                        conn = self._db._get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            "UPDATE tracks SET cloud_file_id = ? WHERE id = ?",
+                            (item.cloud_file_id, track_id)
+                        )
+                        conn.commit()
+
+                    if track_id:
+                        self._db.add_play_history(track_id)
+                        logger.debug(f"[PlaybackManager] Created track record for cloud file: {track_id}")
 
     def _on_state_changed(self, state: PlayerState):
         """Handle state change."""
