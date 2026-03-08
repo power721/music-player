@@ -1308,8 +1308,43 @@ class CloudDriveView(QWidget):
 
     def _add_to_queue(self, file: CloudFile):
         """Add file to play queue."""
-        # TODO: Implement queue addition
-        pass
+        from player.playlist_item import PlaylistItem, CloudProvider
+
+        if file.file_type != 'audio':
+            return
+
+        # Check if file is already downloaded
+        local_path = ""
+        if file.local_path:
+            local_path = file.local_path
+        else:
+            # Check download cache
+            from pathlib import Path
+            from utils.helpers import sanitize_filename
+
+            if self._config_manager:
+                download_dir = Path(self._config_manager.get_cloud_download_dir())
+            else:
+                download_dir = Path("data/cloud_downloads")
+
+            if not download_dir.is_absolute():
+                download_dir = Path.cwd() / download_dir
+
+            safe_filename = sanitize_filename(file.name)
+            local_file_path = download_dir / safe_filename
+
+            if local_file_path.exists():
+                local_path = str(local_file_path)
+
+        # Create playlist item
+        account_id = self._current_account.id if self._current_account else 0
+        item = PlaylistItem.from_cloud_file(file, account_id, local_path)
+
+        # Add to engine playlist
+        self._player.engine.add_track(item)
+
+        # Update status
+        self._status_label.setText(f"✓ {t('add_to_queue')}: {file.name}")
 
     def _edit_media_info(self, file: CloudFile):
         """Edit media info for downloaded cloud file."""
