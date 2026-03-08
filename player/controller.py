@@ -9,7 +9,7 @@ from PySide6.QtCore import QUrl
 from .engine import PlayerEngine, PlayMode, PlayerState
 from database import DatabaseManager, Track
 from services import MetadataService
-from utils import ConfigManager
+from utils.config import ConfigManager
 
 
 class PlayerController:
@@ -20,16 +20,17 @@ class PlayerController:
     handling track loading, playback history, and favorites.
     """
 
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: DatabaseManager, config: "ConfigManager"):
         """
         Initialize player controller.
 
         Args:
             db_manager: Database manager instance
+            config: ConfigManager instance for settings
         """
         self._db = db_manager
         self._engine = PlayerEngine()
-        self._config = ConfigManager()
+        self._config = config
 
         # Store current track ID for history
         self._current_track_id: Optional[int] = None

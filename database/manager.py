@@ -226,6 +226,15 @@ class DatabaseManager:
             ON cloud_files(parent_id)
         """)
 
+        # Create settings table for unified configuration storage
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
 
         # Migration: add unique constraint if not exists
@@ -1154,3 +1163,112 @@ class DatabaseManager:
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
         return None
+
+    # Settings operations
+
+    def get_setting(self, key: str, default=None):
+        """
+        Get a setting value by key.
+
+        Args:
+            key: Setting key
+            default: Default value if not found
+
+        Returns:
+            Setting value or default
+        """
+        import json
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+
+        if row:
+            value = row["value"]
+            # Try to parse JSON for complex types
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
+        return default
+
+    def set_setting(self, key: str, value) -> bool:
+        """
+        Set a setting value.
+
+        Args:
+            key: Setting key
+            value: Setting value (will be JSON serialized if not a string)
+
+        Returns:
+            True if successful
+        """
+        import json
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Serialize value to string
+        if isinstance(value, str):
+            value_str = value
+        else:
+            value_str = json.dumps(value)
+
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO settings (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            """,
+            (key, value_str),
+        )
+
+        conn.commit()
+        return cursor.rowcount > 0
+
+    def get_settings(self, keys: list) -> dict:
+        """
+        Get multiple setting values.
+
+        Args:
+            keys: List of setting keys
+
+        Returns:
+            Dict of key-value pairs
+        """
+        import json
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        placeholders = ",".join("?" * len(keys))
+        cursor.execute(
+            f"SELECT key, value FROM settings WHERE key IN ({placeholders})",
+            keys,
+        )
+
+        result = {}
+        for row in cursor.fetchall():
+            value = row["value"]
+            try:
+                result[row["key"]] = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                result[row["key"]] = value
+
+        return result
+
+    def delete_setting(self, key: str) -> bool:
+        """
+        Delete a setting.
+
+        Args:
+            key: Setting key
+
+        Returns:
+            True if deleted
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM settings WHERE key = ?", (key,))
+        conn.commit()
+
+        return cursor.rowcount > 0
