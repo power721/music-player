@@ -14,6 +14,7 @@ from .engine import PlayerEngine, PlayMode, PlayerState
 from .playlist_item import PlaylistItem, CloudProvider
 from .controller import PlayerController
 from database import DatabaseManager
+from database.models import PlayQueueItem
 from utils.config import ConfigManager
 from utils.event_bus import EventBus
 
@@ -207,7 +208,8 @@ class PlaybackManager(QObject):
         self._engine.load_playlist_items(items)
         self._engine.play_at(start_index)
 
-        # Save state
+        # Save queue and state
+        self.save_queue()
         self._config.set_current_track_id(track_id)
         self._config.set_playback_source("local")
 
@@ -282,7 +284,8 @@ class PlaybackManager(QObject):
         self._engine.load_playlist_items(items)
         self._engine.play_at(start_index)
 
-        # Save state
+        # Save queue and state
+        self.save_queue()
         self._config.set_current_track_id(track_id)
         self._config.set_playback_source("local")
 
@@ -367,7 +370,8 @@ class PlaybackManager(QObject):
         else:
             self._engine.play_at(start_index)
 
-        # Save state
+        # Save queue and state
+        self.save_queue()
         self._config.set_playback_source("cloud")
         self._config.set_cloud_account_id(account.id)
 
@@ -487,3 +491,100 @@ class PlaybackManager(QObject):
                 if i == self._engine.current_index:
                     self._engine.play_after_download(i, local_path)
                 break
+
+    # ===== Queue Persistence =====
+
+    def save_queue(self):
+        """
+        Save the current play queue to database.
+        """
+        items = self._engine.playlist_items
+        if not items:
+            logger.debug("[PlaybackManager] No queue to save")
+            return
+
+        current_idx = self._engine.current_index
+        logger.debug(f"[PlaybackManager] save_queue: current_index={current_idx}, items={len(items)}")
+
+        # Convert to PlayQueueItem list
+        queue_items = []
+        for i, item in enumerate(items):
+            queue_item = item.to_play_queue_item(i)
+            queue_items.append(queue_item)
+
+        self._db.save_play_queue(queue_items)
+
+        # Save current index and play mode
+        self._config.set("queue_current_index", current_idx)
+        self._config.set("queue_play_mode", self._engine.play_mode.value)
+
+        logger.debug(f"[PlaybackManager] Saved queue: {len(queue_items)} items, index={current_idx}")
+
+    def restore_queue(self) -> bool:
+        """
+        Restore the play queue from database.
+
+        Returns:
+            True if queue was restored successfully
+        """
+        queue_items = self._db.load_play_queue()
+        if not queue_items:
+            logger.debug("[PlaybackManager] No saved queue to restore")
+            return False
+
+        # Convert to PlaylistItem list
+        items = [PlaylistItem.from_play_queue_item(item) for item in queue_items]
+
+        # Get saved index and play mode
+        saved_index = self._config.get("queue_current_index", 0)
+        saved_mode = self._config.get("queue_play_mode", PlayMode.SEQUENTIAL.value)
+
+        logger.debug(f"[PlaybackManager] Restoring queue: {len(items)} items, saved_index={saved_index}, mode={saved_mode}")
+
+        # Determine source type from items at saved_index
+        if items and 0 <= saved_index < len(items):
+            target_item = items[saved_index]
+        elif items:
+            target_item = items[0]
+            saved_index = 0
+        else:
+            return False
+
+        if target_item.is_cloud:
+            self._set_source("cloud")
+            # Restore cloud account if needed
+            if target_item.cloud_account_id:
+                self._cloud_account = self._db.get_cloud_account(target_item.cloud_account_id)
+        else:
+            self._set_source("local")
+
+        # Load queue into engine
+        self._engine.load_playlist_items(items)
+
+        # Restore play mode
+        try:
+            mode = PlayMode(saved_mode)
+            self._engine._play_mode = mode
+        except ValueError:
+            pass
+
+        # Clamp index to valid range
+        if saved_index < 0 or saved_index >= len(items):
+            saved_index = 0
+
+        # Set current index and load track (but don't play)
+        self._engine._current_index = saved_index
+        # Load the track into media player without auto-play
+        if 0 <= saved_index < len(items):
+            self._engine._load_track(saved_index)
+
+        logger.debug(f"[PlaybackManager] Restored queue: {len(items)} items, index={saved_index}")
+
+        return True
+
+    def clear_saved_queue(self):
+        """Clear the saved play queue from database."""
+        self._db.clear_play_queue()
+        self._config.delete("queue_current_index")
+        self._config.delete("queue_play_mode")
+        logger.debug("[PlaybackManager] Cleared saved queue")

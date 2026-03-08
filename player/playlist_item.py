@@ -197,3 +197,61 @@ class PlaylistItem:
             f"path={self.local_path}, title={self.title}, "
             f"needs_download={self.needs_download})"
         )
+
+    def to_play_queue_item(self, position: int = 0) -> "PlayQueueItem":
+        """
+        Convert to PlayQueueItem for database persistence.
+
+        Args:
+            position: Position in the queue
+
+        Returns:
+            PlayQueueItem instance
+        """
+        from database.models import PlayQueueItem
+
+        source_type = "local" if self.is_local else "cloud"
+        cloud_type = self.source_type.value if self.is_cloud else ""
+
+        return PlayQueueItem(
+            position=position,
+            source_type=source_type,
+            cloud_type=cloud_type,
+            track_id=self.track_id,
+            cloud_file_id=self.cloud_file_id,
+            cloud_account_id=self.cloud_account_id,
+            local_path=self.local_path,
+            title=self.title,
+            artist=self.artist,
+            album=self.album,
+            duration=self.duration,
+        )
+
+    @classmethod
+    def from_play_queue_item(cls, item: "PlayQueueItem") -> "PlaylistItem":
+        """
+        Create a PlaylistItem from a PlayQueueItem.
+
+        Args:
+            item: PlayQueueItem from database
+
+        Returns:
+            PlaylistItem instance
+        """
+        source_type = CloudProvider.LOCAL
+        if item.source_type == "cloud" and item.cloud_type:
+            source_type = CloudProvider(item.cloud_type)
+
+        return cls(
+            source_type=source_type,
+            track_id=item.track_id,
+            cloud_file_id=item.cloud_file_id,
+            cloud_account_id=item.cloud_account_id,
+            local_path=item.local_path,
+            title=item.title,
+            artist=item.artist,
+            album=item.album,
+            duration=item.duration,
+            needs_download=bool(item.cloud_file_id and not item.local_path),
+            needs_metadata=bool(item.cloud_file_id),  # Cloud files need metadata
+        )

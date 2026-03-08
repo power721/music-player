@@ -166,6 +166,12 @@ class MainWindow(QMainWindow):
             def load_playlist(self, playlist_id):
                 return playback.load_playlist(playlist_id)
 
+            def save_queue(self):
+                return playback.save_queue()
+
+            def restore_queue(self):
+                return playback.restore_queue()
+
         self._player = PlayerProxy()
 
         # Event bus for signals
@@ -1333,6 +1339,42 @@ class MainWindow(QMainWindow):
         """Restore previous playback state."""
         from PySide6.QtCore import QTimer
 
+        # Try to restore saved queue first
+        if self._player.restore_queue():
+            print(f"[DEBUG] Restored play queue from database")
+
+            # Check if we should auto-play
+            was_playing = self._config.get_was_playing()
+            playback_position = self._config.get_playback_position()
+            source = self._config.get_playback_source()
+
+            def restore_queue_state():
+                current_item = self._player.current_track
+                if current_item:
+                    # Restore position if valid
+                    if playback_position > 0:
+                        # Check if the restored track matches the saved track
+                        saved_track_id = self._config.get_current_track_id()
+                        if current_item.is_local and current_item.track_id == saved_track_id:
+                            self._player.engine.seek(playback_position)
+
+                    # Auto-play if was playing
+                    if was_playing:
+                        print(f"[DEBUG] Auto-playing restored track")
+                        QTimer.singleShot(300, self._player.play)
+
+                    # If cloud source, update cloud view
+                    if source == "cloud" and current_item.cloud_account_id:
+                        account = self._db.get_cloud_account(current_item.cloud_account_id)
+                        if account:
+                            self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
+                            if hasattr(self, '_nav_cloud'):
+                                self._nav_cloud.setChecked(True)
+
+            QTimer.singleShot(200, restore_queue_state)
+            return
+
+        # Fall back to legacy restore logic
         # Check playback source
         source = self._config.get_playback_source()
         print(f"[DEBUG] Playback source: {source}")
@@ -1422,6 +1464,15 @@ class MainWindow(QMainWindow):
         is_playing_cloud = self._player.current_source == "cloud"
         is_playing = self._player.state == PlayerState.PLAYING
         current_position = self._player.engine.position()
+        current_index = self._player.engine.current_index
+
+        print(f"[DEBUG] closeEvent: index={current_index}, playing={is_playing}, position={current_position}")
+
+        # Save play queue
+        try:
+            self._player.save_queue()
+        except Exception as e:
+            logger.error(f"Error saving play queue: {e}")
 
         try:
             if is_playing_cloud:
