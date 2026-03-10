@@ -386,6 +386,7 @@ class PlayerControls(QWidget):
         self._player.engine.duration_changed.connect(self._on_duration_changed)
         self._player.engine.current_track_changed.connect(self._on_track_changed)
         self._player.engine.play_mode_changed.connect(self._on_play_mode_changed)
+        self._player.engine.volume_changed.connect(self._on_volume_changed_from_engine)
 
         # Sync button states with current player mode
         self._sync_button_states()
@@ -450,8 +451,15 @@ class PlayerControls(QWidget):
             self._current_time_label.setText(format_time(position_s))
 
     def _on_volume_changed(self, value: int):
-        """Handle volume change."""
+        """Handle volume change from slider."""
         self._player.engine.set_volume(value)
+        self._update_volume_button(value)
+
+    def _on_volume_changed_from_engine(self, value: int):
+        """Handle volume change from engine (e.g., hotkeys)."""
+        self._volume_slider.blockSignals(True)  # Prevent feedback loop
+        self._volume_slider.setValue(value)
+        self._volume_slider.blockSignals(False)
         self._update_volume_button(value)
 
     def set_volume(self, volume: int):
