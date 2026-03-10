@@ -654,6 +654,19 @@ class DatabaseManager:
 
         return cursor.rowcount > 0
 
+    def rename_playlist(self, playlist_id: int, new_name: str) -> bool:
+        """Rename a playlist."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "UPDATE playlists SET name = ? WHERE id = ?",
+            (new_name, playlist_id)
+        )
+        conn.commit()
+
+        return cursor.rowcount > 0
+
     def remove_track(self, track_id: int) -> bool:
         """Remove a track from the library (does not delete the file)."""
         conn = self._get_connection()

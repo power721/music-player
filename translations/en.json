@@ -66,6 +66,8 @@
     "create_playlist": "Create Playlist",
     "enter_playlist_name": "Enter playlist name:",
     "delete_playlist": "Delete Playlist",
+    "rename_playlist": "Rename Playlist",
+    "rename": "Rename",
     "delete_playlist_confirm": "Are you sure you want to delete this playlist?",
     "select_playlist_placeholder": "Select a Playlist",
     "remove_from_playlist": "Remove from Playlist",

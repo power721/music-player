@@ -133,6 +133,7 @@ class CloudDriveView(QWidget):
         self._account_list.setObjectName("accountList")
         self._account_list.setSelectionMode(QAbstractItemView.SingleSelection)
         self._account_list.setAlternatingRowColors(True)
+        self._account_list.setFocusPolicy(Qt.NoFocus)
         self._account_list.itemClicked.connect(self._on_account_selected)
         self._account_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self._account_list.customContextMenuRequested.connect(

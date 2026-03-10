@@ -141,6 +141,13 @@ class PlaylistView(QWidget):
         self._play_playlist_btn.clicked.connect(self._play_current_playlist)
         header_layout.addWidget(self._play_playlist_btn)
 
+        self._rename_playlist_btn = QPushButton("✏️ " + t("rename"))
+        self._rename_playlist_btn.setObjectName("playlistActionBtn")
+        self._rename_playlist_btn.setCursor(Qt.PointingHandCursor)
+        self._rename_playlist_btn.setEnabled(False)
+        self._rename_playlist_btn.clicked.connect(self._rename_playlist)
+        header_layout.addWidget(self._rename_playlist_btn)
+
         self._delete_playlist_btn = QPushButton("🗑️ " + t("delete_playlist"))
         self._delete_playlist_btn.setObjectName("playlistActionBtn")
         self._delete_playlist_btn.setCursor(Qt.PointingHandCursor)
@@ -315,6 +322,7 @@ class PlaylistView(QWidget):
         """Setup signal connections."""
         self._new_playlist_btn.clicked.connect(self._create_playlist)
         self._delete_playlist_btn.clicked.connect(self._delete_playlist)
+        # _rename_playlist_btn already connected in _create_playlist_content
         self._playlist_list.itemClicked.connect(self._on_playlist_selected)
         self._playlist_list.itemDoubleClicked.connect(self._on_playlist_double_clicked)
         self._tracks_table.itemDoubleClicked.connect(self._on_track_double_clicked)
@@ -344,6 +352,7 @@ class PlaylistView(QWidget):
         # Update button texts
         self._new_playlist_btn.setText(t("new_playlist"))
         self._play_playlist_btn.setText(t("play"))
+        self._rename_playlist_btn.setText("✏️ " + t("rename"))
         self._delete_playlist_btn.setText("🗑️ " + t("delete_playlist"))
 
         # Update table headers
@@ -387,6 +396,29 @@ class PlaylistView(QWidget):
             self._refresh_playlists()
             self._clear_playlist_content()
 
+    def _rename_playlist(self):
+        """Rename the current playlist."""
+        if self._current_playlist_id is None:
+            return
+
+        playlist = self._db.get_playlist(self._current_playlist_id)
+        if not playlist:
+            return
+
+        from PySide6.QtWidgets import QInputDialog
+
+        new_name, ok = QInputDialog.getText(
+            self,
+            t("rename_playlist"),
+            t("enter_playlist_name"),
+            text=playlist.name
+        )
+
+        if ok and new_name.strip():
+            self._db.rename_playlist(self._current_playlist_id, new_name.strip())
+            self._playlist_title.setText(new_name.strip())
+            self._refresh_playlists()
+
     def _on_playlist_selected(self, item: QListWidgetItem):
         """Handle playlist selection."""
         playlist_id = item.data(Qt.UserRole)
@@ -413,6 +445,7 @@ class PlaylistView(QWidget):
 
         # Enable buttons
         self._delete_playlist_btn.setEnabled(True)
+        self._rename_playlist_btn.setEnabled(True)
         tracks = self._db.get_playlist_tracks(playlist_id)
         self._play_playlist_btn.setEnabled(len(tracks) > 0)
 
@@ -434,6 +467,7 @@ class PlaylistView(QWidget):
         self._tracks_table.setRowCount(0)
         self._status_label.setText("")
         self._delete_playlist_btn.setEnabled(False)
+        self._rename_playlist_btn.setEnabled(False)
         self._play_playlist_btn.setEnabled(False)
 
     def _populate_table(self, tracks: List[Track]):
