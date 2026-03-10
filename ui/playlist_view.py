@@ -107,6 +107,7 @@ class PlaylistView(QWidget):
         # Playlist list
         self._playlist_list = QListWidget()
         self._playlist_list.setObjectName("playlistList")
+        self._playlist_list.setFocusPolicy(Qt.NoFocus)
         layout.addWidget(self._playlist_list)
 
         return widget

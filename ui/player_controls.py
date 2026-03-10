@@ -22,6 +22,7 @@ import threading
 from player import PlayerController
 from player.engine import PlayerState, PlayMode
 from utils import format_time, t
+from utils.event_bus import EventBus
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -388,6 +389,10 @@ class PlayerControls(QWidget):
         self._player.engine.play_mode_changed.connect(self._on_play_mode_changed)
         self._player.engine.volume_changed.connect(self._on_volume_changed_from_engine)
 
+        # EventBus connections
+        bus = EventBus.instance()
+        bus.favorite_changed.connect(self._on_favorite_changed)
+
         # Sync button states with current player mode
         self._sync_button_states()
 
@@ -496,10 +501,17 @@ class PlayerControls(QWidget):
 
     def _toggle_favorite(self):
         """Toggle favorite status."""
-        is_fav = self._player.toggle_favorite()
-        self._favorite_btn.setChecked(is_fav)
-        self._favorite_btn.setText("☆")
-        self._update_favorite_button_style(is_fav)
+        self._player.toggle_favorite()
+        # UI update is handled by _on_favorite_changed via EventBus
+
+    def _on_favorite_changed(self, track_id: int, is_favorite: bool):
+        """Handle favorite status change from EventBus."""
+        # Only update if this is the current track
+        current_track = self._player.engine.current_track
+        if current_track and current_track.get("id") == track_id:
+            self._favorite_btn.setChecked(is_favorite)
+            self._favorite_btn.setText("☆")
+            self._update_favorite_button_style(is_favorite)
 
     def _update_favorite_button_style(self, is_favorite: bool):
         """Update favorite button style based on favorite status."""

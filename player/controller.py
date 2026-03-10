@@ -12,6 +12,7 @@ from .playlist_item import PlaylistItem, CloudProvider
 from database import DatabaseManager, Track
 from services import MetadataService
 from utils.config import ConfigManager
+from utils.event_bus import EventBus
 
 if TYPE_CHECKING:
     from database.models import CloudFile, CloudAccount
@@ -504,11 +505,14 @@ class PlayerController:
         if track_id is None:
             return False
 
+        bus = EventBus.instance()
         if self._db.is_favorite(track_id):
             self._db.remove_favorite(track_id)
+            bus.emit_favorite_change(track_id, False)
             return False
         else:
             self._db.add_favorite(track_id)
+            bus.emit_favorite_change(track_id, True)
             return True
 
     def is_favorite(self, track_id: int = None) -> bool:
