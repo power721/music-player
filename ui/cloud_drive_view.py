@@ -1113,12 +1113,28 @@ class CloudDriveView(QWidget):
 
         logger.debug(f"[CloudDriveView] _on_event_bus_download_completed: {file_id}")
 
-        # Only update status if this file is in our current audio files list
-        file_name = None
+        # Update CloudFile's local_path and refresh table
         for f in self._current_audio_files:
             if f.file_id == file_id:
+                f.local_path = local_path
                 file_name = f.name
+
+                # Update the corresponding row in the table
+                for row in range(self._file_table.rowCount()):
+                    item = self._file_table.item(row, 0)
+                    if item:
+                        row_file = item.data(Qt.UserRole)
+                        if row_file and row_file.file_id == file_id:
+                            # Update the file's local_path
+                            row_file.local_path = local_path
+                            # Update status column to show downloaded
+                            status_item = self._file_table.item(row, 4)
+                            if status_item:
+                                status_item.setText("✓")
+                            break
                 break
+        else:
+            file_name = None
 
         if file_name and local_path and os.path.exists(local_path):
             file_size = os.path.getsize(local_path)
@@ -1613,10 +1629,33 @@ class CloudDriveView(QWidget):
             )
 
             if success:
-                # Update database cache (update cloud file name if title changed)
-                if new_title != file.name:
-                    # Update the file display name in database
-                    self._db.cache_cloud_files(self._current_account.id, [file])
+                # Update tracks table in database
+                track = self._db.get_track_by_cloud_file_id(file.file_id)
+                if track:
+                    # Update existing track
+                    conn = self._db._get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "UPDATE tracks SET title = ?, artist = ?, album = ? WHERE id = ?",
+                        (new_title, new_artist, new_album, track.id)
+                    )
+                    conn.commit()
+                    logger.debug(f"[CloudDriveView] Updated track {track.id} metadata in database")
+                else:
+                    # Check if track exists by path
+                    track = self._db.get_track_by_path(file.local_path)
+                    if track:
+                        conn = self._db._get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            "UPDATE tracks SET title = ?, artist = ?, album = ?, cloud_file_id = ? WHERE id = ?",
+                            (new_title, new_artist, new_album, file.file_id, track.id)
+                        )
+                        conn.commit()
+                        logger.debug(f"[CloudDriveView] Updated track {track.id} metadata and cloud_file_id in database")
+
+                # Update CloudFile display name
+                file.name = new_title
 
                 QMessageBox.information(self, t("success"), t("media_saved"))
 
