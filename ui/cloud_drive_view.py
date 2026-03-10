@@ -74,6 +74,10 @@ class CloudDriveView(QWidget):
         self._event_bus.download_started.connect(self._on_event_bus_download_started)
         self._event_bus.download_completed.connect(self._on_event_bus_download_completed)
 
+        # Connect to EventBus for track changes (to highlight current playing)
+        self._event_bus.track_changed.connect(self._on_track_changed)
+        self._event_bus.playback_state_changed.connect(self._on_playback_state_changed)
+
     def _setup_ui(self):
         """Setup UI components"""
         layout = QHBoxLayout(self)
@@ -590,12 +594,22 @@ class CloudDriveView(QWidget):
 
     def _populate_table(self, files: List[CloudFile]):
         """Populate table with files."""
+        from player.engine import PlayerState
+        from PySide6.QtGui import QFont
+
         self._file_table.setRowCount(0)
         self._file_table.setUpdatesEnabled(False)
 
         try:
             for row, file in enumerate(files):
                 self._file_table.insertRow(row)
+
+                # Check if this file is currently playing
+                is_currently_playing = (
+                    self._current_playing_file_id and
+                    file.file_id == self._current_playing_file_id and
+                    file.file_type == "audio"
+                )
 
                 # Name
                 name_item = QTableWidgetItem(file.name)
@@ -604,6 +618,21 @@ class CloudDriveView(QWidget):
 
                 if file.file_type == "folder":
                     name_item.setText("📁 " + file.name)
+                elif is_currently_playing:
+                    # Add play/pause icon for currently playing audio
+                    if self._player and hasattr(self._player, 'engine'):
+                        if self._player.engine.state == PlayerState.PLAYING:
+                            name_item.setText("▶ " + file.name)
+                        else:
+                            name_item.setText("⏸ " + file.name)
+                    else:
+                        name_item.setText("▶ " + file.name)
+
+                    # Set bold and green color for playing file
+                    font = name_item.font()
+                    font.setBold(True)
+                    name_item.setFont(font)
+                    name_item.setForeground(QBrush(QColor("#1db954")))
 
                 self._file_table.setItem(row, 0, name_item)
 
@@ -1880,6 +1909,122 @@ class CloudDriveView(QWidget):
                 if hasattr(cloud_file, 'file_id') and cloud_file.file_id == file_fid:
                     self._file_table.selectRow(row)
                     self._file_table.scrollToItem(item)
+                    break
+
+    def _on_track_changed(self, track_item):
+        """Handle track change event from EventBus."""
+        from player.engine import PlayerState
+        from PySide6.QtGui import QBrush, QColor
+
+        # Get cloud_file_id from track_item
+        new_file_id = None
+        if hasattr(track_item, 'cloud_file_id'):
+            new_file_id = track_item.cloud_file_id
+        elif isinstance(track_item, dict):
+            new_file_id = track_item.get('cloud_file_id')
+
+        old_file_id = self._current_playing_file_id
+
+        # Only process if this is a cloud file
+        if not new_file_id:
+            # Clear highlight if switching to local track
+            if old_file_id:
+                self._set_file_playing_status(old_file_id, False)
+                self._current_playing_file_id = ""
+            return
+
+        # Update current playing file ID
+        self._current_playing_file_id = new_file_id
+
+        # Update playing indicators in table
+        if old_file_id != new_file_id:
+            # Remove indicator from old file
+            if old_file_id:
+                self._set_file_playing_status(old_file_id, False)
+            # Add indicator to new file
+            self._set_file_playing_status(new_file_id, True)
+            # Scroll to the playing file
+            self._scroll_to_playing_file()
+
+    def _on_playback_state_changed(self, state: str):
+        """Handle playback state change from EventBus."""
+        # Update the icon for the currently playing file
+        if self._current_playing_file_id:
+            # Determine if playing or paused
+            is_playing = state == "playing"
+            self._set_file_playing_status(self._current_playing_file_id, is_playing, update_icon_only=True)
+
+    def _set_file_playing_status(self, file_id: str, is_playing: bool, update_icon_only: bool = False):
+        """Set the playing status for a specific file in the table."""
+        from PySide6.QtGui import QBrush, QColor, QFont
+        from player.engine import PlayerState
+
+        if not hasattr(self, '_file_table'):
+            return
+
+        # Find the row with this file
+        for row in range(self._file_table.rowCount()):
+            name_item = self._file_table.item(row, 0)
+            if name_item:
+                cloud_file = name_item.data(Qt.UserRole)
+                if cloud_file and hasattr(cloud_file, 'file_id') and cloud_file.file_id == file_id:
+                    # Get the original name without icon
+                    current_text = name_item.text()
+                    # Remove any existing icons
+                    original_name = current_text.replace("▶ ", "").replace("⏸ ", "").replace("🎵 ", "").replace("📁 ", "")
+
+                    # Add folder icon back if it's a folder
+                    if cloud_file.file_type == "folder":
+                        original_name = "📁 " + original_name
+
+                    if is_playing:
+                        # Determine which icon to show based on playback state
+                        if self._player and hasattr(self._player, 'engine'):
+                            if self._player.engine.state == PlayerState.PLAYING:
+                                icon = "▶ "
+                            else:
+                                icon = "⏸ "
+                        else:
+                            icon = "▶ "
+
+                        new_text = f"{icon}{original_name}"
+
+                        # Update text
+                        name_item.setText(new_text)
+
+                        # Update font and color
+                        if not update_icon_only:
+                            font = name_item.font()
+                            font.setBold(True)
+                            name_item.setFont(font)
+                            name_item.setForeground(QBrush(QColor("#1db954")))
+                    else:
+                        # Remove playing indicator
+                        name_item.setText(original_name)
+
+                        # Reset font and color
+                        if not update_icon_only:
+                            font = name_item.font()
+                            font.setBold(False)
+                            name_item.setFont(font)
+                            name_item.setForeground(QBrush(QColor("#e0e0e0")))
+                    break
+
+    def _scroll_to_playing_file(self):
+        """Scroll to the currently playing file in the table."""
+        if not self._current_playing_file_id or not hasattr(self, '_file_table'):
+            return
+
+        # Find the row with the current playing file
+        for row in range(self._file_table.rowCount()):
+            name_item = self._file_table.item(row, 0)
+            if name_item:
+                cloud_file = name_item.data(Qt.UserRole)
+                if cloud_file and hasattr(cloud_file, 'file_id') and cloud_file.file_id == self._current_playing_file_id:
+                    # Select the row
+                    self._file_table.selectRow(row)
+                    # Scroll to the item
+                    self._file_table.scrollToItem(name_item)
                     break
 
 
