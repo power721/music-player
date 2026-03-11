@@ -56,7 +56,7 @@ The application follows a clear separation of concerns across modules:
   - `MainWindow` - Application shell with navigation, tray icon, mini player
   - `LibraryView` - Track library with search/filter, context menus
   - `PlaylistView` - Playlist management with drag-drop support
-  - `QueueView` - Current playback queue with reordering
+  - `QueueView` - Current playback queue with drag-drop reordering and persistence
   - `PlayerControls` - Playback control bar (seek, volume, play mode)
   - `MiniPlayer` - Floating mini player window with dragging support
   - `CloudDriveView` - Cloud drive browser with QR login
@@ -109,6 +109,25 @@ Cloud files are seamlessly integrated with local playback through the `PlaylistI
 
 `DatabaseManager` uses thread-local storage (`threading.local()`) to ensure each thread has its own SQLite connection. This is critical for Qt applications where UI and worker threads may access the database concurrently.
 
+### Full-Text Search (FTS5)
+
+The application uses SQLite FTS5 for fast track searching:
+
+- **Virtual Table**: `tracks_fts` indexes `title`, `artist`, `album` fields from `tracks` table
+- **Automatic Sync**: Triggers (`tracks_ai`, `tracks_ad`, `tracks_au`) keep FTS index synchronized
+- **BM25 Ranking**: Results are ranked by relevance using BM25 algorithm
+
+**Search Features**:
+- Word search: "beatles" matches any field
+- Prefix search: "beat*" matches "beat", "beatles", "beating"
+- Multi-word: "beatles hey" matches tracks with both words
+- Fallback: LIKE-based search when FTS query fails
+
+**Implementation**:
+- `search_tracks(query)` - Main search method using FTS5
+- `_search_tracks_like(query)` - Fallback LIKE-based search
+- Migration auto-populates FTS index for existing databases
+
 ### Configuration Persistence
 
 Two separate config systems:
@@ -135,6 +154,17 @@ The application maintains a persistent play queue that survives application rest
 - `PlaybackManager.restore_queue()` - Restores queue on startup without auto-play
 - Queue supports mixed local tracks and cloud files
 - Cloud file state includes navigation history (`last_fid_path`, `last_position`) for resuming
+- Queue order can be changed via drag-drop in `QueueView` and is automatically saved
+
+### QueueView Drag-Drop Reordering
+
+The `QueueView` (`ui/queue_view.py`) supports drag-drop reordering:
+
+- Uses `QAbstractItemView.InternalMove` mode for drag-drop
+- On drop, `queue_reordered` signal is emitted
+- `MainWindow` connects this signal to `PlaybackManager.save_queue()` for persistence
+- Current playing track position is tracked and preserved during reorder
+- Track matching uses `track_id` for local tracks, `cloud_file_id` for cloud tracks
 
 ### PlaylistItem Abstraction
 

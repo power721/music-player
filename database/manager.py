@@ -219,6 +219,41 @@ class DatabaseManager:
             ON play_queue(position)
         """)
 
+        # Create FTS5 virtual table for full-text search
+        cursor.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS tracks_fts USING fts5(
+                title,
+                artist,
+                album,
+                content='tracks',
+                content_rowid='id'
+            )
+        """)
+
+        # Create triggers to keep FTS index in sync with tracks table
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS tracks_ai AFTER INSERT ON tracks BEGIN
+                INSERT INTO tracks_fts(rowid, title, artist, album)
+                VALUES (new.id, new.title, new.artist, new.album);
+            END
+        """)
+
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS tracks_ad AFTER DELETE ON tracks BEGIN
+                DELETE FROM tracks_fts WHERE rowid = old.id;
+            END
+        """)
+
+        cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS tracks_au AFTER UPDATE ON tracks BEGIN
+                UPDATE tracks_fts
+                SET title = new.title,
+                    artist = new.artist,
+                    album = new.album
+                WHERE rowid = new.id;
+            END
+        """)
+
         # Run migrations for existing databases
         self._run_migrations(conn, cursor)
 
@@ -264,6 +299,58 @@ class DatabaseManager:
             """)
             cursor.execute("DROP TABLE favorites")
             cursor.execute("ALTER TABLE favorites_new RENAME TO favorites")
+
+        # Migration 2: Initialize FTS5 index for existing tracks
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tracks_fts'")
+        fts_exists = cursor.fetchone() is not None
+
+        cursor.execute("SELECT COUNT(*) FROM tracks")
+        tracks_count = cursor.fetchone()[0]
+
+        if tracks_count > 0:
+            if fts_exists:
+                # FTS table exists, check if it needs to be repopulated
+                cursor.execute("SELECT COUNT(*) FROM tracks_fts")
+                fts_count = cursor.fetchone()[0]
+
+                # Check if FTS index is valid by testing a simple search
+                fts_valid = False
+                if fts_count == tracks_count:
+                    try:
+                        # Get a sample track title and test search
+                        cursor.execute("SELECT title FROM tracks WHERE title IS NOT NULL AND title != '' LIMIT 1")
+                        sample = cursor.fetchone()
+                        if sample:
+                            sample_title = sample[0]
+                            # Extract first word for testing
+                            test_word = sample_title.split()[0] if ' ' in sample_title else sample_title[:3]
+                            if test_word:
+                                cursor.execute(
+                                    "SELECT rowid FROM tracks_fts WHERE tracks_fts MATCH ? LIMIT 1",
+                                    (f"{test_word}*",)
+                                )
+                                fts_valid = cursor.fetchone() is not None
+                    except Exception:
+                        fts_valid = False
+
+                if not fts_valid:
+                    # FTS index is invalid, rebuild it
+                    logger.info(f"[Database] Rebuilding FTS5 index (was {fts_count} entries, expected {tracks_count})")
+                    cursor.execute("DELETE FROM tracks_fts")
+                    cursor.execute("""
+                        INSERT INTO tracks_fts(rowid, title, artist, album)
+                        SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
+                        FROM tracks
+                    """)
+                    logger.info(f"[Database] Rebuilt FTS5 index with {tracks_count} tracks")
+            else:
+                # FTS table doesn't exist but tracks do - this shouldn't happen with current init
+                logger.info(f"[Database] Populating FTS5 index with {tracks_count} tracks")
+                cursor.execute("""
+                    INSERT INTO tracks_fts(rowid, title, artist, album)
+                    SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
+                    FROM tracks
+                """)
 
     # Track operations
 
@@ -403,7 +490,97 @@ class DatabaseManager:
         return tracks
 
     def search_tracks(self, query: str) -> List[Track]:
-        """Search tracks by title, artist, or album."""
+        """
+        Search tracks using FTS5 full-text search.
+
+        Supports:
+        - Word search: "beatles" matches any field containing "beatles"
+        - Prefix search: "beat*" matches "beat", "beatles", "beating"
+        - Multi-word: "beatles hey" matches tracks with both words
+        - Field-specific: "artist:beatles" searches only artist field
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of matching Track objects sorted by relevance
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Check if FTS table has data
+        cursor.execute("SELECT COUNT(*) FROM tracks_fts")
+        if cursor.fetchone()[0] == 0:
+            # Fallback to LIKE search if FTS not populated
+            return self._search_tracks_like(query)
+
+        try:
+            # Use FTS5 for full-text search with BM25 ranking
+            # Handle special characters that might break FTS query
+            safe_query = query.replace('"', '""')
+
+            # Build FTS query - wrap in quotes for exact phrase or use as-is for multi-word
+            fts_query = f'"{safe_query}"'
+
+            cursor.execute(
+                """
+                SELECT t.*, bm25(tracks_fts) AS score
+                FROM tracks t
+                JOIN tracks_fts f ON t.id = f.rowid
+                WHERE tracks_fts MATCH ?
+                ORDER BY score
+                LIMIT 100
+                """,
+                (fts_query,),
+            )
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                # Try without quotes for multi-word search
+                fts_query = safe_query
+                cursor.execute(
+                    """
+                    SELECT t.*, bm25(tracks_fts) AS score
+                    FROM tracks t
+                    JOIN tracks_fts f ON t.id = f.rowid
+                    WHERE tracks_fts MATCH ?
+                    ORDER BY score
+                    LIMIT 100
+                    """,
+                    (fts_query,),
+                )
+                rows = cursor.fetchall()
+
+            return [
+                Track(
+                    id=row["id"],
+                    path=row["path"],
+                    title=row["title"],
+                    artist=row["artist"],
+                    album=row["album"],
+                    duration=row["duration"],
+                    cover_path=row["cover_path"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    cloud_file_id=row["cloud_file_id"],
+                )
+                for row in rows
+            ]
+
+        except sqlite3.OperationalError:
+            # FTS query failed, fallback to LIKE search
+            return self._search_tracks_like(query)
+
+    def _search_tracks_like(self, query: str) -> List[Track]:
+        """
+        Fallback LIKE-based search when FTS is not available.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            List of matching Track objects
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -413,7 +590,7 @@ class DatabaseManager:
             SELECT * FROM tracks
             WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?
             ORDER BY artist, album, title
-        """,
+            """,
             (search_pattern, search_pattern, search_pattern),
         )
 
@@ -429,6 +606,7 @@ class DatabaseManager:
                 duration=row["duration"],
                 cover_path=row["cover_path"],
                 created_at=datetime.fromisoformat(row["created_at"]),
+                cloud_file_id=row["cloud_file_id"],
             )
             for row in rows
         ]
