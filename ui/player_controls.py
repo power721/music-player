@@ -731,12 +731,9 @@ class PlayerControls(QWidget):
 
     def _on_track_changed(self, track_dict: dict):
         """Handle track change."""
-        print(f"[PlayerControls] _on_track_changed called: {track_dict}")
-        logger.debug(f"[PlayerControls] _on_track_changed called: {track_dict}")
         if track_dict:
             title = track_dict.get("title", t("unknown"))
             artist = track_dict.get("artist", t("unknown"))
-            print(f"[PlayerControls] Setting title: {title}, artist: {artist}")
             self._title_label.setText(title)
             self._artist_label.setText(artist)
 
@@ -771,7 +768,6 @@ class PlayerControls(QWidget):
 
             # First check if cover_path is already saved in database
             cover_path = track_dict.get("cover_path")
-            logger.debug(f"[PlayerControls] cover_path from track_dict: {cover_path}")
             if cover_path:
                 from pathlib import Path
                 if Path(cover_path).exists():

@@ -241,8 +241,6 @@ class PlayerController:
             first_file_path: Optional local path for the first file (if already downloaded)
             start_position: Optional position to start from (in seconds)
         """
-        logger.debug(f"[PlayerController] load_cloud_playlist: start_index={start_index}, files={len(cloud_files)}")
-
         # Store cloud state
         self._current_cloud_account_id = account.id
         self._cloud_files = cloud_files
@@ -282,8 +280,6 @@ class PlayerController:
             cloud_file_id: Cloud file ID
             local_path: Local path of downloaded file
         """
-        logger.debug(f"[PlayerController] on_cloud_file_downloaded: {cloud_file_id} -> {local_path}")
-
         # Store the downloaded path
         self._downloaded_files[cloud_file_id] = local_path
 
@@ -297,7 +293,6 @@ class PlayerController:
 
                 # If this is the current track, play it
                 if i == self._engine.current_index:
-                    logger.debug(f"[PlayerController] Playing downloaded track at index {i}")
                     self._engine.play_after_download(i, local_path)
 
                 # Emit signal for UI updates
@@ -311,8 +306,6 @@ class PlayerController:
         Args:
             item: PlaylistItem that needs download
         """
-        logger.debug(f"[PlayerController] _on_track_needs_download: {item.cloud_file_id}")
-
         # Check if already downloaded
         if item.cloud_file_id in self._downloaded_files:
             local_path = self._downloaded_files[item.cloud_file_id]

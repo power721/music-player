@@ -234,7 +234,6 @@ class PlayerEngine(QObject):
             item = self._playlist[index]
             item.local_path = local_path
             item.needs_download = False
-            logger.debug(f"[PlayerEngine] Updated track {index} path: {local_path}")
 
     def play(self):
         """Start or resume playback."""
@@ -246,7 +245,6 @@ class PlayerEngine(QObject):
             # Check if current track needs download
             item = self._playlist[self._current_index]
             if item.needs_download or not item.local_path:
-                logger.debug(f"[PlayerEngine] play: Track needs download")
                 self.track_needs_download.emit(item)
                 return
             self._player.play()
@@ -272,7 +270,6 @@ class PlayerEngine(QObject):
 
             # Check if track needs download
             if item.needs_download or not item.local_path:
-                logger.debug(f"[PlayerEngine] play_at: Track {index} needs download")
                 self.current_track_changed.emit(item.to_dict())
                 self.track_needs_download.emit(item)
                 return
@@ -299,7 +296,6 @@ class PlayerEngine(QObject):
 
             # Check if track needs download
             if item.needs_download or not item.local_path:
-                logger.debug(f"[PlayerEngine] play_at_with_position: Track {index} needs download, pending_seek={position_ms}")
                 self.current_track_changed.emit(item.to_dict())
                 self.track_needs_download.emit(item)
                 return
@@ -331,7 +327,6 @@ class PlayerEngine(QObject):
                     if metadata.get("album"):
                         item.album = metadata["album"]
                     item.needs_metadata = False
-                    logger.debug(f"[PlayerEngine] Extracted metadata: title={item.title}, artist={item.artist}")
 
             # Only play if this is the current track
             if index == self._current_index:
@@ -340,7 +335,6 @@ class PlayerEngine(QObject):
 
                 # Use pending seek if available
                 if self._pending_seek and self._pending_seek > 0:
-                    logger.debug(f"[PlayerEngine] play_after_download: using pending_seek={self._pending_seek}")
                     # Will seek after media is loaded
                     self._pending_play = True
                 else:
@@ -350,18 +344,11 @@ class PlayerEngine(QObject):
 
     def play_next(self):
         """Play the next track."""
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[PlayerEngine] play_next called: current_index={self._current_index}, playlist_size={len(self._playlist)}, mode={self._play_mode}")
-
         if not self._playlist:
-            logger.debug("[PlayerEngine] play_next: No playlist, returning")
             return
 
         # Handle loop one mode - stay on current track
         if self._play_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
-            logger.debug("[PlayerEngine] play_next: Loop one mode, staying on current track")
             # Just restart playback
             self._player.setPosition(0)
             self._player.play()
@@ -376,47 +363,32 @@ class PlayerEngine(QObject):
                 if self._play_mode == PlayMode.RANDOM_LOOP:
                     self._shuffle_playlist()
                 self._current_index = 0
-                logger.debug(f"[PlayerEngine] play_next: Playlist loop, reset to index 0")
             else:
                 self._current_index = len(self._playlist) - 1
-                logger.debug(f"[PlayerEngine] play_next: End of playlist, stopping")
                 self.stop()
                 return
 
         item = self._playlist[self._current_index] if 0 <= self._current_index < len(self._playlist) else None
-        logger.debug(f"[PlayerEngine] play_next: Loading track at index {self._current_index}, path={item.local_path if item else None}")
 
         self._load_track(self._current_index)
 
         # Check if track needs download
         if item and (item.needs_download or not item.local_path):
-            logger.debug(f"[PlayerEngine] play_next: Track needs download")
             self.track_needs_download.emit(item)
         elif item and item.local_path:
-            logger.debug(f"[PlayerEngine] play_next: Calling play()")
             self._player.play()
-
-        logger.debug(f"[PlayerEngine] play_next took: {time.time() - start_time:.3f}s")
 
     def play_previous(self):
         """Play the previous track."""
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[PlayerEngine] play_previous called: current_index={self._current_index}, mode={self._play_mode}")
-
         if not self._playlist:
-            logger.debug("[PlayerEngine] play_previous: No playlist, returning")
             return
 
         # Handle loop one mode - stay on current track
         if self._play_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
-            logger.debug("[PlayerEngine] play_previous: Loop one mode, staying on current track")
             self._player.setPosition(0)
             return
 
         if self._player.position() > 3000:  # If more than 3 seconds played, restart track
-            logger.debug("[PlayerEngine] play_previous: Position > 3000ms, restarting track")
             self._player.setPosition(0)
         else:
             self._current_index -= 1
@@ -427,19 +399,14 @@ class PlayerEngine(QObject):
                     self._current_index = 0
 
             item = self._playlist[self._current_index] if 0 <= self._current_index < len(self._playlist) else None
-            logger.debug(f"[PlayerEngine] play_previous: Loading track at index {self._current_index}, path={item.local_path if item else None}")
 
             self._load_track(self._current_index)
 
             # Check if track needs download
             if item and (item.needs_download or not item.local_path):
-                logger.debug("[PlayerEngine] play_previous: Track needs download")
                 self.track_needs_download.emit(item)
             elif item and item.local_path:
-                logger.debug("[PlayerEngine] play_previous: Calling play()")
                 self._player.play()
-
-        logger.debug(f"[PlayerEngine] play_previous took: {time.time() - start_time:.3f}s")
 
     def seek(self, position_ms: int):
         """
@@ -504,7 +471,6 @@ class PlayerEngine(QObject):
 
         self._play_mode = mode
         self.play_mode_changed.emit(mode)
-        logger.debug(f"[PlayerEngine] Play mode changed: {old_mode} -> {mode}")
 
     def _shuffle_playlist(self):
         """Shuffle the playlist with current track at front."""
@@ -529,7 +495,6 @@ class PlayerEngine(QObject):
                 pass
 
         self._current_index = 0
-        logger.debug(f"[PlayerEngine] Playlist shuffled, current item at index 0")
 
     def _restore_playlist_order(self):
         """Restore the playlist to original order."""
@@ -554,8 +519,6 @@ class PlayerEngine(QObject):
                     break
             else:
                 self._current_index = 0
-
-        logger.debug(f"[PlayerEngine] Playlist restored to original order, current_index={self._current_index}")
 
     def shuffle_and_play(self, item_to_play: PlaylistItem = None):
         """
@@ -584,40 +547,24 @@ class PlayerEngine(QObject):
         else:
             self._current_index = 0
 
-        logger.debug(f"[PlayerEngine] Playlist shuffled for new playback, current_index={self._current_index}")
-
     def is_shuffle_mode(self) -> bool:
         """Check if currently in shuffle mode."""
         return self._play_mode in (PlayMode.RANDOM, PlayMode.RANDOM_LOOP, PlayMode.RANDOM_TRACK_LOOP)
 
     def _load_track(self, index: int):
         """Load a track for playback."""
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[PlayerEngine] _load_track called: index={index}")
-
         if 0 <= index < len(self._playlist):
             item = self._playlist[index]
-            logger.debug(f"[PlayerEngine] _load_track: item={item}")
 
             # Skip loading if path is empty (for cloud files not yet downloaded)
             if not item.local_path or item.needs_download:
-                logger.debug(f"[PlayerEngine] _load_track: Path is empty or needs download, emitting current_track_changed signal")
                 self.current_track_changed.emit(item.to_dict())
-                logger.debug(f"[PlayerEngine] _load_track took: {time.time() - start_time:.3f}s (empty path)")
                 return
 
             url = QUrl.fromLocalFile(item.local_path)
 
-            logger.debug(f'[PlayerEngine] Loading track from {url}')
             self._player.setSource(url)
-            logger.debug(f"[PlayerEngine] _load_track: setSource done, emitting current_track_changed")
             self.current_track_changed.emit(item.to_dict())
-
-            logger.debug(f"[PlayerEngine] _load_track took: {time.time() - start_time:.3f}s")
-        else:
-            logger.debug(f"[PlayerEngine] _load_track: Invalid index {index}")
 
     def _on_position_changed(self, position_ms: int):
         """Handle position change."""
@@ -651,21 +598,17 @@ class PlayerEngine(QObject):
                 self._pending_seek = 0
                 if self._pending_play:
                     self._pending_play = False
-                    logger.debug("[PlayerEngine] Calling play() after seek")
                     self._player.play()
         elif status == QMediaPlayer.MediaStatus.EndOfMedia:
-            logger.debug("[PlayerEngine] EndOfMedia reached")
             self.track_finished.emit()
 
             # Auto-play next based on mode
             if self._play_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
                 # Track loop modes
-                logger.debug("[PlayerEngine] Track loop mode, seeking to 0 and playing")
                 self.seek(0)
                 self.play()
             elif self._play_mode in (PlayMode.SEQUENTIAL, PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM, PlayMode.RANDOM_LOOP):
                 # Modes that advance to next track
-                logger.debug(f"[PlayerEngine] Calling play_next, mode={self._play_mode}")
                 self.play_next()
 
     def _on_error(self, error, error_string):

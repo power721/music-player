@@ -307,32 +307,19 @@ class LyricsService:
         Returns:
             List of (time, text) tuples for synchronized lyrics, or None
         """
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[LyricsService] get_lyrics called: path={track_path}, title={title}, artist={artist}")
-
         # First try local .lrc file
         if track_path:
-            local_start = time.time()
             lyrics = cls._get_local_lyrics(track_path)
-            logger.debug(f"[LyricsService] _get_local_lyrics took: {time.time() - local_start:.3f}s")
             if lyrics:
-                logger.debug(f"[LyricsService] Found local lyrics, total time: {time.time() - start_time:.3f}s")
                 return lyrics
 
         # Fall back to online sources (only if enabled)
         if cls.ENABLE_ONLINE:
-            logger.debug(f"[LyricsService] No local lyrics, trying online sources...")
-            online_start = time.time()
             lyrics = cls._get_online_lyrics(title, artist)
-            logger.debug(f"[LyricsService] _get_online_lyrics took: {time.time() - online_start:.3f}s")
             if lyrics:
                 cls.save_lyrics(track_path, lyrics)
-            logger.debug(f"[LyricsService] get_lyrics total time: {time.time() - start_time:.3f}s")
-            return lyrics
+                return lyrics
 
-        logger.debug(f"[LyricsService] get_lyrics total time: {time.time() - start_time:.3f}s (no online)")
         return ""
 
     @classmethod
@@ -378,11 +365,6 @@ class LyricsService:
         Returns:
             List of (time, text) tuples, or None if not found
         """
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[LyricsService] _get_online_lyrics called: title={title}, artist={artist}")
-
         # Try multiple online sources
         sources = [
             cls._fetch_from_netease,
@@ -391,18 +373,13 @@ class LyricsService:
 
         for source in sources:
             try:
-                source_start = time.time()
-                logger.debug(f"[LyricsService] Trying source: {source.__name__}")
                 lyrics = source(title, artist)
-                logger.debug(f"[LyricsService] {source.__name__} took: {time.time() - source_start:.3f}s")
                 if lyrics:
-                    logger.debug(f"[LyricsService] Found lyrics from {source.__name__}, total time: {time.time() - start_time:.3f}s")
                     return lyrics
             except Exception as e:
                 logger.error(f"Error fetching lyrics from {source.__name__}: {e}", exc_info=True)
                 continue
 
-        logger.debug(f"[LyricsService] _get_online_lyrics total time: {time.time() - start_time:.3f}s (not found)")
         return ""
 
     @classmethod
@@ -567,8 +544,7 @@ class LyricsService:
         """
         # Skip saving if track_path is empty or invalid
         if not track_path or track_path in ('.', '', '/'):
-            logger.debug(f"Skipping lyrics save for invalid track path: {track_path}")
-            return False
+                        return False
 
         try:
             track_file = Path(track_path)

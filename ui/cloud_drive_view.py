@@ -1085,7 +1085,6 @@ class CloudDriveView(QWidget):
         This is called when a cloud file download starts during auto-play,
         which uses CloudDownloadService instead of CloudDriveView's own download thread.
         """
-        logger.debug(f"[CloudDriveView] _on_event_bus_download_started: {file_id}")
 
         # Only update status if this file is in our current audio files list
         file_name = None
@@ -1102,7 +1101,6 @@ class CloudDriveView(QWidget):
                 size_mb = file_size / (1024 * 1024)
                 size_info = f" ({size_mb:.1f} MB)"
             self._status_label.setText(f"{t('downloading')} {file_name}{size_info}...")
-            logger.debug(f"[CloudDriveView] Updated status for auto-play download start: {file_name}")
 
     def _on_event_bus_download_completed(self, file_id: str, local_path: str):
         """Handle download completion from EventBus (for auto-play next track).
@@ -1111,8 +1109,6 @@ class CloudDriveView(QWidget):
         which uses CloudDownloadService instead of CloudDriveView's own download thread.
         """
         import os
-
-        logger.debug(f"[CloudDriveView] _on_event_bus_download_completed: {file_id}")
 
         # Update CloudFile's local_path and refresh table
         for f in self._current_audio_files:
@@ -1141,7 +1137,6 @@ class CloudDriveView(QWidget):
             file_size = os.path.getsize(local_path)
             size_mb = file_size / (1024 * 1024)
             self._status_label.setText(f"{t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
-            logger.debug(f"[CloudDriveView] Updated status for auto-play download: {file_name}")
 
     def _show_context_menu(self, pos):
         """Show context menu for file."""
@@ -1744,7 +1739,6 @@ class CloudDriveView(QWidget):
                         (new_title, new_artist, new_album, track.id)
                     )
                     conn.commit()
-                    logger.debug(f"[CloudDriveView] Updated track {track.id} metadata in database")
                 else:
                     # Check if track exists by path
                     track = self._db.get_track_by_path(file.local_path)
@@ -1756,7 +1750,6 @@ class CloudDriveView(QWidget):
                             (new_title, new_artist, new_album, file.file_id, track.id)
                         )
                         conn.commit()
-                        logger.debug(f"[CloudDriveView] Updated track {track.id} metadata and cloud_file_id in database")
 
                 # Update CloudFile display name
                 file.name = new_title
@@ -2193,7 +2186,6 @@ class CloudFileDownloadThread(QThread):
         self._file_index = file_index
         self._audio_files = audio_files or []
         self._config_manager = config_manager
-        logger.debug(f"[CloudFileDownloadThread] __init__ called for file: {file.name}")
         pass  # Thread created
 
     def run(self):
@@ -2203,7 +2195,6 @@ class CloudFileDownloadThread(QThread):
         import time
 
         start_time = time.time()
-        logger.debug(f"[CloudFileDownloadThread] run() started for: {self._file.name}")
 
         # Get download directory from config
         if self._config_manager:
@@ -2225,7 +2216,6 @@ class CloudFileDownloadThread(QThread):
 
         # Check if file already exists and has correct size
         if local_file_path.exists():
-            logger.debug(f"[CloudFileDownloadThread] File exists: {local_file_path}")
             file_size = local_file_path.stat().st_size
             expected_size = self._file.size if self._file.size else 0
 
@@ -2237,7 +2227,6 @@ class CloudFileDownloadThread(QThread):
 
                 if size_diff <= tolerance:
                     # File size matches, use existing file
-                    logger.debug(f"[CloudFileDownloadThread] File size matches, using cached file. Took: {time.time() - start_time:.3f}s")
                     self.file_exists.emit(str(local_file_path))
                     return
                 else:
@@ -2246,17 +2235,13 @@ class CloudFileDownloadThread(QThread):
                     pass
             else:
                 # No size info available, use existing file
-                logger.debug(f"[CloudFileDownloadThread] No size info, using cached file. Took: {time.time() - start_time:.3f}s")
                 self.file_exists.emit(str(local_file_path))
                 return
 
         # Get download URL
-        logger.debug(f"[CloudFileDownloadThread] Getting download URL for file_id: {self._file.file_id}")
-        url_start = time.time()
         result = QuarkDriveService.get_download_url(
             self._access_token, self._file.file_id
         )
-        logger.debug(f"[CloudFileDownloadThread] get_download_url took: {time.time() - url_start:.3f}s")
 
         # Handle tuple return value
         if isinstance(result, tuple):
@@ -2281,12 +2266,10 @@ class CloudFileDownloadThread(QThread):
                         local_file_path.unlink()
 
             # Download to persistent location
-            logger.debug(f"[CloudFileDownloadThread] Starting download from URL to: {local_file_path}")
             download_start = time.time()
             success = QuarkDriveService.download_file(
                 url, str(local_file_path), self._access_token
             )
-            logger.debug(f"[CloudFileDownloadThread] download_file took: {time.time() - download_start:.3f}s, success={success}")
 
             if success:
                 # Verify downloaded file size
@@ -2299,7 +2282,6 @@ class CloudFileDownloadThread(QThread):
                         tolerance = expected_size * 0.01  # 1% tolerance
 
                         if size_diff <= tolerance:
-                            logger.debug(f"[CloudFileDownloadThread] Download complete, emitting finished signal. Total time: {time.time() - start_time:.3f}s")
                             self.finished.emit(str(local_file_path))
                             return
                         else:
@@ -2309,7 +2291,6 @@ class CloudFileDownloadThread(QThread):
                             self.finished.emit("")
                     else:
                         # No size info, assume download was successful
-                        logger.debug(f"[CloudFileDownloadThread] Download complete (no size check), emitting finished signal. Total time: {time.time() - start_time:.3f}s")
                         self.finished.emit(str(local_file_path))
                         return
                 else:

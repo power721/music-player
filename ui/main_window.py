@@ -860,17 +860,14 @@ class MainWindow(QMainWindow):
 
     def _play_track(self, track_id: int):
         """Play a local track from library (loads entire library as playlist)."""
-        logger.debug(f"[MainWindow] _play_track: {track_id}")
         self._playback.play_local_track(track_id)
 
     def _play_playlist_track(self, playlist_id: int, track_id: int):
         """Play a track from a specific playlist."""
-        logger.debug(f"[MainWindow] _play_playlist_track: playlist={playlist_id}, track={track_id}")
         self._playback.play_playlist_track(playlist_id, track_id)
 
     def _play_cloud_favorite(self, cloud_file_id: str, account_id: int):
         """Play a cloud file from favorites."""
-        logger.debug(f"[MainWindow] _play_cloud_favorite: file_id={cloud_file_id}, account_id={account_id}")
 
         if not cloud_file_id or not account_id:
             return
@@ -904,7 +901,6 @@ class MainWindow(QMainWindow):
 
     def _play_cloud_track(self, temp_path: str):
         """Play track from cloud (temp file) - backward compatible."""
-        logger.debug(f"[MainWindow] _play_cloud_track: {temp_path}")
         # Create a simple playlist item for single track
         item = PlaylistItem(
             source_type=CloudProvider.QUARK,
@@ -918,8 +914,6 @@ class MainWindow(QMainWindow):
     def _play_cloud_playlist(self, temp_path: str, index: int, cloud_files, start_position: float = 0.0):
         """Play multiple cloud files as a playlist."""
         from database.models import CloudAccount
-
-        logger.debug(f"[MainWindow] _play_cloud_playlist: index={index}, files={len(cloud_files)}")
 
         # Get current cloud account from CloudDriveView
         account = self._cloud_drive_view._current_account
@@ -938,7 +932,6 @@ class MainWindow(QMainWindow):
 
     def _on_cloud_download_completed(self, file_id: str, local_path: str):
         """Handle cloud file download completion."""
-        logger.debug(f"[MainWindow] _on_cloud_download_completed: {file_id}")
         # Forward to playback manager
         self._playback.on_download_completed(file_id, local_path)
 
@@ -948,11 +941,6 @@ class MainWindow(QMainWindow):
         Args:
             track_item: Can be PlaylistItem or dict (for backward compatibility)
         """
-        import time
-        start_time = time.time()
-
-        logger.debug(f"[MainWindow] _on_track_changed called: {track_item}")
-
         # Reset lyric line tracking
         self._current_lyric_line = None
 
@@ -981,23 +969,17 @@ class MainWindow(QMainWindow):
 
         self._lyrics_view.set_lyrics(t("no_lyrics"))
         if not track_dict:
-            logger.debug("[MainWindow] _on_track_changed: track_dict is None, returning")
             return
-
-        logger.debug(f"[MainWindow] _on_track_changed: title={title}, artist={artist}, path={path}")
 
         # Save current track title for window title update
         self._current_track_title = f"{title} - {artist}" if artist else title
 
         # Skip loading lyrics for cloud files without local path
         if not path or path.strip() in ('', '.', '/'):
-            logger.debug("[MainWindow] _on_track_changed: Empty path, skipping lyrics load")
             return
 
         # Load lyrics asynchronously using LyricsLoader
         self._load_lyrics_async(path, title, artist)
-
-        logger.debug(f"[MainWindow] _on_track_changed took: {time.time() - start_time:.3f}s")
 
     def _on_playback_state_changed(self, state: str):
         """Handle playback state change to update window title.
@@ -1016,8 +998,6 @@ class MainWindow(QMainWindow):
             # Paused or stopped - restore original title
             if self._original_title:
                 self.setWindowTitle(self._original_title)
-
-        logger.debug(f"[MainWindow] Playback state changed: {state}")
 
     def _load_lyrics_async(self, path: str, title: str, artist: str):
         """Load lyrics asynchronously."""

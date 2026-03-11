@@ -90,8 +90,6 @@ class PlaybackManager(QObject):
         # Restore settings
         self._restore_settings()
 
-        logger.debug("[PlaybackManager] Initialized")
-
     def _connect_engine_signals(self):
         """Connect engine signals to internal handlers and EventBus."""
         # Engine -> EventBus forwarding
@@ -175,8 +173,6 @@ class PlaybackManager(QObject):
         """
         from pathlib import Path
 
-        logger.debug(f"[PlaybackManager] Playing local track: {track_id}")
-
         track = self._db.get_track(track_id)
         if not track:
             logger.error(f"[PlaybackManager] Track not found: {track_id}")
@@ -220,8 +216,6 @@ class PlaybackManager(QObject):
     def play_local_library(self):
         """Play all tracks in the library."""
         from pathlib import Path
-
-        logger.debug("[PlaybackManager] Playing library")
 
         self._set_source("local")
 
@@ -280,8 +274,6 @@ class PlaybackManager(QObject):
         """
         from pathlib import Path
 
-        logger.debug(f"[PlaybackManager] Playing track {track_id} from playlist {playlist_id}")
-
         self._set_source("local")
 
         tracks = self._db.get_playlist_tracks(playlist_id)
@@ -325,8 +317,6 @@ class PlaybackManager(QObject):
             account: CloudAccount for authentication
             cloud_files: Optional list of all cloud files for playlist
         """
-        logger.debug(f"[PlaybackManager] Playing cloud track: {cloud_file.name}")
-
         self._cloud_account = account
         self._cloud_files = cloud_files or [cloud_file]
         self._set_source("cloud")
@@ -374,8 +364,27 @@ class PlaybackManager(QObject):
             account: CloudAccount for authentication
             start_position: Optional position to start from (in seconds)
         """
-        logger.debug(f"[PlaybackManager] Playing cloud playlist: {len(cloud_files)} files, start={start_index}")
 
+        # Save state
+        self._config.set_playback_source("cloud")
+        self._config.set_cloud_account_id(account.id)
+
+    def play_cloud_playlist(
+        self,
+        cloud_files: List["CloudFile"],
+        start_index: int,
+        account: "CloudAccount",
+        start_position: float = 0.0
+    ):
+        """
+        Play a cloud file playlist.
+
+        Args:
+            cloud_files: List of CloudFile objects
+            start_index: Index to start playback from
+            account: CloudAccount for authentication
+            start_position: Optional position to start from (in seconds)
+        """
         self._cloud_account = account
         self._cloud_files = cloud_files
         self._set_source("cloud")
@@ -446,7 +455,6 @@ class PlaybackManager(QObject):
         """Handle play mode change - save to config and emit to EventBus."""
         # Save to config
         self._config.set_play_mode(mode.value)
-        logger.debug(f"[PlaybackManager] Saved play mode: {mode}")
         # Emit to EventBus
         self._event_bus.play_mode_changed.emit(mode.value)
 
@@ -457,7 +465,6 @@ class PlaybackManager(QObject):
         if self._current_source != source:
             self._current_source = source
             self.source_changed.emit(source)
-            logger.debug(f"[PlaybackManager] Source changed to: {source}")
 
     def _get_cached_path(self, file_id: str) -> str:
         """Get cached local path for a cloud file."""
@@ -512,7 +519,6 @@ class PlaybackManager(QObject):
 
                     if track_id:
                         self._db.add_play_history(track_id)
-                        logger.debug(f"[PlaybackManager] Created track record for cloud file: {track_id}")
 
     def _on_state_changed(self, state: PlayerState):
         """Handle state change."""
@@ -525,10 +531,6 @@ class PlaybackManager(QObject):
 
     def _on_track_needs_download(self, item: PlaylistItem):
         """Handle track that needs download."""
-        logger.debug(f"[PlaybackManager] Track needs download: {item.cloud_file_id}")
-        logger.debug(f"[PlaybackManager] _cloud_account: {self._cloud_account}")
-        logger.debug(f"[PlaybackManager] _cloud_files count: {len(self._cloud_files)}")
-
         from services.cloud_download_service import CloudDownloadService
 
         if not self._cloud_account:
@@ -536,7 +538,6 @@ class PlaybackManager(QObject):
             # Try to restore cloud account from database
             if item.cloud_account_id:
                 self._cloud_account = self._db.get_cloud_account(item.cloud_account_id)
-                logger.debug(f"[PlaybackManager] Restored cloud account: {self._cloud_account}")
                 if not self._cloud_account:
                     return
             else:
@@ -557,14 +558,11 @@ class PlaybackManager(QObject):
             logger.warning(f"[PlaybackManager] CloudFile not found in _cloud_files, trying to find in database")
             # Try to find in database
             cloud_file = self._db.get_cloud_file_by_file_id(item.cloud_file_id)
-            if cloud_file:
-                logger.debug(f"[PlaybackManager] Found CloudFile in database: {cloud_file.name}")
-            else:
+            if not cloud_file:
                 logger.error(f"[PlaybackManager] CloudFile not found: {item.cloud_file_id}")
                 return
 
         if cloud_file:
-            logger.debug(f"[PlaybackManager] Starting download for: {cloud_file.name}")
             service.download_file(cloud_file, self._cloud_account)
 
     def on_download_completed(self, file_id: str, local_path: str):
@@ -575,8 +573,6 @@ class PlaybackManager(QObject):
             file_id: Cloud file ID
             local_path: Local path of downloaded file
         """
-        logger.debug(f"[PlaybackManager] Download completed: {file_id}")
-
         # Extract metadata and save to database
         cover_path = self._save_cloud_track_to_library(file_id, local_path)
 
@@ -612,7 +608,6 @@ class PlaybackManager(QObject):
         # Check if already in database
         existing = self._db.get_track_by_cloud_file_id(file_id)
         if existing:
-            logger.debug(f"[PlaybackManager] Track already in library: {existing.id}")
             return existing.cover_path
 
         # Check if already exists by path
@@ -626,7 +621,6 @@ class PlaybackManager(QObject):
                 (file_id, existing_by_path.id)
             )
             conn.commit()
-            logger.debug(f"[PlaybackManager] Updated cloud_file_id for track: {existing_by_path.id}")
             return existing_by_path.cover_path
 
         # Extract metadata from file
@@ -651,7 +645,6 @@ class PlaybackManager(QObject):
         )
 
         track_id = self._db.add_track(track)
-        logger.debug(f"[PlaybackManager] Saved cloud track to library: {track_id}, title={track.title}, artist={track.artist}, cover={cover_path}")
         return cover_path
 
     # ===== Queue Persistence =====
@@ -662,11 +655,9 @@ class PlaybackManager(QObject):
         """
         items = self._engine.playlist_items
         if not items:
-            logger.debug("[PlaybackManager] No queue to save")
             return
 
         current_idx = self._engine.current_index
-        logger.debug(f"[PlaybackManager] save_queue: current_index={current_idx}, items={len(items)}")
 
         # Convert to PlayQueueItem list
         queue_items = []
@@ -691,7 +682,6 @@ class PlaybackManager(QObject):
         """
         queue_items = self._db.load_play_queue()
         if not queue_items:
-            logger.debug("[PlaybackManager] No saved queue to restore")
             return False
 
         # Convert to PlaylistItem list
@@ -700,8 +690,6 @@ class PlaybackManager(QObject):
         # Get saved index and play mode
         saved_index = self._config.get("queue_current_index", 0)
         saved_mode = self._config.get("queue_play_mode", PlayMode.SEQUENTIAL.value)
-
-        logger.debug(f"[PlaybackManager] Restoring queue: {len(items)} items, saved_index={saved_index}, mode={saved_mode}")
 
         # Determine source type from items at saved_index
         if items and 0 <= saved_index < len(items):
@@ -740,8 +728,6 @@ class PlaybackManager(QObject):
         if 0 <= saved_index < len(items):
             self._engine._load_track(saved_index)
 
-        logger.debug(f"[PlaybackManager] Restored queue: {len(items)} items, index={saved_index}")
-
         return True
 
     def clear_saved_queue(self):
@@ -749,4 +735,3 @@ class PlaybackManager(QObject):
         self._db.clear_play_queue()
         self._config.delete("queue_current_index")
         self._config.delete("queue_play_mode")
-        logger.debug("[PlaybackManager] Cleared saved queue")

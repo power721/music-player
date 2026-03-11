@@ -56,8 +56,7 @@ class LyricsLoader(QThread):
         import time
         start_time = time.time()
 
-        logger.debug(f"[LyricsLoader] Loading lyrics for: {self._title} - {self._artist}")
-
+        
         # Check for interruption before starting
         if self.isInterruptionRequested():
             logger.debug("[LyricsLoader] Interruption requested, aborting")
@@ -68,8 +67,7 @@ class LyricsLoader(QThread):
         try:
             lyrics = LyricsService.get_lyrics(self._path, self._title, self._artist)
             elapsed = time.time() - start_time
-            logger.debug(f"[LyricsLoader] Lyrics loaded in {elapsed:.3f}s")
-
+            
             # Check for interruption before emitting
             if self.isInterruptionRequested():
                 logger.debug("[LyricsLoader] Interruption requested, not emitting result")
@@ -170,8 +168,7 @@ class LyricsDownloadWorker(QThread):
             # Get cover URL
             cover_url = LyricsService.get_song_cover_url(song_id, source)
             if not cover_url:
-                logger.debug(f"[LyricsDownloadWorker] No cover URL found for song {song_id}")
-                return
+                                return
 
             # Download cover image
             import requests
@@ -179,8 +176,7 @@ class LyricsDownloadWorker(QThread):
 
             response = requests.get(cover_url, headers=LyricsService.HEADERS, timeout=10)
             if response.status_code != 200:
-                logger.debug(f"[LyricsDownloadWorker] Failed to download cover image: {response.status_code}")
-                return
+                                return
 
             cover_data = response.content
             if not cover_data:
@@ -192,8 +188,7 @@ class LyricsDownloadWorker(QThread):
             cover_path = CoverService._save_cover_to_cache(cover_data, cache_key)
 
             if cover_path:
-                logger.debug(f"[LyricsDownloadWorker] Cover saved to: {cover_path}")
-                self.cover_downloaded.emit(cover_path)
+                                self.cover_downloaded.emit(cover_path)
 
         except Exception as e:
             logger.error(f"[LyricsDownloadWorker] Error downloading cover: {e}", exc_info=True)

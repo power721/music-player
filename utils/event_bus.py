@@ -143,13 +143,11 @@ class EventBus(QObject):
     def __init__(self, parent=None):
         """Initialize the event bus."""
         super().__init__(parent)
-        logger.debug("[EventBus] Initialized")
 
     # ===== Convenience Methods =====
 
     def emit_track_change(self, track_item):
         """Emit a track change event with logging."""
-        logger.debug(f"[EventBus] Track changed: {track_item}")
         self.track_changed.emit(track_item)
 
     def emit_playback_state(self, state: str):
@@ -158,19 +156,14 @@ class EventBus(QObject):
         if state not in valid_states:
             logger.warning(f"[EventBus] Invalid playback state: {state}")
             return
-        logger.debug(f"[EventBus] Playback state: {state}")
         self.playback_state_changed.emit(state)
 
     def emit_download_complete(self, file_id: str, local_path: str):
         """Emit a download completion event with logging."""
-        logger.debug(f"[EventBus] Download complete: {file_id} -> {local_path}")
         self.download_completed.emit(file_id, local_path)
 
     def emit_favorite_change(self, item_id, is_favorite: bool, is_cloud: bool = False):
         """Emit a favorite change event."""
-        status = "added to" if is_favorite else "removed from"
-        source = "cloud" if is_cloud else "local"
-        logger.debug(f"[EventBus] {source} item {item_id} {status} favorites")
         self.favorite_changed.emit(item_id, is_favorite, is_cloud)
 
 

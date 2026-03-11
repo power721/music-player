@@ -58,8 +58,6 @@ class CloudDownloadWorker(QThread):
         start_time = time.time()
         file_id = self._cloud_file.file_id
 
-        logger.debug(f"[CloudDownloadWorker] Starting download: {self._cloud_file.name}")
-
         try:
             # Create download directory
             download_path = Path(self._download_dir)
@@ -78,7 +76,6 @@ class CloudDownloadWorker(QThread):
                 tolerance = self._cloud_file.size * 0.01
 
                 if size_diff <= tolerance:
-                    logger.debug(f"[CloudDownloadWorker] File already cached: {local_path}")
                     self.download_completed.emit(file_id, str(local_path))
                     return
 
@@ -97,7 +94,6 @@ class CloudDownloadWorker(QThread):
                 return
 
             if self._cancelled:
-                logger.debug(f"[CloudDownloadWorker] Download cancelled: {file_id}")
                 return
 
             # Download the file
@@ -111,7 +107,6 @@ class CloudDownloadWorker(QThread):
 
             if success:
                 elapsed = time.time() - start_time
-                logger.debug(f"[CloudDownloadWorker] Download completed in {elapsed:.2f}s: {local_path}")
                 self.download_completed.emit(file_id, str(local_path))
             else:
                 self.download_error.emit(file_id, "Download failed")
@@ -233,20 +228,16 @@ class CloudDownloadService(QObject):
             if priority:
                 self.cancel_download(file_id)
             else:
-                logger.debug(f"[CloudDownloadService] Already downloading: {file_id}")
                 return False
 
         # Check cache
         cached_path = self.get_cached_path(file_id, cloud_file, account)
         if cached_path:
-            logger.debug(f"[CloudDownloadService] Using cached file: {cached_path}")
             self._cached_paths[file_id] = cached_path
             self.download_completed.emit(file_id, cached_path)
             return True
 
         # Start download
-        logger.debug(f"[CloudDownloadService] Starting download: {cloud_file.name}")
-
         worker = CloudDownloadWorker(
             cloud_file, account, self._download_dir, self
         )
@@ -279,7 +270,6 @@ class CloudDownloadService(QObject):
             worker.cancel()
             worker.wait(1000)  # Wait up to 1 second
             del self._active_downloads[file_id]
-            logger.debug(f"[CloudDownloadService] Cancelled download: {file_id}")
             return True
         return False
 
