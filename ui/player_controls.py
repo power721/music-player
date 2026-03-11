@@ -531,10 +531,52 @@ class PlayerControls(QWidget):
             return
 
         current_id = current_track.get("id")
+        current_path = current_track.get("path")
+
+        # Check if this is the current track by ID or by checking database
+        should_reload = False
+
         if current_id and current_id == track_id:
-            # Reload cover for the current track
-            logger.info(f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover")
-            QTimer.singleShot(100, lambda: self._load_cover_art_async(current_track))
+            # Direct ID match
+            should_reload = True
+        elif current_path:
+            # Try to find track by path and check if it matches
+            try:
+                from player import PlayerController
+                # Get database from player controller if available
+                if hasattr(self._player, '_db'):
+                    track = self._player._db.get_track_by_path(current_path)
+                    if track and track.id == track_id:
+                        should_reload = True
+                        logger.info(f"[PlayerControls] Found track by path: {track_id}, reloading cover")
+            except Exception as e:
+                logger.error(f"[PlayerControls] Error checking track by path: {e}")
+
+        if should_reload:
+            # Reload from database to get latest cover_path
+            if current_path and hasattr(self._player, '_db'):
+                try:
+                    track = self._player._db.get_track_by_path(current_path)
+                    if track:
+                        # Create updated track dict
+                        updated_track = {
+                            "id": track.id,
+                            "path": track.path,
+                            "title": track.title,
+                            "artist": track.artist,
+                            "album": track.album,
+                            "duration": track.duration,
+                            "cover_path": track.cover_path,
+                            "source_type": "local",
+                        }
+                        logger.info(f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover with cover_path={track.cover_path}")
+                        QTimer.singleShot(100, lambda: self._load_cover_art_async(updated_track))
+                except Exception as e:
+                    logger.error(f"[PlayerControls] Error loading updated track: {e}")
+            else:
+                # Fallback: reload with current track
+                logger.info(f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover")
+                QTimer.singleShot(100, lambda: self._load_cover_art_async(current_track))
 
     def _update_favorite_button_style(self, is_favorite: bool):
         """Update favorite button style based on favorite status."""

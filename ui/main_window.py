@@ -92,6 +92,10 @@ class MainWindow(QMainWindow):
                 return playback.engine
 
             @property
+            def db(self):
+                return db
+
+            @property
             def current_source(self):
                 return playback.current_source
 
@@ -1265,9 +1269,19 @@ class MainWindow(QMainWindow):
             if success:
                 # Update current track item's cover_path if it exists
                 current_item = self._playback.current_track
-                if current_item and current_item.track_id == track_id:
-                    current_item.cover_path = cover_path
-                    logger.info(f"[MainWindow] Updated current item's cover_path")
+                if current_item:
+                    # Match by track_id OR by local path (for cloud downloads)
+                    is_match = (current_item.track_id == track_id or
+                               current_item.local_path == track_path)
+                    if is_match:
+                        old_cover = current_item.cover_path
+                        current_item.cover_path = cover_path
+                        logger.info(f"[MainWindow] Updated current item's cover_path: {old_cover} -> {cover_path}")
+
+                        # Also update track_id if it was None (for newly saved cloud tracks)
+                        if not current_item.track_id:
+                            current_item.track_id = track_id
+                            logger.info(f"[MainWindow] Updated current item's track_id: {track_id}")
 
                 # Emit event to refresh UI
                 self._event_bus.metadata_updated.emit(track_id)
