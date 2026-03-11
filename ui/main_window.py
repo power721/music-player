@@ -219,6 +219,12 @@ class MainWindow(QMainWindow):
         # Cloud account for current playback
         self._current_cloud_account = None
 
+        # Original window title for restoring when paused
+        self._original_title: str = ""
+
+        # Current track title for window title
+        self._current_track_title: str = ""
+
         # Setup UI
         self._setup_ui()
         self._setup_connections()
@@ -486,6 +492,7 @@ class MainWindow(QMainWindow):
         # Player connections - use EventBus for centralized signal handling
         self._event_bus.track_changed.connect(self._on_track_changed)
         self._event_bus.position_changed.connect(self._on_position_changed)
+        self._event_bus.playback_state_changed.connect(self._on_playback_state_changed)
 
         # Cloud download events
         self._event_bus.download_completed.connect(self._on_cloud_download_completed)
@@ -975,6 +982,9 @@ class MainWindow(QMainWindow):
 
         logger.debug(f"[MainWindow] _on_track_changed: title={title}, artist={artist}, path={path}")
 
+        # Save current track title for window title update
+        self._current_track_title = f"{title} - {artist}" if artist else title
+
         # Skip loading lyrics for cloud files without local path
         if not path or path.strip() in ('', '.', '/'):
             logger.debug("[MainWindow] _on_track_changed: Empty path, skipping lyrics load")
@@ -984,6 +994,26 @@ class MainWindow(QMainWindow):
         self._load_lyrics_async(path, title, artist)
 
         logger.debug(f"[MainWindow] _on_track_changed took: {time.time() - start_time:.3f}s")
+
+    def _on_playback_state_changed(self, state: str):
+        """Handle playback state change to update window title.
+
+        Args:
+            state: "playing", "paused", or "stopped"
+        """
+        if state == "playing":
+            # Save original title if not saved yet
+            if not self._original_title:
+                self._original_title = self.windowTitle()
+            # Update window title to show current track
+            if self._current_track_title:
+                self.setWindowTitle(self._current_track_title)
+        else:
+            # Paused or stopped - restore original title
+            if self._original_title:
+                self.setWindowTitle(self._original_title)
+
+        logger.debug(f"[MainWindow] Playback state changed: {state}")
 
     def _load_lyrics_async(self, path: str, title: str, artist: str):
         """Load lyrics asynchronously."""
