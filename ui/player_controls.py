@@ -773,20 +773,22 @@ class PlayerControls(QWidget):
         """Load cover art in background thread."""
         def load_cover():
             from services import CoverService
+            from pathlib import Path
 
             # First check if cover_path is already saved in database
             cover_path = track_dict.get("cover_path")
             if cover_path:
-                from pathlib import Path
                 if Path(cover_path).exists():
                     return cover_path
 
-            # Fall back to extracting from file
+            # Fall back to getting cover (embedded, cached, or online)
             path = track_dict.get("path", "")
+            title = track_dict.get("title", "")
+            artist = track_dict.get("artist", "")
+            album = track_dict.get("album", "")
 
-            # Only try to get embedded cover, skip online (too slow)
             try:
-                cover_path = CoverService._extract_embedded_cover(path)
+                cover_path = CoverService.get_cover(path, title, artist, album)
                 if cover_path:
                     return cover_path
             except Exception as e:
