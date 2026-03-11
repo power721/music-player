@@ -307,7 +307,20 @@ class MiniPlayer(QWidget):
         """Load cover art."""
         from PySide6.QtGui import QPixmap
         from services import CoverService
+        from pathlib import Path
 
+        # First check if cover_path is already saved in database
+        cover_path = track_dict.get("cover_path")
+        if cover_path and Path(cover_path).exists():
+            pixmap = QPixmap(cover_path)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    50, 50, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+                )
+                self._cover_label.setPixmap(scaled)
+                return
+
+        # Fall back to extracting from file
         path = track_dict.get("path", "")
         title = track_dict.get("title", "")
         artist = track_dict.get("artist", "")

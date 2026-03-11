@@ -738,6 +738,12 @@ class MainWindow(QMainWindow):
                         # Extract metadata
                         metadata = MetadataService.extract_metadata(str(audio_file))
 
+                        # Save cover art from metadata
+                        from services.cover_service import CoverService
+                        cover_path = CoverService.save_cover_from_metadata(
+                            str(audio_file), metadata.get("cover")
+                        )
+
                         # Create track object
                         track = Track(
                             path=str(audio_file),
@@ -745,7 +751,7 @@ class MainWindow(QMainWindow):
                             artist=metadata.get("artist", ""),
                             album=metadata.get("album", ""),
                             duration=metadata.get("duration", 0.0),
-                            cover_path=None,
+                            cover_path=cover_path,
                             created_at=datetime.now(),
                         )
 

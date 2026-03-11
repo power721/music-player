@@ -41,6 +41,7 @@ class PlaylistItem:
     artist: str = ""
     album: str = ""
     duration: float = 0.0
+    cover_path: Optional[str] = None
 
     # Metadata state
     needs_download: bool = False  # Whether cloud file needs to be downloaded
@@ -68,6 +69,7 @@ class PlaylistItem:
             artist=track.artist or "",
             album=track.album or "",
             duration=track.duration or 0.0,
+            cover_path=track.cover_path,
             needs_download=False,
             needs_metadata=False,  # Local tracks already have metadata
         )
@@ -129,6 +131,7 @@ class PlaylistItem:
             artist=data.get("artist", ""),
             album=data.get("album", ""),
             duration=data.get("duration", 0.0),
+            cover_path=data.get("cover_path"),
             needs_download=data.get("needs_download", False),
             needs_metadata=data.get("needs_metadata", True),
         )
@@ -147,6 +150,7 @@ class PlaylistItem:
             "artist": self.artist,
             "album": self.album,
             "duration": self.duration,
+            "cover_path": self.cover_path,
             "source_type": self.source_type.value,
             "cloud_file_id": self.cloud_file_id,
             "cloud_account_id": self.cloud_account_id,

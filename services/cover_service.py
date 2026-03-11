@@ -88,9 +88,52 @@ class CoverService:
                 return str(cache_path)
 
         except Exception as e:
-            logger.error(f"Error extracting embedded cover from {file_path}: {e}", exc_info=True)
+            logger.error(f"Error extracting embedded cover from {track_path}: {e}", exc_info=True)
 
         return None
+
+    @classmethod
+    def save_cover_from_metadata(cls, track_path: str, cover_data: bytes) -> Optional[str]:
+        """
+        Save cover art from already extracted metadata.
+
+        Args:
+            track_path: Path to the audio file (used for generating cache filename)
+            cover_data: Cover image data from metadata
+
+        Returns:
+            Path to saved cover, or None
+        """
+        if not cover_data:
+            return None
+
+        try:
+            # Create cache directory if needed
+            cls.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+            # Generate cache filename
+            track_file = Path(track_path)
+            # Determine extension from data
+            if cover_data[:4] == b'\x89PNG':
+                ext = '.png'
+            else:
+                ext = '.jpg'
+            cache_filename = f"{track_file.stem}_{hash(track_path)}{ext}"
+            cache_path = cls.CACHE_DIR / cache_filename
+
+            # Check if already cached
+            if cache_path.exists():
+                return str(cache_path)
+
+            # Save cover data
+            with open(cache_path, 'wb') as f:
+                f.write(cover_data)
+
+            return str(cache_path)
+
+        except Exception as e:
+            logger.error(f"Error saving cover from metadata: {e}", exc_info=True)
+            return None
 
     @classmethod
     def _get_cache_key(cls, artist: str, album: str) -> str:

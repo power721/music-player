@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QStyle,
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QTime
-from PySide6.QtGui import QIcon, QFont
+from PySide6.QtGui import QIcon, QFont, QPixmap
 from typing import Optional
 import threading
 
@@ -36,6 +36,9 @@ if not logger.handlers:
 
 class PlayerControls(QWidget):
     """Player controls widget at the bottom of the main window."""
+
+    # Signal for cover loaded in background thread
+    _cover_loaded = Signal(str)
 
     def __init__(self, player: PlayerController, parent=None):
         """
@@ -391,6 +394,9 @@ class PlayerControls(QWidget):
         bus = EventBus.instance()
         bus.favorite_changed.connect(self._on_favorite_changed)
 
+        # Cover loaded signal (for thread-safe UI update)
+        self._cover_loaded.connect(self._show_cover)
+
         # Sync button states with current player mode
         self._sync_button_states()
 
@@ -669,9 +675,12 @@ class PlayerControls(QWidget):
 
     def _on_track_changed(self, track_dict: dict):
         """Handle track change."""
+        print(f"[PlayerControls] _on_track_changed called: {track_dict}")
+        logger.debug(f"[PlayerControls] _on_track_changed called: {track_dict}")
         if track_dict:
             title = track_dict.get("title", t("unknown"))
             artist = track_dict.get("artist", t("unknown"))
+            print(f"[PlayerControls] Setting title: {title}, artist: {artist}")
             self._title_label.setText(title)
             self._artist_label.setText(artist)
 
@@ -701,14 +710,19 @@ class PlayerControls(QWidget):
 
     def _load_cover_art_async(self, track_dict: dict):
         """Load cover art in background thread."""
-
         def load_cover():
             from services import CoverService
 
+            # First check if cover_path is already saved in database
+            cover_path = track_dict.get("cover_path")
+            logger.debug(f"[PlayerControls] cover_path from track_dict: {cover_path}")
+            if cover_path:
+                from pathlib import Path
+                if Path(cover_path).exists():
+                    return cover_path
+
+            # Fall back to extracting from file
             path = track_dict.get("path", "")
-            title = track_dict.get("title", "")
-            artist = track_dict.get("artist", "")
-            album = track_dict.get("album", "")
 
             # Only try to get embedded cover, skip online (too slow)
             try:
@@ -716,36 +730,34 @@ class PlayerControls(QWidget):
                 if cover_path:
                     return cover_path
             except Exception as e:
-                logger.error(f"Cover load error for track {track.get('title', 'Unknown')}: {e}", exc_info=True)
+                logger.error(f"Cover load error for track {track_dict.get('title', 'Unknown')}: {e}", exc_info=True)
             return None
 
-        def show_cover(cover_path):
-            if cover_path:
-                try:
-                    pixmap = QPixmap(cover_path)
-                    if not pixmap.isNull():
-                        scaled_pixmap = pixmap.scaled(
-                            60,
-                            60,
-                            Qt.KeepAspectRatioByExpanding,
-                            Qt.SmoothTransformation,
-                        )
-                        self._cover_label.setPixmap(scaled_pixmap)
-                except:
-                    pass
+        def worker():
+            cover_path = load_cover()
+            # Use signal for thread-safe UI update
+            self._cover_loaded.emit(cover_path or "")
 
         # Run in thread
-        thread = threading.Thread(
-            target=lambda: self._load_cover_worker(load_cover, show_cover)
-        )
+        thread = threading.Thread(target=worker)
         thread.daemon = True
         thread.start()
 
-    def _load_cover_worker(self, load_func, show_func):
-        """Worker for loading cover in background."""
-        cover_path = load_func()
-        # Schedule UI update on main thread
-        QTimer.singleShot(0, lambda: show_func(cover_path))
+    def _show_cover(self, cover_path: str):
+        """Show cover art (called via signal from background thread)."""
+        if cover_path:
+            try:
+                pixmap = QPixmap(cover_path)
+                if not pixmap.isNull():
+                    scaled_pixmap = pixmap.scaled(
+                        60,
+                        60,
+                        Qt.KeepAspectRatioByExpanding,
+                        Qt.SmoothTransformation,
+                    )
+                    self._cover_label.setPixmap(scaled_pixmap)
+            except Exception as e:
+                logger.error(f"Error showing cover: {e}")
 
     def _update_position_display(self):
         """Update position display continuously."""
