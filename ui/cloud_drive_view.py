@@ -495,15 +495,14 @@ class CloudDriveView(QWidget):
             can_go_back = len(self._fid_path) > 0
             self._back_btn.setEnabled(can_go_back)
 
-            # Store last playing state for later restoration
+            # Store last playing state for potential manual restoration
             self._last_playing_fid = account.last_playing_fid
             self._last_position = account.last_position
 
             self._update_file_view()
 
-            # Try to restore playback after files are loaded
-            if account.last_playing_fid:
-                QTimer.singleShot(1000, self._restore_playback)
+            # Note: Don't auto-restore playback when just selecting account
+            # User should double-click a song to play
 
     def _update_file_view(self):
         """Update the file view based on current account."""
