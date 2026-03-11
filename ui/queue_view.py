@@ -28,6 +28,7 @@ class QueueView(QWidget):
     """View for managing the current playback queue."""
 
     play_track = Signal(int)
+    queue_reordered = Signal()  # Emitted when queue order changes via drag-drop
 
     def __init__(self, player: PlayerController, db_manager=None, parent=None):
         """
@@ -422,6 +423,14 @@ class QueueView(QWidget):
 
     def _on_rows_moved(self):
         """Handle row move (drag and drop reorder)."""
+        from player.playlist_item import PlaylistItem
+
+        # Get current track info before reordering
+        current_index = self._player.engine.current_index
+        current_track = None
+        if 0 <= current_index < len(self._player.engine.playlist):
+            current_track = self._player.engine.playlist[current_index]
+
         # Build new playlist from current list order
         new_playlist = []
         for i in range(self._queue_list.count()):
@@ -430,8 +439,38 @@ class QueueView(QWidget):
             if track:
                 new_playlist.append(track)
 
-        # Update engine playlist
-        self._player.engine.load_playlist(new_playlist)
+        # Find new index of currently playing track
+        new_current_index = -1
+        if current_track:
+            current_track_id = current_track.get("id")
+            current_cloud_file_id = current_track.get("cloud_file_id")
+            for i, track in enumerate(new_playlist):
+                # Match by track_id for local tracks or cloud_file_id for cloud tracks
+                if current_track_id and track.get("id") == current_track_id:
+                    new_current_index = i
+                    break
+                elif current_cloud_file_id and track.get("cloud_file_id") == current_cloud_file_id:
+                    new_current_index = i
+                    break
+
+        # Convert to PlaylistItem list
+        new_items = []
+        for track in new_playlist:
+            if isinstance(track, PlaylistItem):
+                new_items.append(track)
+            else:
+                new_items.append(PlaylistItem.from_dict(track))
+
+        # Update engine playlist directly without resetting state
+        self._player.engine._playlist = new_items
+        self._player.engine._original_playlist = new_items.copy()
+
+        # Update current index if we found the track
+        if new_current_index >= 0:
+            self._player.engine._current_index = new_current_index
+
+        # Emit signal to notify that queue was reordered (for saving)
+        self.queue_reordered.emit()
 
     def _on_item_double_clicked(self, item: QListWidgetItem):
         """Handle item double click."""

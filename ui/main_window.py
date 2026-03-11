@@ -507,6 +507,7 @@ class MainWindow(QMainWindow):
         self._library_view.add_to_queue.connect(self._add_to_queue)
         self._playlist_view.playlist_track_double_clicked.connect(self._play_playlist_track)
         self._queue_view.play_track.connect(self._play_track)
+        self._queue_view.queue_reordered.connect(self._on_queue_reordered)
         self._cloud_drive_view.track_double_clicked.connect(self._play_cloud_track)
         self._cloud_drive_view.play_cloud_files.connect(self._play_cloud_playlist)
 
@@ -934,6 +935,11 @@ class MainWindow(QMainWindow):
         """Handle cloud file download completion."""
         # Forward to playback manager
         self._playback.on_download_completed(file_id, local_path)
+
+    def _on_queue_reordered(self):
+        """Handle queue reorder (drag-drop in queue view)."""
+        # Sync playlist items from engine to playback manager and save
+        self._playback.save_queue()
 
     def _on_track_changed(self, track_item):
         """Handle track change.
