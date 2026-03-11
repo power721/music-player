@@ -489,46 +489,60 @@ class PlayerController:
         saved_volume = self._config.get_volume()
         self._engine.set_volume(saved_volume)
 
-    def toggle_favorite(self, track_id: int = None) -> bool:
+    def toggle_favorite(self, track_id: int = None, cloud_file_id: str = None, cloud_account_id: int = None) -> bool:
         """
-        Toggle favorite status for a track.
+        Toggle favorite status for a track or cloud file.
 
         Args:
             track_id: Track ID (uses current if not specified)
+            cloud_file_id: Cloud file ID (for cloud files)
+            cloud_account_id: Cloud account ID (for cloud files)
 
         Returns:
             New favorite status
         """
-        if track_id is None:
+        if track_id is None and cloud_file_id is None:
             track_id = self._current_track_id
 
-        if track_id is None:
+        if track_id is None and cloud_file_id is None:
             return False
 
         bus = EventBus.instance()
-        if self._db.is_favorite(track_id):
-            self._db.remove_favorite(track_id)
-            bus.emit_favorite_change(track_id, False)
-            return False
+        if track_id:
+            if self._db.is_favorite(track_id=track_id):
+                self._db.remove_favorite(track_id=track_id)
+                bus.emit_favorite_change(track_id, False, is_cloud=False)
+                return False
+            else:
+                self._db.add_favorite(track_id=track_id)
+                bus.emit_favorite_change(track_id, True, is_cloud=False)
+                return True
         else:
-            self._db.add_favorite(track_id)
-            bus.emit_favorite_change(track_id, True)
-            return True
+            # Cloud file
+            if self._db.is_favorite(cloud_file_id=cloud_file_id):
+                self._db.remove_favorite(cloud_file_id=cloud_file_id)
+                bus.emit_favorite_change(cloud_file_id, False, is_cloud=True)
+                return False
+            else:
+                self._db.add_favorite(cloud_file_id=cloud_file_id, cloud_account_id=cloud_account_id)
+                bus.emit_favorite_change(cloud_file_id, True, is_cloud=True)
+                return True
 
-    def is_favorite(self, track_id: int = None) -> bool:
+    def is_favorite(self, track_id: int = None, cloud_file_id: str = None) -> bool:
         """
-        Check if a track is favorited.
+        Check if a track or cloud file is favorited.
 
         Args:
             track_id: Track ID (uses current if not specified)
+            cloud_file_id: Cloud file ID (for cloud files)
 
         Returns:
             True if favorited
         """
-        if track_id is None:
+        if track_id is None and cloud_file_id is None:
             track_id = self._current_track_id
 
-        if track_id is None:
+        if track_id is None and cloud_file_id is None:
             return False
 
-        return self._db.is_favorite(track_id)
+        return self._db.is_favorite(track_id=track_id, cloud_file_id=cloud_file_id)

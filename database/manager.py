@@ -99,9 +99,14 @@ class DatabaseManager:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                track_id INTEGER NOT NULL UNIQUE,
+                track_id INTEGER,
+                cloud_file_id TEXT,
+                cloud_account_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
+                FOREIGN KEY (cloud_account_id) REFERENCES cloud_accounts(id) ON DELETE CASCADE,
+                UNIQUE(track_id),
+                UNIQUE(cloud_file_id)
             )
         """)
 
@@ -214,7 +219,51 @@ class DatabaseManager:
             ON play_queue(position)
         """)
 
+        # Run migrations for existing databases
+        self._run_migrations(conn, cursor)
+
         conn.commit()
+
+    def _run_migrations(self, conn, cursor):
+        """Run database migrations for schema updates."""
+        # Migration 1: Add cloud file support to favorites table
+        cursor.execute("PRAGMA table_info(favorites)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'cloud_file_id' not in columns:
+            cursor.execute("ALTER TABLE favorites ADD COLUMN cloud_file_id TEXT")
+        if 'cloud_account_id' not in columns:
+            cursor.execute("ALTER TABLE favorites ADD COLUMN cloud_account_id INTEGER")
+
+        # Check if track_id is NOT NULL (needs to be nullable for cloud files)
+        cursor.execute("PRAGMA table_info(favorites)")
+        needs_rebuild = False
+        for col in cursor.fetchall():
+            if col[1] == 'track_id' and col[3] == 1:  # col[3] is notnull flag
+                needs_rebuild = True
+                break
+
+        if needs_rebuild:
+            # Recreate table with nullable track_id and proper constraints
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS favorites_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    track_id INTEGER,
+                    cloud_file_id TEXT,
+                    cloud_account_id INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
+                    FOREIGN KEY (cloud_account_id) REFERENCES cloud_accounts(id) ON DELETE CASCADE,
+                    UNIQUE(track_id),
+                    UNIQUE(cloud_file_id)
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO favorites_new (id, track_id, cloud_file_id, cloud_account_id, created_at)
+                SELECT id, track_id, cloud_file_id, cloud_account_id, created_at FROM favorites
+            """)
+            cursor.execute("DROP TABLE favorites")
+            cursor.execute("ALTER TABLE favorites_new RENAME TO favorites")
 
     # Track operations
 
@@ -699,18 +748,26 @@ class DatabaseManager:
 
     # Favorites operations
 
-    def add_favorite(self, track_id: int) -> bool:
-        """Add a track to favorites."""
+    def add_favorite(self, track_id: int = None, cloud_file_id: str = None, cloud_account_id: int = None) -> bool:
+        """Add a track or cloud file to favorites."""
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # If cloud_file_id provided, check if there's already a track record
+        if cloud_file_id and not track_id:
+            cursor.execute("SELECT id FROM tracks WHERE cloud_file_id = ?", (cloud_file_id,))
+            row = cursor.fetchone()
+            if row:
+                track_id = row["id"]
+                cloud_file_id = None  # Use track_id instead
 
         try:
             cursor.execute(
                 """
-                INSERT INTO favorites (track_id)
-                VALUES (?)
+                INSERT INTO favorites (track_id, cloud_file_id, cloud_account_id)
+                VALUES (?, ?, ?)
             """,
-                (track_id,),
+                (track_id, cloud_file_id, cloud_account_id),
             )
 
             conn.commit()
@@ -718,32 +775,54 @@ class DatabaseManager:
         except sqlite3.IntegrityError:
             return False
 
-    def remove_favorite(self, track_id: int) -> bool:
-        """Remove a track from favorites."""
+    def remove_favorite(self, track_id: int = None, cloud_file_id: str = None) -> bool:
+        """Remove a track or cloud file from favorites."""
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("DELETE FROM favorites WHERE track_id = ?", (track_id,))
+        # If cloud_file_id provided, check if there's a track record
+        if cloud_file_id and not track_id:
+            cursor.execute("SELECT id FROM tracks WHERE cloud_file_id = ?", (cloud_file_id,))
+            row = cursor.fetchone()
+            if row:
+                track_id = row["id"]
+                cloud_file_id = None
+
+        if track_id:
+            cursor.execute("DELETE FROM favorites WHERE track_id = ?", (track_id,))
+        else:
+            cursor.execute("DELETE FROM favorites WHERE cloud_file_id = ?", (cloud_file_id,))
         conn.commit()
 
         return cursor.rowcount > 0
 
-    def is_favorite(self, track_id: int) -> bool:
-        """Check if a track is in favorites."""
+    def is_favorite(self, track_id: int = None, cloud_file_id: str = None) -> bool:
+        """Check if a track or cloud file is in favorites."""
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT 1 FROM favorites WHERE track_id = ?", (track_id,))
+        # If cloud_file_id provided, check if there's a track record
+        if cloud_file_id and not track_id:
+            cursor.execute("SELECT id FROM tracks WHERE cloud_file_id = ?", (cloud_file_id,))
+            row = cursor.fetchone()
+            if row:
+                track_id = row["id"]
+
+        if track_id:
+            cursor.execute("SELECT 1 FROM favorites WHERE track_id = ?", (track_id,))
+        else:
+            cursor.execute("SELECT 1 FROM favorites WHERE cloud_file_id = ?", (cloud_file_id,))
         return cursor.fetchone() is not None
 
     def get_favorites(self) -> List[Track]:
-        """Get all favorite tracks."""
+        """Get all favorite tracks (including downloaded cloud files with track_id)."""
         conn = self._get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
             SELECT t.* FROM tracks t
             INNER JOIN favorites f ON t.id = f.track_id
+            WHERE f.track_id IS NOT NULL
             ORDER BY f.created_at DESC
         """)
 
@@ -759,9 +838,72 @@ class DatabaseManager:
                 duration=row["duration"],
                 cover_path=row["cover_path"],
                 created_at=datetime.fromisoformat(row["created_at"]),
+                cloud_file_id=row["cloud_file_id"] if "cloud_file_id" in row.keys() else None,
             )
             for row in rows
         ]
+
+    def get_favorites_with_cloud(self) -> List[dict]:
+        """Get all favorites including local tracks and undownloaded cloud files."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        results = []
+
+        # Get track favorites (including downloaded cloud files that now have track_id)
+        cursor.execute("""
+            SELECT t.*, f.created_at as fav_created_at FROM tracks t
+            INNER JOIN favorites f ON t.id = f.track_id
+            WHERE f.track_id IS NOT NULL
+            ORDER BY f.created_at DESC
+        """)
+
+        for row in cursor.fetchall():
+            is_cloud = row["cloud_file_id"] is not None if "cloud_file_id" in row.keys() else False
+            results.append({
+                "type": "cloud" if is_cloud else "local",
+                "id": row["id"],
+                "track_id": row["id"],
+                "title": row["title"] or "",
+                "artist": row["artist"] or "",
+                "album": row["album"] or "",
+                "duration": row["duration"] or 0,
+                "path": row["path"],
+                "cloud_file_id": row["cloud_file_id"] if "cloud_file_id" in row.keys() else None,
+                "created_at": row["fav_created_at"],
+            })
+
+        # Get undownloaded cloud file favorites (no track_id yet)
+        cursor.execute("""
+            SELECT f.cloud_file_id, f.cloud_account_id, f.created_at,
+                   cf.name, cf.duration, cf.local_path
+            FROM favorites f
+            LEFT JOIN cloud_files cf ON f.cloud_file_id = cf.file_id
+            WHERE f.cloud_file_id IS NOT NULL AND f.track_id IS NULL
+            ORDER BY f.created_at DESC
+        """)
+
+        for row in cursor.fetchall():
+            # Extract title from filename (remove extension)
+            name = row["name"] or ""
+            title = name.rsplit(".", 1)[0] if "." in name else name
+            results.append({
+                "type": "cloud",
+                "id": row["cloud_file_id"],
+                "cloud_file_id": row["cloud_file_id"],
+                "cloud_account_id": row["cloud_account_id"],
+                "title": title,
+                "artist": "",
+                "album": "",
+                "duration": row["duration"] or 0,
+                "path": row["local_path"] or "",
+                "created_at": row["created_at"],
+            })
+
+        # Sort by created_at descending
+        results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+
+        return results
 
     def close(self):
         """Close database connection."""

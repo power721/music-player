@@ -108,8 +108,9 @@ class EventBus(QObject):
     # Emitted when a playlist is deleted (playlist_id)
     playlist_deleted = Signal(int)
 
-    # Emitted when favorite status changes (track_id, is_favorite)
-    favorite_changed = Signal(int, bool)
+    # Emitted when favorite status changes (id, is_favorite, is_cloud)
+    # id: track_id (int) for local tracks, cloud_file_id (str) for cloud files
+    favorite_changed = Signal(object, bool, bool)
 
     # ===== Cloud Account Events =====
 
@@ -165,11 +166,12 @@ class EventBus(QObject):
         logger.debug(f"[EventBus] Download complete: {file_id} -> {local_path}")
         self.download_completed.emit(file_id, local_path)
 
-    def emit_favorite_change(self, track_id: int, is_favorite: bool):
+    def emit_favorite_change(self, item_id, is_favorite: bool, is_cloud: bool = False):
         """Emit a favorite change event."""
         status = "added to" if is_favorite else "removed from"
-        logger.debug(f"[EventBus] Track {track_id} {status} favorites")
-        self.favorite_changed.emit(track_id, is_favorite)
+        source = "cloud" if is_cloud else "local"
+        logger.debug(f"[EventBus] {source} item {item_id} {status} favorites")
+        self.favorite_changed.emit(item_id, is_favorite, is_cloud)
 
 
 # Global convenience function

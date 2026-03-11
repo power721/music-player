@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QBrush
 from typing import List, Optional
 
 from database import DatabaseManager, Track
@@ -41,6 +42,7 @@ class LibraryView(QWidget):
     """Library view for browsing music."""
 
     track_double_clicked = Signal(int)  # Signal when track is double-clicked
+    cloud_file_double_clicked = Signal(str, int)  # Signal when cloud file is double-clicked (file_id, account_id)
     add_to_queue = Signal(list)  # Signal when tracks should be added to queue
     add_to_playlist_signal = Signal(
         list
@@ -572,16 +574,72 @@ class LibraryView(QWidget):
         self._tracks_table.setVisible(True)
 
     def _load_favorites(self):
-        """Load favorite tracks."""
+        """Load favorite tracks and cloud files."""
         self._loading_label.setVisible(True)
         self._tracks_table.setVisible(False)
 
-        tracks = self._db.get_favorites()
-        self._populate_table(tracks)
-        self._status_label.setText(f"{len(tracks)} {t('favorites_word')}")
+        favorites = self._db.get_favorites_with_cloud()
+        self._populate_favorites_table(favorites)
+        self._status_label.setText(f"{len(favorites)} {t('favorites_word')}")
 
         self._loading_label.setVisible(False)
         self._tracks_table.setVisible(True)
+
+    def _populate_favorites_table(self, favorites: list):
+        """Populate table with favorites (mix of local and cloud)."""
+        self._tracks_table.setRowCount(0)
+        self._current_tracks = []
+
+        for item in favorites:
+            row = self._tracks_table.rowCount()
+            self._tracks_table.insertRow(row)
+
+            # Determine if this is an undownloaded cloud file
+            is_undownloaded_cloud = item.get("type") == "cloud" and not item.get("track_id")
+
+            # Store item data for playback
+            # Use track_id if available, otherwise fall back to cloud_file_id
+            if item.get("track_id"):
+                track_data = item.get("track_id")  # Just store the ID for consistency with _populate_table
+            else:
+                track_data = {
+                    "type": "cloud",
+                    "id": None,
+                    "track_id": None,
+                    "cloud_file_id": item.get("cloud_file_id"),
+                    "cloud_account_id": item.get("cloud_account_id"),
+                    "title": item.get("title", ""),
+                    "artist": item.get("artist", ""),
+                    "album": item.get("album", ""),
+                    "duration": item.get("duration", 0),
+                    "path": item.get("path", ""),
+                }
+            self._current_tracks.append(track_data)
+
+            # Cloud items have gray text
+            text_color = QBrush(QColor("#808080")) if is_undownloaded_cloud else QBrush(QColor("#e0e0e0"))
+
+            # Title
+            title_item = QTableWidgetItem(item.get("title", ""))
+            title_item.setData(Qt.UserRole, track_data)
+            title_item.setForeground(text_color)
+            self._tracks_table.setItem(row, 0, title_item)
+
+            # Artist
+            artist_item = QTableWidgetItem(item.get("artist", "") or t("unknown"))
+            artist_item.setForeground(text_color)
+            self._tracks_table.setItem(row, 1, artist_item)
+
+            # Album
+            album_item = QTableWidgetItem(item.get("album", "") or t("unknown"))
+            album_item.setForeground(text_color)
+            self._tracks_table.setItem(row, 2, album_item)
+
+            # Duration
+            from utils import format_duration
+            duration_item = QTableWidgetItem(format_duration(item.get("duration", 0)))
+            duration_item.setForeground(text_color)
+            self._tracks_table.setItem(row, 3, duration_item)
 
     def _load_history(self):
         """Load play history."""
@@ -961,13 +1019,26 @@ class LibraryView(QWidget):
 
     def _on_item_double_clicked(self, item: QTableWidgetItem):
         """Handle item double click."""
-        # Get track ID from the first column
+        # Get track data from the first column
         row = item.row()
         title_item = self._tracks_table.item(row, 0)
         if title_item:
-            track_id = title_item.data(Qt.UserRole)
-            if track_id:
-                self.track_double_clicked.emit(track_id)
+            track_data = title_item.data(Qt.UserRole)
+            if track_data:
+                if isinstance(track_data, dict) and track_data.get("type") == "cloud":
+                    # Undownloaded cloud file
+                    self.cloud_file_double_clicked.emit(
+                        track_data.get("cloud_file_id", ""),
+                        track_data.get("cloud_account_id", 0)
+                    )
+                elif isinstance(track_data, dict):
+                    # Local track (dict format) - shouldn't happen with new code
+                    track_id = track_data.get("id") or track_data.get("track_id")
+                    if track_id:
+                        self.track_double_clicked.emit(track_id)
+                else:
+                    # Local track or downloaded cloud file (int format)
+                    self.track_double_clicked.emit(track_data)
 
     def _show_context_menu(self, pos):
         """Show context menu for tracks."""
@@ -984,8 +1055,20 @@ class LibraryView(QWidget):
                 break
 
         is_favorited = False
+        is_cloud = False
+        cloud_file_id = None
         if track_id:
-            is_favorited = self._db.is_favorite(track_id)
+            if isinstance(track_id, dict):
+                is_cloud = track_id.get("type") == "cloud"
+                if is_cloud:
+                    cloud_file_id = track_id.get("cloud_file_id")
+                    is_favorited = self._db.is_favorite(cloud_file_id=cloud_file_id)
+                else:
+                    tid = track_id.get("id")
+                    if tid:
+                        is_favorited = self._db.is_favorite(track_id=tid)
+            else:
+                is_favorited = self._db.is_favorite(track_id=track_id)
 
         menu = QMenu(self)
         menu.setStyleSheet("""
@@ -1051,9 +1134,16 @@ class LibraryView(QWidget):
         for item in selected_items:
             # Only process items from the first column to avoid duplicates
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    track_ids.append(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    # Only add local tracks to queue for now
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
 
         if track_ids:
             self.add_to_queue.emit(track_ids)
@@ -1067,9 +1157,20 @@ class LibraryView(QWidget):
         # Find first item from first column
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    self.track_double_clicked.emit(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") == "cloud":
+                            self.cloud_file_double_clicked.emit(
+                                track_data.get("cloud_file_id", ""),
+                                track_data.get("cloud_account_id", 0)
+                            )
+                        else:
+                            tid = track_data.get("id")
+                            if tid:
+                                self.track_double_clicked.emit(tid)
+                    else:
+                        self.track_double_clicked.emit(track_data)
                     break
 
     def _toggle_favorite_selected(self):
@@ -1079,24 +1180,54 @@ class LibraryView(QWidget):
             return
 
         track_ids = []
+        cloud_files = []
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    track_ids.append(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") == "cloud":
+                            cloud_files.append({
+                                "cloud_file_id": track_data.get("cloud_file_id"),
+                                "cloud_account_id": track_data.get("cloud_account_id")
+                            })
+                        else:
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
 
         if not track_ids:
             return
 
         added_count = 0
         removed_count = 0
+
+        # Process local tracks
         for track_id in track_ids:
-            if self._db.is_favorite(track_id):
-                self._db.remove_favorite(track_id)
+            if self._db.is_favorite(track_id=track_id):
+                self._db.remove_favorite(track_id=track_id)
                 removed_count += 1
             else:
-                self._db.add_favorite(track_id)
+                self._db.add_favorite(track_id=track_id)
                 added_count += 1
+
+        # Process cloud files
+        for cloud_file in cloud_files:
+            cloud_file_id = cloud_file.get("cloud_file_id")
+            cloud_account_id = cloud_file.get("cloud_account_id")
+            if cloud_file_id:
+                if self._db.is_favorite(cloud_file_id=cloud_file_id):
+                    self._db.remove_favorite(cloud_file_id=cloud_file_id)
+                    removed_count += 1
+                else:
+                    self._db.add_favorite(cloud_file_id=cloud_file_id, cloud_account_id=cloud_account_id)
+                    added_count += 1
+
+        total_count = added_count + removed_count
+        if total_count == 0:
+            return
 
         if added_count > 0 and removed_count == 0:
             from utils import format_count_message
@@ -1140,9 +1271,16 @@ class LibraryView(QWidget):
         track_ids = []
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    track_ids.append(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    # Only local tracks can be added to playlists
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
 
         if not track_ids:
             return
@@ -1296,9 +1434,16 @@ class LibraryView(QWidget):
         track_ids = []
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    track_ids.append(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    # Only local tracks can be edited
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
 
         if not track_ids:
             return
@@ -1653,11 +1798,26 @@ class LibraryView(QWidget):
             return
 
         # Get first selected track
-        track_id = None
+        track_data = None
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
+                track_data = item.data(Qt.UserRole)
                 break
+
+        if not track_data:
+            return
+
+        # Extract track ID and check if cloud file
+        track_id = None
+        is_cloud = False
+        if isinstance(track_data, dict):
+            is_cloud = track_data.get("type") == "cloud"
+            if is_cloud:
+                QMessageBox.information(self, t("info"), t("cloud_lyrics_location_not_supported"))
+                return
+            track_id = track_data.get("id")
+        else:
+            track_id = track_data
 
         if not track_id:
             return
@@ -1711,19 +1871,28 @@ class LibraryView(QWidget):
             return
 
         track_ids = []
+        cloud_file_ids = []
         for item in selected_items:
             if item.column() == 0:
-                track_id = item.data(Qt.UserRole)
-                if track_id:
-                    track_ids.append(track_id)
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") == "cloud":
+                            cloud_file_ids.append(track_data.get("cloud_file_id"))
+                        else:
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
 
-        if not track_ids:
+        if not track_ids and not cloud_file_ids:
             return
 
         from utils import format_count_message
 
-        count = len(track_ids)
-        confirm_message = format_count_message("remove_from_library_confirm", count)
+        total_count = len(track_ids) + len(cloud_file_ids)
+        confirm_message = format_count_message("remove_from_library_confirm", total_count)
 
         reply = QMessageBox.question(
             self,
@@ -1736,8 +1905,15 @@ class LibraryView(QWidget):
             return
 
         removed_count = 0
+        # Remove local tracks
         for track_id in track_ids:
             if self._db.remove_track(track_id):
+                removed_count += 1
+
+        # Remove cloud file favorites
+        for cloud_file_id in cloud_file_ids:
+            if cloud_file_id:
+                self._db.remove_favorite(cloud_file_id=cloud_file_id)
                 removed_count += 1
 
         if removed_count > 0:

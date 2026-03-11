@@ -66,9 +66,9 @@ class PlayerControls(QWidget):
         current_track = self._player.engine.current_track
         if current_track:
             track_id = current_track.get("id")
-            if track_id:
-                is_fav = self._player.is_favorite(track_id)
-                self._update_favorite_button_style(is_fav)
+            cloud_file_id = current_track.get("cloud_file_id")
+            is_fav = self._player.is_favorite(track_id, cloud_file_id)
+            self._update_favorite_button_style(is_fav)
 
     def _setup_ui(self):
         """Setup the user interface."""
@@ -502,12 +502,19 @@ class PlayerControls(QWidget):
         self._player.toggle_favorite()
         # UI update is handled by _on_favorite_changed via EventBus
 
-    def _on_favorite_changed(self, track_id: int, is_favorite: bool):
+    def _on_favorite_changed(self, item_id, is_favorite: bool, is_cloud: bool = False):
         """Handle favorite status change from EventBus."""
         # Only update if this is the current track
         current_track = self._player.engine.current_track
-        if current_track and current_track.get("id") == track_id:
-            self._update_favorite_button_style(is_favorite)
+        if current_track:
+            current_id = current_track.get("id")
+            current_cloud_file_id = current_track.get("cloud_file_id")
+
+            # Match by track_id or cloud_file_id
+            if current_id and current_id == item_id:
+                self._update_favorite_button_style(is_favorite)
+            elif is_cloud and current_cloud_file_id and current_cloud_file_id == item_id:
+                self._update_favorite_button_style(is_favorite)
 
     def _update_favorite_button_style(self, is_favorite: bool):
         """Update favorite button style based on favorite status."""
@@ -670,9 +677,9 @@ class PlayerControls(QWidget):
 
             # Update favorite button
             track_id = track_dict.get("id")
-            if track_id:
-                is_fav = self._player.is_favorite(track_id)
-                self._update_favorite_button_style(is_fav)
+            cloud_file_id = track_dict.get("cloud_file_id")
+            is_fav = self._player.is_favorite(track_id, cloud_file_id)
+            self._update_favorite_button_style(is_fav)
 
             # Clear cover immediately, load in background
             self._cover_label.clear()
@@ -685,6 +692,12 @@ class PlayerControls(QWidget):
             # Reset favorite button style
             self._update_favorite_button_style(False)
             self._update_favorite_button_style(False)
+
+    def refresh_ui(self):
+        """Refresh UI texts after language change."""
+        current_track = self._player.engine.current_track
+        if not current_track:
+            self._title_label.setText(t("not_playing"))
 
     def _load_cover_art_async(self, track_dict: dict):
         """Load cover art in background thread."""

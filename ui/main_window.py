@@ -114,7 +114,14 @@ class MainWindow(QMainWindow):
             @property
             def current_track_id(self):
                 item = playback.current_track
-                return item.track_id if item and item.is_local else None
+                # Return track_id for both local tracks and downloaded cloud files
+                return item.track_id if item else None
+
+            @property
+            def current_cloud_file_id(self):
+                item = playback.current_track
+                # Only return cloud_file_id if there's no track_id (not yet downloaded)
+                return item.cloud_file_id if item and item.is_cloud and not item.track_id else None
 
             def play_track(self, track_id):
                 return playback.play_local_track(track_id)
@@ -143,27 +150,40 @@ class MainWindow(QMainWindow):
             def set_play_mode(self, mode):
                 return playback.set_play_mode(mode)
 
-            def is_favorite(self, track_id=None):
-                if track_id is None:
+            def is_favorite(self, track_id=None, cloud_file_id=None):
+                if track_id is None and cloud_file_id is None:
                     track_id = self.current_track_id
+                    cloud_file_id = self.current_cloud_file_id
                 if track_id:
-                    return db.is_favorite(track_id)
+                    return db.is_favorite(track_id=track_id)
+                if cloud_file_id:
+                    return db.is_favorite(cloud_file_id=cloud_file_id)
                 return False
 
-            def toggle_favorite(self, track_id=None):
-                if track_id is None:
+            def toggle_favorite(self, track_id=None, cloud_file_id=None, cloud_account_id=None):
+                if track_id is None and cloud_file_id is None:
                     track_id = self.current_track_id
-                if not track_id:
+                    cloud_file_id = self.current_cloud_file_id
+                    item = playback.current_track
+                    if item and item.is_cloud:
+                        cloud_account_id = item.cloud_account_id
+                if not track_id and not cloud_file_id:
                     return False
 
                 bus = EventBus.instance()
-                if db.is_favorite(track_id):
-                    db.remove_favorite(track_id)
-                    bus.emit_favorite_change(track_id, False)
+                # Check current favorite status (database will convert cloud_file_id to track_id if available)
+                is_fav = db.is_favorite(track_id=track_id, cloud_file_id=cloud_file_id)
+
+                if is_fav:
+                    db.remove_favorite(track_id=track_id, cloud_file_id=cloud_file_id)
+                    # Emit with track_id if available, otherwise cloud_file_id
+                    emit_id = track_id if track_id else cloud_file_id
+                    bus.emit_favorite_change(emit_id, False, is_cloud=bool(cloud_file_id and not track_id))
                     return False
                 else:
-                    db.add_favorite(track_id)
-                    bus.emit_favorite_change(track_id, True)
+                    db.add_favorite(track_id=track_id, cloud_file_id=cloud_file_id, cloud_account_id=cloud_account_id)
+                    emit_id = track_id if track_id else cloud_file_id
+                    bus.emit_favorite_change(emit_id, True, is_cloud=bool(cloud_file_id and not track_id))
                     return True
 
             def load_playlist(self, playlist_id):
@@ -472,6 +492,7 @@ class MainWindow(QMainWindow):
 
         # View connections
         self._library_view.track_double_clicked.connect(self._play_track)
+        self._library_view.cloud_file_double_clicked.connect(self._play_cloud_favorite)
         self._library_view.add_to_queue.connect(self._add_to_queue)
         self._playlist_view.playlist_track_double_clicked.connect(self._play_playlist_track)
         self._queue_view.play_track.connect(self._play_track)
@@ -811,6 +832,9 @@ class MainWindow(QMainWindow):
         self._lyrics_title.setText(t("lyrics"))
         self._download_lyrics_btn.setText(t("download"))
 
+        # Refresh player controls
+        self._player_controls.refresh_ui()
+
         # Refresh views
         self._library_view.refresh()
         self._cloud_drive_view.refresh_ui()  # Refresh cloud drive view
@@ -826,6 +850,40 @@ class MainWindow(QMainWindow):
         """Play a track from a specific playlist."""
         logger.debug(f"[MainWindow] _play_playlist_track: playlist={playlist_id}, track={track_id}")
         self._playback.play_playlist_track(playlist_id, track_id)
+
+    def _play_cloud_favorite(self, cloud_file_id: str, account_id: int):
+        """Play a cloud file from favorites."""
+        logger.debug(f"[MainWindow] _play_cloud_favorite: file_id={cloud_file_id}, account_id={account_id}")
+
+        if not cloud_file_id or not account_id:
+            return
+
+        # Get cloud account
+        account = self._db.get_cloud_account(account_id)
+        if not account:
+            logger.error(f"[MainWindow] Cloud account {account_id} not found")
+            return
+
+        # Get cloud file info
+        cloud_file = self._db.get_cloud_file_by_file_id(cloud_file_id)
+        if cloud_file:
+            # Create PlaylistItem from cloud file
+            item = PlaylistItem.from_cloud_file(cloud_file, account_id)
+            self._playback.engine.load_playlist_items([item])
+            self._playback.engine.play()
+        else:
+            # File not in cache, need to get from cloud
+            logger.warning(f"[MainWindow] Cloud file {cloud_file_id} not found in cache")
+            # Fallback: create basic item with file_id
+            item = PlaylistItem(
+                source_type=CloudProvider.QUARK,
+                cloud_file_id=cloud_file_id,
+                cloud_account_id=account_id,
+                title="Cloud Track",
+                needs_download=True
+            )
+            self._playback.engine.load_playlist_items([item])
+            self._playback.engine.play()
 
     def _play_cloud_track(self, temp_path: str):
         """Play track from cloud (temp file) - backward compatible."""
