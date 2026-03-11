@@ -15,8 +15,14 @@ pip install -r requirements.txt
 # Run the application
 python main.py
 
+# Run tests
+python -m pytest tests/
+
 # Database location
 ./music_player.db (SQLite database in project root)
+
+# Config location
+~/.config/harmony_player/config.json
 ```
 
 ## Architecture
@@ -27,13 +33,14 @@ The application follows a clear separation of concerns across modules:
 
 - **database/** - SQLite data persistence with thread-local connections
   - `DatabaseManager` - All database operations with thread-safe connection handling
-  - `models.py` - Dataclass models: Track, Playlist, PlaylistItem, PlayHistory, Favorite
+  - `models.py` - Dataclass models: Track, Playlist, PlaylistItem, PlayHistory, Favorite, CloudAccount, CloudFile, PlayQueueItem
 
 - **player/** - Audio playback engine and control logic
   - `PlayerEngine` - Low-level QMediaPlayer wrapper, emits signals for state changes
   - `PlaybackManager` - **Primary controller** for unified local/cloud playback, queue persistence, and download coordination
-  - `PlayerController` - Legacy controller (being replaced by PlaybackManager)
-  - `PlaylistItem` - Unified abstraction for local tracks and cloud files (supports both source types)
+  - `PlayerController` - Legacy controller (kept for backward compatibility)
+  - `PlaylistItem` - Unified abstraction for local tracks and cloud files
+  - `CloudProvider` - Enum for cloud providers (LOCAL, QUARK)
   - `PlayMode` enum - Sequential, Loop, PlaylistLoop, Random, RandomLoop, RandomTrackLoop
   - `EqualizerWidget` - Audio equalizer with presets
 
@@ -41,17 +48,17 @@ The application follows a clear separation of concerns across modules:
   - `MetadataService` - Audio metadata extraction using mutagen
   - `CoverService` - Album art fetching from online sources
   - `LyricsService` - Lyrics scraping from web sources
+  - `LyricsLoader` - Advanced lyrics loading with LRC file parsing (QThread-based)
   - `QuarkDriveService` - Quark Drive API integration (QR login, file ops, download URLs)
   - `CloudDownloadService` - Singleton download manager with caching and progress tracking
-  - `LyricsLoader` - Advanced lyrics loading with LRC file parsing
 
 - **ui/** - PySide6 GUI components
   - `MainWindow` - Application shell with navigation, tray icon, mini player
-  - `LibraryView` - Track library with search/filter
-  - `PlaylistView` - Playlist management
-  - `QueueView` - Current playback queue
+  - `LibraryView` - Track library with search/filter, context menus
+  - `PlaylistView` - Playlist management with drag-drop support
+  - `QueueView` - Current playback queue with reordering
   - `PlayerControls` - Playback control bar (seek, volume, play mode)
-  - `MiniPlayer` - Floating mini player window
+  - `MiniPlayer` - Floating mini player window with dragging support
   - `CloudDriveView` - Cloud drive browser with QR login
   - `CloudLoginDialog` - QR code dialog for cloud account authentication
   - `LyricsWidget` / `LyricsWidgetPro` - Lyrics display with LRC synchronization
@@ -134,9 +141,19 @@ The application maintains a persistent play queue that survives application rest
 `PlaylistItem` (in `player/playlist_item.py`) is the core abstraction that unifies local and cloud playback:
 
 - Properties: `is_local`, `is_cloud`, `track_id`, `cloud_file_id`, `local_path`, `needs_download`
-- Factory methods: `from_track()`, `from_cloud_file()`, `from_play_queue_item()`
-- Methods: `to_play_queue_item()` for persistence
+- Factory methods: `from_track()`, `from_cloud_file()`, `from_play_queue_item()`, `from_dict()`
+- Methods: `to_play_queue_item()` for persistence, `to_dict()` for serialization
 - This allows the player engine to treat all sources uniformly
+
+### Mini Player
+
+The mini player (`ui/mini_player.py`) is a floating, frameless window:
+- Always on top, draggable
+- Shows current track info (title, artist, cover)
+- Window title reflects playback state:
+  - Playing: Shows "Song Title - Artist"
+  - Paused/Stopped: Shows app title (from `t("app_title")`)
+- Keyboard shortcuts: Space (play/pause), Ctrl+Arrow (prev/next), Ctrl+M (close)
 
 ## Common Patterns
 
@@ -171,4 +188,5 @@ The application restores previous state on launch:
 
 - DatabaseManager uses thread-local storage for SQLite connections
 - Cloud downloads run in QThread workers (CloudDownloadWorker)
+- LyricsLoader extends QThread for async lyrics loading
 - Qt signals are thread-safe for cross-thread communication

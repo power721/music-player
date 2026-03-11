@@ -8,7 +8,7 @@
 - **音乐库管理** - 扫描和管理本地音乐文件
 - **智能元数据提取** - 自动提取音频文件标签信息（标题、艺术家、专辑等）
 - **专辑封面显示** - 自动抓取和显示专辑封面
-- **多种音频格式** - 支持 MP3、FLAC、OGG、M4A、WAV 等格式
+- **多种音频格式** - 支持 MP3、FLAC、OGG、M4A、WAV、WMA 等格式
 
 ### ☁️ 云盘音乐集成
 - **夸克网盘支持** - 通过二维码登录夸克网盘
@@ -24,7 +24,7 @@
 
 ### ⏯️ 播放控制
 - **完整播放控制** - 播放/暂停/上一曲/下一曲
-- **多种播放模式** - 顺序播放、随机播放、列表循环、单曲循环
+- **多种播放模式** - 顺序播放、随机播放、列表循环、单曲循环等
 - **均衡器** - 内置音频均衡器和预设
 - **进度控制** - 精确的播放进度控制
 
@@ -36,8 +36,8 @@
 
 ### 🎨 现代化界面
 - **Spotify 风格设计** - 简约现代的 UI 设计
-- **深色/浅色主题** - 支持主题切换
-- **迷你播放器** - 小巧的悬浮播放窗口
+- **迷你播放器** - 小巧的悬浮播放窗口，支持拖拽移动
+- **系统托盘** - 最小化到系统托盘，后台播放
 - **响应式布局** - 适配不同屏幕尺寸
 
 ### ⌨️ 其他功能
@@ -108,12 +108,21 @@ qrcode[pil]==8.2        # 二维码生成
 
 ### 快捷键
 
+**主窗口快捷键：**
 - `Space` - 播放/暂停
 - `Ctrl + →` - 下一曲
 - `Ctrl + ←` - 上一曲
 - `Ctrl + ↑` - 音量增加
 - `Ctrl + ↓` - 音量减少
-- `Ctrl + M` - 迷你模式
+- `Ctrl + M` - 切换迷你模式
+
+**迷你播放器快捷键：**
+- `Space` - 播放/暂停
+- `Ctrl + →` - 下一曲
+- `Ctrl + ←` - 上一曲
+- `Ctrl + ↑` - 音量增加
+- `Ctrl + ↓` - 音量减少
+- `Ctrl + M` - 关闭迷你播放器
 
 ## 架构说明
 
@@ -132,27 +141,40 @@ qrcode[pil]==8.2        # 二维码生成
 Harmony/
 ├── database/          # 数据库层
 │   ├── manager.py     # 数据库管理器（线程安全）
-│   └── models.py      # 数据模型
+│   └── models.py      # 数据模型（Track, Playlist, CloudAccount 等）
 ├── player/            # 播放引擎
-│   ├── engine.py      # 底层播放引擎
+│   ├── engine.py      # 底层播放引擎（QMediaPlayer 封装）
 │   ├── playback_manager.py  # 统一播放控制器
-│   ├── playlist_item.py     # 播放项抽象
+│   ├── controller.py  # 传统播放控制器
+│   ├── playlist_item.py     # 播放项抽象（本地/云盘统一接口）
 │   └── equalizer.py   # 均衡器
 ├── services/          # 服务层
 │   ├── metadata_service.py    # 元数据服务
 │   ├── cover_service.py       # 封面服务
 │   ├── lyrics_service.py      # 歌词服务
+│   ├── lyrics_loader.py       # 歌词加载器（含 LRC 解析）
 │   ├── quark_drive_service.py # 夸克网盘服务
 │   └── cloud_download_service.py  # 云盘下载服务
 ├── ui/                # 用户界面
 │   ├── main_window.py     # 主窗口
 │   ├── library_view.py    # 音乐库视图
+│   ├── playlist_view.py   # 播放列表视图
+│   ├── queue_view.py      # 播放队列视图
 │   ├── cloud_drive_view.py # 云盘视图
-│   └── player_controls.py # 播放控制器
-└── utils/             # 工具类
-    ├── event_bus.py       # 事件总线
-    ├── i18n.py           # 国际化
-    └── lrc_parser.py     # LRC 解析器
+│   ├── player_controls.py # 播放控制器
+│   ├── mini_player.py     # 迷你播放器
+│   └── lyrics_widget.py   # 歌词显示组件
+├── utils/             # 工具类
+│   ├── event_bus.py       # 事件总线（单例模式）
+│   ├── config.py          # 配置管理
+│   ├── i18n.py            # 国际化
+│   ├── global_hotkeys.py  # 全局快捷键
+│   ├── lrc_parser.py      # LRC 解析器
+│   └── helpers.py         # 辅助函数
+├── translations/      # 翻译文件
+│   ├── en.json           # 英文
+│   └── zh.json           # 中文
+└── main.py            # 应用入口
 ```
 
 ### 关键设计模式
@@ -161,13 +183,29 @@ Harmony/
 - **单例模式**: EventBus 和 CloudDownloadService 使用单例
 - **工厂模式**: PlaylistItem 使用工厂方法创建不同类型的播放项
 - **线程本地存储**: DatabaseManager 使用 thread-local 确保线程安全
+- **数据类模式**: 使用 `@dataclass` 定义数据模型
+
+### 核心抽象
+
+**PlaylistItem** - 统一的播放项抽象，支持本地和云盘文件：
+- `is_local` / `is_cloud` - 判断来源类型
+- `needs_download` - 云盘文件是否需要下载
+- `from_track()` / `from_cloud_file()` - 工厂方法
+- `to_play_queue_item()` - 转换为持久化模型
 
 ## 配置文件
 
 ### 数据库
 
 - **位置**: `./music_player.db`（项目根目录）
-- **表结构**: tracks, playlists, playlist_items, play_history, favorites, cloud_accounts, cloud_files, play_queue
+- **表结构**:
+  - `tracks` - 本地音乐库
+  - `playlists` / `playlist_items` - 播放列表
+  - `play_history` - 播放历史
+  - `favorites` - 收藏
+  - `cloud_accounts` - 云盘账号
+  - `cloud_files` - 云盘文件缓存
+  - `play_queue` - 持久化播放队列
 
 ### 配置文件
 
@@ -184,8 +222,10 @@ Harmony/
 ### 运行测试
 
 ```bash
-# 目前没有自动化测试
-# 手动测试主要功能
+# 运行测试
+python -m pytest tests/
+
+# 手动测试
 python main.py
 ```
 
@@ -196,6 +236,7 @@ python main.py
 - 类型注解使用 `typing` 模块
 - 数据类使用 `@dataclass` 装饰器
 - 日志使用 Python logging 模块
+- 日志格式: `'[%(levelname)s] %(name)s - %(message)s'`
 
 ### 贡献指南
 
@@ -204,6 +245,23 @@ python main.py
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
+
+## 打包发布
+
+项目提供了跨平台打包脚本：
+
+```bash
+# Linux
+./build_linux.sh
+
+# macOS
+./build_macos.sh
+
+# Windows
+build_windows.bat
+```
+
+详见 [BUILD.md](BUILD.md)。
 
 ## 常见问题
 
@@ -216,11 +274,14 @@ A: 请确保：
 ### Q: 歌词无法显示？
 A: 检查：
 - 网络连接是否正常
-- 歌词文件是否与音频文件同名
-- 尝试手动下载 .lrc 歌词文件
+- 歌词文件是否与音频文件同名（.lrc 格式）
+- 尝试手动下载歌词
 
 ### Q: 应用崩溃后如何恢复播放状态？
-A: 应用会自动保存播放队列和状态，重新启动后会自动恢复。
+A: 应用会自动保存播放队列和状态，重新启动后会自动恢复（不会自动播放）。
+
+### Q: 迷你播放器窗口标题显示什么？
+A: 播放时显示 "歌曲名 - 艺术家"，暂停/停止时显示应用名称。
 
 ## 许可证
 
