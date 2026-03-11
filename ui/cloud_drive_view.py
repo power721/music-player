@@ -1202,6 +1202,16 @@ class CloudDriveView(QWidget):
 
         menu.addSeparator()
 
+        # Download action - show different text based on download status
+        if has_local_path:
+            download_action = menu.addAction(f"✓ {t('download')}")
+            download_action.setEnabled(False)
+        else:
+            download_action = menu.addAction(f"⬇ {t('download')}")
+            download_action.triggered.connect(lambda: self._download_file(file))
+
+        menu.addSeparator()
+
         # Edit media info action - only available if file is downloaded
         edit_action = menu.addAction(t("edit_media_info"))
         if has_local_path:
@@ -1219,6 +1229,99 @@ class CloudDriveView(QWidget):
             open_action.setText(f"{t('open_file_location')} ({t('download_first')})")
 
         menu.exec_(QCursor.pos())
+
+    def _download_file(self, file: CloudFile):
+        """Download a cloud file without playing it."""
+        if not self._current_account:
+            return
+
+        from pathlib import Path
+        from utils.helpers import sanitize_filename
+
+        # Check if file already exists
+        if self._config_manager:
+            download_dir = Path(self._config_manager.get_cloud_download_dir())
+        else:
+            download_dir = Path("data/cloud_downloads")
+
+        if not download_dir.is_absolute():
+            download_dir = Path.cwd() / download_dir
+
+        safe_filename = sanitize_filename(file.name)
+        local_file_path = download_dir / safe_filename
+
+        # Check if already downloaded
+        if local_file_path.exists() and file.size:
+            actual_size = local_file_path.stat().st_size
+            size_diff = abs(actual_size - file.size)
+            tolerance = file.size * 0.01  # 1% tolerance
+
+            if size_diff <= tolerance:
+                self._status_label.setText(f"✓ {file.name} {t('file_already_exists')}")
+                return
+
+        # Show download status
+        size_info = ""
+        if file.size:
+            size_mb = file.size / (1024 * 1024)
+            size_info = f" ({size_mb:.1f} MB)"
+        self._status_label.setText(f"{t('downloading')} {file.name}{size_info}...")
+
+        # Create download thread
+        file_index = 0
+        try:
+            file_index = next(
+                i
+                for i, f in enumerate(self._current_audio_files)
+                if f.file_id == file.file_id
+            )
+        except StopIteration:
+            pass
+
+        download_thread = CloudFileDownloadThread(
+            self._current_account.access_token,
+            file,
+            file_index,
+            self._current_audio_files,
+            self._config_manager,
+            self,
+        )
+        download_thread.finished.connect(
+            lambda path: self._on_download_only_completed(path, file)
+        )
+        download_thread.file_exists.connect(
+            lambda path: self._on_download_only_completed(path, file)
+        )
+        download_thread.token_updated.connect(self._on_token_updated)
+        download_thread.start()
+
+    def _on_download_only_completed(self, local_path: str, file: CloudFile):
+        """Handle download completion (without playing)."""
+        if local_path:
+            size_mb = 0
+            try:
+                from pathlib import Path
+                size_mb = Path(local_path).stat().st_size / (1024 * 1024)
+            except:
+                pass
+
+            self._status_label.setText(f"✓ {t('download_complete')}: {file.name} ({size_mb:.1f} MB)")
+
+            # Update database
+            if self._current_account:
+                self._db.update_cloud_file_local_path(
+                    file.file_id,
+                    self._current_account.id,
+                    local_path
+                )
+
+            # Update the file object
+            file.local_path = local_path
+
+            # Refresh the table to show download status
+            self._refresh_file_list()
+        else:
+            self._status_label.setText(f"{t('download_failed')}: {file.name}")
 
     def _show_account_context_menu(self, pos):
         """Show context menu for account."""
