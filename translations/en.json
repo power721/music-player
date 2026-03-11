@@ -196,5 +196,7 @@
     "added_skipped_duplicates": "Added {added}, skipped {duplicates} duplicate(s)",
     "download_first": "Download first",
     "download_cover": "Download cover art",
-    "download_cover_tooltip": "Automatically download album cover from web and save to database"
+    "download_cover_tooltip": "Automatically download album cover from web and save to database",
+    "album_art": "Album Art",
+    "cover_load_failed": "Failed to load cover"
 }

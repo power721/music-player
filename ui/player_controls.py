@@ -13,9 +13,12 @@ from PySide6.QtWidgets import (
     QToolButton,
     QMenu,
     QStyle,
+    QDialog,
+    QVBoxLayout,
+    QScrollArea,
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QTime
-from PySide6.QtGui import QIcon, QFont, QPixmap
+from PySide6.QtCore import Qt, Signal, QTimer, QTime, QPoint
+from PySide6.QtGui import QIcon, QFont, QPixmap, QCursor, QMouseEvent, QPainter, QScreen
 from typing import Optional
 import threading
 
@@ -52,6 +55,7 @@ class PlayerControls(QWidget):
         self._player = player
         self._current_duration = 0
         self._is_seeking = False
+        self._current_cover_path = None  # Store current cover path
 
         self._setup_ui()
         self._setup_connections()
@@ -104,7 +108,7 @@ class PlayerControls(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Cover art placeholder
-        self._cover_label = QLabel()
+        self._cover_label = ClickableLabel()
         self._cover_label.setFixedSize(60, 60)
         self._cover_label.setObjectName("coverArt")
         self._cover_label.setStyleSheet("""
@@ -113,6 +117,10 @@ class PlayerControls(QWidget):
                 border-radius: 4px;
             }
         """)
+        # Enable mouse tracking and click events
+        self._cover_label.setMouseTracking(True)
+        self._cover_label.setCursor(QCursor(Qt.PointingHandCursor))
+        self._cover_label.clicked.connect(self._on_cover_clicked)
         layout.addWidget(self._cover_label)
 
         layout.addSpacing(10)
@@ -808,8 +816,20 @@ class PlayerControls(QWidget):
                         Qt.SmoothTransformation,
                     )
                     self._cover_label.setPixmap(scaled_pixmap)
+                    self._current_cover_path = cover_path  # Store cover path
             except Exception as e:
                 logger.error(f"Error showing cover: {e}")
+        else:
+            self._current_cover_path = None
+
+    def _on_cover_clicked(self):
+        """Handle cover art click - show large image dialog."""
+        if self._current_cover_path:
+            try:
+                dialog = CoverDialog(self._current_cover_path, self)
+                dialog.exec_()
+            except Exception as e:
+                logger.error(f"Error showing cover dialog: {e}")
 
     def _update_position_display(self):
         """Update position display continuously."""
@@ -820,3 +840,84 @@ class PlayerControls(QWidget):
                 else 0
             )
             # Update handled by _on_position_changed signal
+
+
+class ClickableLabel(QLabel):
+    """A QLabel that emits a signal when clicked."""
+
+    clicked = Signal()
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse press event."""
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
+class CoverDialog(QDialog):
+    """Dialog to display large cover art."""
+
+    def __init__(self, cover_path: str, parent=None):
+        """
+        Initialize cover dialog.
+
+        Args:
+            cover_path: Path to the cover image
+            parent: Parent widget
+        """
+        super().__init__(parent)
+        self._cover_path = cover_path
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Setup the dialog UI."""
+        self.setWindowTitle(t("album_art"))
+        self.setModal(True)
+
+        # Get screen size
+        screen = QScreen.availableGeometry(self.screen())
+        screen_width = screen.width()
+        screen_height = screen.height()
+
+        # Set dialog size to 80% of screen, max 800x800
+        dialog_width = min(int(screen_width * 0.8), 800)
+        dialog_height = min(int(screen_height * 0.8), 800)
+        self.setFixedSize(dialog_width, dialog_height)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Image label (no scroll area needed now)
+        image_label = QLabel()
+        image_label.setAlignment(Qt.AlignCenter)
+        image_label.setStyleSheet("background-color: #1e1e1e;")
+
+        # Load and scale image to fit dialog
+        pixmap = QPixmap(self._cover_path)
+        if not pixmap.isNull():
+            # Scale image to fit within dialog while maintaining aspect ratio
+            scaled = pixmap.scaled(
+                dialog_width - 20,  # Leave some margin
+                dialog_height - 20,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            image_label.setPixmap(scaled)
+        else:
+            image_label.setText(t("cover_load_failed"))
+
+        layout.addWidget(image_label)
+
+        # Apply dialog style
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1e1e1e;
+            }
+        """)
+
+    def keyPressEvent(self, event):
+        """Handle key press - close on Escape."""
+        if event.key() == Qt.Key_Escape:
+            self.accept()
+        else:
+            super().keyPressEvent(event)
