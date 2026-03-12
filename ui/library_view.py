@@ -1754,11 +1754,8 @@ class LibraryView(QWidget):
                         t("success"),
                         f"{t('batch_save_success')}: {success_count}/{len(track_ids)}",
                     )
-                    # Save the track IDs to restore selection after refresh
-                    self._track_ids_to_restore = track_ids
-                    self.refresh()
-                    # Restore selection after refresh
-                    self._restore_track_selection(track_ids)
+                    # Refresh only the updated rows
+                    self._refresh_tracks_in_table(track_ids)
                 else:
                     QMessageBox.warning(self, "Error", t("media_save_failed"))
 
@@ -1784,11 +1781,8 @@ class LibraryView(QWidget):
                         album=new_album,
                     )
                     QMessageBox.information(self, t("success"), t("media_saved"))
-                    # Save the track ID to restore selection after refresh
-                    self._track_ids_to_restore = track_ids
-                    self.refresh()
-                    # Restore selection after refresh
-                    self._restore_track_selection(track_ids)
+                    # Refresh only the updated row
+                    self._refresh_tracks_in_table(track_ids)
                 else:
                     QMessageBox.warning(self, "Error", t("media_save_failed"))
 
