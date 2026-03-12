@@ -269,7 +269,7 @@ class MainWindow(QMainWindow):
         # Library/playlist view
         self._stacked_widget = QStackedWidget()
 
-        self._library_view = LibraryView(self._db, self._player)
+        self._library_view = LibraryView(self._db, self._player, self._config)
         self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config)
         self._playlist_view = PlaylistView(self._db, self._player)
         self._queue_view = QueueView(self._player, self._db)
@@ -431,6 +431,31 @@ class MainWindow(QMainWindow):
         """)
         self._language_btn.clicked.connect(self._toggle_language)
         layout.addWidget(self._language_btn)
+
+        # AI Settings button
+        ai_status = "✅" if self._config.get_ai_enabled() else "❌"
+        self._ai_settings_btn = QPushButton(f"🤖 AI {ai_status}")
+        self._ai_settings_btn.setObjectName("aiSettingsBtn")
+        self._ai_settings_btn.setCursor(Qt.PointingHandCursor)
+        self._ai_settings_btn.setFixedHeight(32)
+        self._ai_settings_btn.setStyleSheet("""
+            QPushButton#aiSettingsBtn {
+                background-color: #2a2a2a;
+                color: #c0c0c0;
+                border: 2px solid #3a3a3a;
+                border-radius: 16px;
+                padding: 6px 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            QPushButton#aiSettingsBtn:hover {
+                background-color: #3a3a3a;
+                border: 2px solid #1db954;
+                color: #1db954;
+            }
+        """)
+        self._ai_settings_btn.clicked.connect(self._show_ai_settings)
+        layout.addWidget(self._ai_settings_btn)
 
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))
@@ -858,6 +883,20 @@ class MainWindow(QMainWindow):
         self._cloud_drive_view.refresh_ui()  # Refresh cloud drive view
         self._playlist_view._refresh_playlists()
         self._queue_view.refresh_queue()
+
+        # Update AI button status
+        ai_status = "✅" if self._config.get_ai_enabled() else "❌"
+        self._ai_settings_btn.setText(f"🤖 AI {ai_status}")
+
+    def _show_ai_settings(self):
+        """Show AI settings dialog."""
+        from ui.ai_settings_dialog import AISettingsDialog
+
+        dialog = AISettingsDialog(self._config, self)
+        if dialog.exec_():
+            # Update AI button status after settings change
+            ai_status = "✅" if self._config.get_ai_enabled() else "❌"
+            self._ai_settings_btn.setText(f"🤖 AI {ai_status}")
 
     def _play_track(self, track_id: int):
         """Play a local track from library (loads entire library as playlist)."""

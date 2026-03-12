@@ -15,4 +15,8 @@ pymediainfo==6.1.0
 beautifulsoup4==4.12.2
 lxml==5.1.0
 
+# QR code generation
 qrcode[pil]==8.2
+
+# AI API client (for metadata enhancement)
+openai>=1.0.0

@@ -43,6 +43,12 @@ class SettingKey:
     UI_GEOMETRY = "ui.geometry"
     UI_SPLITTER = "ui.splitter"
 
+    # AI settings
+    AI_ENABLED = "ai.enabled"
+    AI_BASE_URL = "ai.base_url"
+    AI_API_KEY = "ai.api_key"
+    AI_MODEL = "ai.model"
+
 
 class ConfigManager:
     """
@@ -330,3 +336,77 @@ class ConfigManager:
         """
         import base64
         self.set(SettingKey.UI_SPLITTER, base64.b64encode(state).decode('utf-8'))
+
+    # ===== AI settings =====
+
+    def get_ai_enabled(self) -> bool:
+        """
+        Get whether AI enhancement is enabled.
+
+        Returns:
+            True if AI enhancement is enabled
+        """
+        return self.get(SettingKey.AI_ENABLED, False)
+
+    def set_ai_enabled(self, enabled: bool):
+        """
+        Set whether AI enhancement is enabled.
+
+        Args:
+            enabled: True to enable AI enhancement
+        """
+        self.set(SettingKey.AI_ENABLED, enabled)
+
+    def get_ai_base_url(self) -> str:
+        """
+        Get the AI API base URL.
+
+        Returns:
+            Base URL string
+        """
+        return self.get(SettingKey.AI_BASE_URL, "https://dashscope.aliyuncs.com/compatible-mode/v1")
+
+    def set_ai_base_url(self, base_url: str):
+        """
+        Set the AI API base URL.
+
+        Args:
+            base_url: Base URL string
+        """
+        self.set(SettingKey.AI_BASE_URL, base_url)
+
+    def get_ai_api_key(self) -> str:
+        """
+        Get the AI API key.
+
+        Returns:
+            API key string
+        """
+        return self.get(SettingKey.AI_API_KEY, "")
+
+    def set_ai_api_key(self, api_key: str):
+        """
+        Set the AI API key.
+
+        Args:
+            api_key: API key string
+        """
+        self.set(SettingKey.AI_API_KEY, api_key)
+
+    def get_ai_model(self) -> str:
+        """
+        Get the AI model name.
+
+        Returns:
+            Model name string
+        """
+        return self.get(SettingKey.AI_MODEL, "qwen-plus")
+
+    def set_ai_model(self, model: str):
+        """
+        Set the AI model name.
+
+        Args:
+            model: Model name string
+        """
+        self.set(SettingKey.AI_MODEL, model)

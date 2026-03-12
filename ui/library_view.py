@@ -36,6 +36,7 @@ from database import DatabaseManager, Track
 from player import PlayerController
 from player.engine import PlayerState
 from utils import t
+from utils.config import ConfigManager
 
 
 class LibraryView(QWidget):
@@ -49,7 +50,7 @@ class LibraryView(QWidget):
     )  # Signal when tracks should be added to a playlist
 
     def __init__(
-        self, db_manager: DatabaseManager, player: PlayerController, parent=None
+        self, db_manager: DatabaseManager, player: PlayerController, config_manager: ConfigManager = None, parent=None
     ):
         """
         Initialize library view.
@@ -57,11 +58,13 @@ class LibraryView(QWidget):
         Args:
             db_manager: Database manager
             player: Player controller
+            config_manager: Configuration manager for AI settings
             parent: Parent widget
         """
         super().__init__(parent)
         self._db = db_manager
         self._player = player
+        self._config = config_manager
         self._current_view = "all"  # all, favorites, history
         self._current_sub_view = "all"  # all, artists, albums (for library view)
         self._current_playing_track_id = None  # Track currently playing
@@ -1112,6 +1115,16 @@ class LibraryView(QWidget):
         edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
 
+        # AI enhance metadata action (only for local tracks)
+        if not is_cloud and self._config:
+            ai_enabled = self._config.get_ai_enabled()
+            ai_enhance_action = menu.addAction(t("ai_enhance_metadata"))
+            ai_enhance_action.setEnabled(ai_enabled)
+            if ai_enabled:
+                ai_enhance_action.triggered.connect(lambda: self._ai_enhance_selected())
+            else:
+                ai_enhance_action.setToolTip(t("ai_enable_first"))
+
         # Open file location action
         open_location_action = menu.addAction(t("open_file_location"))
         open_location_action.triggered.connect(lambda: self._open_file_location())
@@ -1926,3 +1939,195 @@ class LibraryView(QWidget):
                 success_message,
             )
             self.refresh()
+
+    def _ai_enhance_selected(self):
+        """Enhance metadata for selected tracks using AI."""
+        from PySide6.QtCore import QThread, Signal
+
+        if not self._config:
+            QMessageBox.warning(self, t("warning"), t("ai_config_not_found"))
+            return
+
+        if not self._config.get_ai_enabled():
+            QMessageBox.warning(self, t("warning"), t("ai_enable_first"))
+            return
+
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        # Collect track IDs
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
+
+        if not track_ids:
+            QMessageBox.information(self, t("info"), t("ai_no_tracks_selected"))
+            return
+
+        # Get AI config
+        base_url = self._config.get_ai_base_url()
+        api_key = self._config.get_ai_api_key()
+        model = self._config.get_ai_model()
+
+        # Create worker thread
+        class AIEnhanceWorker(QThread):
+            progress = Signal(int, int, int)  # current, total, track_id
+            finished_signal = Signal(list, int, int)  # enhanced_ids, enhanced_count, failed_count
+
+            def __init__(self, track_ids, db, base_url, api_key, model):
+                super().__init__()
+                self._track_ids = track_ids
+                self._db = db
+                self._base_url = base_url
+                self._api_key = api_key
+                self._model = model
+                self._cancelled = False
+
+            def run(self):
+                from services.ai_metadata_service import AIMetadataService
+                from services.metadata_service import MetadataService
+
+                enhanced_count = 0
+                failed_count = 0
+                enhanced_track_ids = []
+
+                for i, track_id in enumerate(self._track_ids):
+                    if self._cancelled:
+                        break
+
+                    self.progress.emit(i, len(self._track_ids), track_id)
+
+                    track = self._db.get_track(track_id)
+                    if not track:
+                        failed_count += 1
+                        continue
+
+                    current_metadata = MetadataService.extract_metadata(track.path)
+
+                    if not AIMetadataService.is_metadata_incomplete(current_metadata):
+                        continue
+
+                    enhanced = AIMetadataService.enhance_track(
+                        file_path=track.path,
+                        base_url=self._base_url,
+                        api_key=self._api_key,
+                        model=self._model,
+                        current_metadata=current_metadata,
+                        update_file=True
+                    )
+
+                    if enhanced:
+                        self._db.update_track(
+                            track_id,
+                            title=enhanced.get('title'),
+                            artist=enhanced.get('artist'),
+                            album=enhanced.get('album')
+                        )
+                        enhanced_count += 1
+                        enhanced_track_ids.append(track_id)
+                    else:
+                        failed_count += 1
+
+                self.finished_signal.emit(enhanced_track_ids, enhanced_count, failed_count)
+
+            def cancel(self):
+                self._cancelled = True
+
+        # Create progress dialog
+        from PySide6.QtWidgets import QProgressDialog
+        progress_dialog = QProgressDialog(t("ai_enhancing"), t("cancel"), 0, len(track_ids), self)
+        progress_dialog.setWindowTitle(t("ai_enhance_metadata"))
+        progress_dialog.setWindowModality(Qt.WindowModal)
+        progress_dialog.setMinimumDuration(0)
+        progress_dialog.setAutoClose(False)
+        progress_dialog.setAutoReset(False)
+
+        # Create and start worker
+        worker = AIEnhanceWorker(track_ids, self._db, base_url, api_key, model)
+
+        def on_progress(current, total, track_id):
+            progress_dialog.setValue(current)
+            progress_dialog.setLabelText(f"{t('ai_enhancing')} {current + 1}/{total}")
+
+        def on_finished(enhanced_ids, enhanced_count, failed_count):
+            progress_dialog.close()
+            message = t("ai_enhance_result").format(enhanced=enhanced_count, failed=failed_count)
+            QMessageBox.information(self, t("ai_enhance_metadata"), message)
+            if enhanced_ids:
+                self._refresh_tracks_in_table(enhanced_ids)
+
+        def on_cancel():
+            worker.cancel()
+            worker.quit()
+            worker.wait()
+
+        worker.progress.connect(on_progress)
+        worker.finished_signal.connect(on_finished)
+        progress_dialog.canceled.connect(on_cancel)
+
+        progress_dialog.show()
+        worker.start()
+
+    def _refresh_tracks_in_table(self, track_ids: List[int]):
+        """
+        Refresh specific tracks in the table without reloading all data.
+
+        Args:
+            track_ids: List of track IDs to refresh
+        """
+        from utils import format_duration
+        from PySide6.QtGui import QBrush, QColor, QFont
+
+        # Find and update rows for the given track IDs
+        for row in range(self._tracks_table.rowCount()):
+            title_item = self._tracks_table.item(row, 0)
+            if title_item:
+                track_id = title_item.data(Qt.UserRole)
+                if track_id in track_ids:
+                    # Get updated track from database
+                    track = self._db.get_track(track_id)
+                    if track:
+                        # Update title
+                        is_currently_playing = track.id == self._current_playing_track_id
+                        icon_prefix = ""
+                        if is_currently_playing:
+                            if self._player.engine.state == PlayerState.PLAYING:
+                                icon_prefix = "▶️ "
+                            else:
+                                icon_prefix = "⏸️ "
+
+                        title_text = f"{icon_prefix}{track.title or track.path.split('/')[-1]}"
+                        title_item.setText(title_text)
+                        title_item.setForeground(QBrush(QColor("#1db954" if is_currently_playing else "#e0e0e0")))
+
+                        if is_currently_playing:
+                            font = title_item.font()
+                            font.setBold(True)
+                            title_item.setFont(font)
+                        else:
+                            font = title_item.font()
+                            font.setBold(False)
+                            title_item.setFont(font)
+
+                        # Update artist
+                        artist_item = self._tracks_table.item(row, 1)
+                        if artist_item:
+                            artist_item.setText(track.artist or t("unknown"))
+
+                        # Update album
+                        album_item = self._tracks_table.item(row, 2)
+                        if album_item:
+                            album_item.setText(track.album or t("unknown"))
+
+                        logger.debug(f"Refreshed row {row} for track {track_id}")
+
