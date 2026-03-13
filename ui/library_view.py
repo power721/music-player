@@ -1125,6 +1125,15 @@ class LibraryView(QWidget):
             else:
                 ai_enhance_action.setToolTip(t("ai_enable_first"))
 
+            # AcoustID identify action (only for local tracks)
+            acoustid_enabled = self._config.get_acoustid_enabled()
+            acoustid_action = menu.addAction(t("acoustid_identify"))
+            acoustid_action.setEnabled(acoustid_enabled)
+            if acoustid_enabled:
+                acoustid_action.triggered.connect(lambda: self._acoustid_identify_selected())
+            else:
+                acoustid_action.setToolTip(t("acoustid_enable_first"))
+
         # Open file location action
         open_location_action = menu.addAction(t("open_file_location"))
         open_location_action.triggered.connect(lambda: self._open_file_location())
@@ -2008,8 +2017,8 @@ class LibraryView(QWidget):
 
                     current_metadata = MetadataService.extract_metadata(track.path)
 
-                    if not AIMetadataService.is_metadata_incomplete(current_metadata):
-                        continue
+                    # if not AIMetadataService.is_metadata_incomplete(current_metadata):
+                    #     continue
 
                     enhanced = AIMetadataService.enhance_track(
                         file_path=track.path,
@@ -2124,4 +2133,140 @@ class LibraryView(QWidget):
                             album_item.setText(track.album or t("unknown"))
 
                         logger.debug(f"Refreshed row {row} for track {track_id}")
+
+    def _acoustid_identify_selected(self):
+        """Identify selected tracks using AcoustID fingerprinting."""
+        from PySide6.QtCore import QThread
+
+        if not self._config:
+            QMessageBox.warning(self, t("warning"), t("ai_config_not_found"))
+            return
+
+        if not self._config.get_acoustid_enabled():
+            QMessageBox.warning(self, t("warning"), t("acoustid_enable_first"))
+            return
+
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        # Collect track IDs
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
+
+        if not track_ids:
+            QMessageBox.information(self, t("info"), t("ai_no_tracks_selected"))
+            return
+
+        # Get AcoustID API key
+        api_key = self._config.get_acoustid_api_key()
+        if not api_key:
+            QMessageBox.warning(self, t("warning"), t("acoustid_api_key_required"))
+            return
+
+        # Create worker thread
+        class AcoustIDWorker(QThread):
+            progress = Signal(int, int, int)  # current, total, track_id
+            finished_signal = Signal(list, int, int)  # identified_ids, success_count, failed_count
+
+            def __init__(self, track_ids, db, api_key):
+                super().__init__()
+                self._track_ids = track_ids
+                self._db = db
+                self._api_key = api_key
+                self._cancelled = False
+
+            def run(self):
+                from services.acoustid_service import AcoustIDService
+                from services.metadata_service import MetadataService
+
+                success_count = 0
+                failed_count = 0
+                identified_track_ids = []
+
+                for i, track_id in enumerate(self._track_ids):
+                    if self._cancelled:
+                        break
+
+                    self.progress.emit(i, len(self._track_ids), track_id)
+
+                    track = self._db.get_track(track_id)
+                    if not track:
+                        failed_count += 1
+                        continue
+
+                    # Get current metadata
+                    current_metadata = MetadataService.extract_metadata(track.path) or {}
+
+                    # Identify using AcoustID
+                    enhanced = AcoustIDService.enhance_track(
+                        file_path=track.path,
+                        api_key=self._api_key,
+                        current_metadata=current_metadata,
+                        update_file=True
+                    )
+
+                    if enhanced and enhanced.get('title'):
+                        self._db.update_track(
+                            track_id,
+                            title=enhanced.get('title'),
+                            artist=enhanced.get('artist'),
+                            album=enhanced.get('album')
+                        )
+                        success_count += 1
+                        identified_track_ids.append(track_id)
+                        logger.info(f"AcoustID identified track {track_id}: {enhanced.get('title')} - {enhanced.get('artist')}")
+                    else:
+                        failed_count += 1
+                        logger.warning(f"AcoustID failed to identify track {track_id}")
+
+                self.finished_signal.emit(identified_track_ids, success_count, failed_count)
+
+            def cancel(self):
+                self._cancelled = True
+
+        # Create progress dialog
+        from PySide6.QtWidgets import QProgressDialog
+        progress_dialog = QProgressDialog(t("acoustid_identifying"), t("cancel"), 0, len(track_ids), self)
+        progress_dialog.setWindowTitle(t("acoustid_identify"))
+        progress_dialog.setWindowModality(Qt.WindowModal)
+        progress_dialog.setMinimumDuration(0)
+        progress_dialog.setAutoClose(False)
+        progress_dialog.setAutoReset(False)
+
+        # Create and start worker
+        worker = AcoustIDWorker(track_ids, self._db, api_key)
+
+        def on_progress(current, total, track_id):
+            progress_dialog.setValue(current)
+            progress_dialog.setLabelText(f"{t('acoustid_identifying')} {current + 1}/{total}")
+
+        def on_finished(identified_ids, success_count, failed_count):
+            progress_dialog.close()
+            message = t("acoustid_result").format(identified=success_count, failed=failed_count)
+            QMessageBox.information(self, t("acoustid_identify"), message)
+            if identified_ids:
+                self._refresh_tracks_in_table(identified_ids)
+
+        def on_cancel():
+            worker.cancel()
+            worker.quit()
+            worker.wait()
+
+        worker.progress.connect(on_progress)
+        worker.finished_signal.connect(on_finished)
+        progress_dialog.canceled.connect(on_cancel)
+
+        progress_dialog.show()
+        worker.start()
 

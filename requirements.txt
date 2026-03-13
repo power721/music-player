@@ -20,3 +20,6 @@ qrcode[pil]==8.2
 
 # AI API client (for metadata enhancement)
 openai>=1.0.0
+
+# Audio fingerprinting (for track identification)
+pyacoustid>=1.2.0

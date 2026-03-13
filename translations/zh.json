@@ -221,6 +221,21 @@
     "ai_enhancing": "正在增强元数据...",
     "ai_enhance_result": "成功增强 {enhanced} 首，失败 {failed} 首",
     "ai_config_not_found": "未找到 AI 配置",
-    "error": "错误"
+    "error": "错误",
+    "ai_tab": "AI 增强",
+    "acoustid_tab": "AcoustID",
+    "acoustid_enable": "启用 AcoustID 音频指纹识别",
+    "acoustid_config": "AcoustID 配置",
+    "acoustid_api_key": "API 密钥",
+    "acoustid_api_key_placeholder": "请输入您的 AcoustID API 密钥",
+    "acoustid_api_key_required": "请输入 AcoustID API 密钥",
+    "acoustid_settings_hint": "AcoustID 使用音频指纹识别歌曲。免费获取 API 密钥：https://acoustid.org/api-key",
+    "acoustid_test": "测试配置",
+    "acoustid_ready": "AcoustID 已就绪！选择歌曲后右键点击「识别歌曲」使用。",
+    "acoustid_not_installed": "未安装 pyacoustid。请运行：pip install pyacoustid",
+    "acoustid_identify": "识别歌曲",
+    "acoustid_enable_first": "请先在设置中启用 AcoustID",
+    "acoustid_identifying": "正在识别歌曲...",
+    "acoustid_result": "成功识别 {identified} 首，失败 {failed} 首"
 }
 

@@ -49,6 +49,10 @@ class SettingKey:
     AI_API_KEY = "ai.api_key"
     AI_MODEL = "ai.model"
 
+    # AcoustID settings
+    ACOUSTID_ENABLED = "acoustid.enabled"
+    ACOUSTID_API_KEY = "acoustid.api_key"
+
 
 class ConfigManager:
     """
@@ -410,3 +414,41 @@ class ConfigManager:
             model: Model name string
         """
         self.set(SettingKey.AI_MODEL, model)
+
+    # ===== AcoustID settings =====
+
+    def get_acoustid_enabled(self) -> bool:
+        """
+        Get whether AcoustID fingerprinting is enabled.
+
+        Returns:
+            True if AcoustID is enabled
+        """
+        return self.get(SettingKey.ACOUSTID_ENABLED, False)
+
+    def set_acoustid_enabled(self, enabled: bool):
+        """
+        Set whether AcoustID fingerprinting is enabled.
+
+        Args:
+            enabled: True to enable AcoustID
+        """
+        self.set(SettingKey.ACOUSTID_ENABLED, enabled)
+
+    def get_acoustid_api_key(self) -> str:
+        """
+        Get the AcoustID API key.
+
+        Returns:
+            AcoustID API key string
+        """
+        return self.get(SettingKey.ACOUSTID_API_KEY, "")
+
+    def set_acoustid_api_key(self, api_key: str):
+        """
+        Set the AcoustID API key.
+
+        Args:
+            api_key: AcoustID API key string
+        """
+        self.set(SettingKey.ACOUSTID_API_KEY, api_key)

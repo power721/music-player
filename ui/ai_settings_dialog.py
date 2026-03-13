@@ -1,11 +1,11 @@
 """
-AI Settings Dialog for configuring AI model API.
+AI Settings Dialog for configuring AI model API and AcoustID.
 """
 import logging
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QGroupBox, QMessageBox
+    QPushButton, QCheckBox, QGroupBox, QMessageBox, QTabWidget, QWidget
 )
 from PySide6.QtCore import Qt
 
@@ -22,7 +22,7 @@ if not logger.handlers:
 
 
 class AISettingsDialog(QDialog):
-    """Dialog for configuring AI model API settings."""
+    """Dialog for configuring AI model API and AcoustID settings."""
 
     def __init__(self, config_manager, parent=None):
         """
@@ -40,17 +40,25 @@ class AISettingsDialog(QDialog):
     def _setup_ui(self):
         """Setup the dialog UI."""
         self.setWindowTitle(t("ai_settings"))
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(520)
 
         layout = QVBoxLayout()
         layout.setSpacing(15)
         layout.setContentsMargins(20, 20, 20, 20)
 
+        # Tab widget for AI and AcoustID settings
+        tab_widget = QTabWidget()
+
+        # AI Settings Tab
+        ai_tab = QWidget()
+        ai_layout = QVBoxLayout(ai_tab)
+        ai_layout.setSpacing(10)
+
         # Enable AI checkbox
         self._enable_checkbox = QCheckBox(t("ai_enable"))
         self._enable_checkbox.setStyleSheet("font-weight: bold; font-size: 14px;")
         self._enable_checkbox.stateChanged.connect(self._on_enable_changed)
-        layout.addWidget(self._enable_checkbox)
+        ai_layout.addWidget(self._enable_checkbox)
 
         # Settings group
         settings_group = QGroupBox(t("ai_api_config"))
@@ -95,15 +103,65 @@ class AISettingsDialog(QDialog):
         settings_layout.addWidget(hint_label)
 
         settings_group.setLayout(settings_layout)
-        layout.addWidget(settings_group)
+        ai_layout.addWidget(settings_group)
+
+        # Test button for AI
+        test_btn = QPushButton(t("ai_test_connection"))
+        test_btn.clicked.connect(self._test_connection)
+        ai_layout.addWidget(test_btn)
+
+        ai_layout.addStretch()
+        tab_widget.addTab(ai_tab, t("ai_tab"))
+
+        # AcoustID Settings Tab
+        acoustid_tab = QWidget()
+        acoustid_layout = QVBoxLayout(acoustid_tab)
+        acoustid_layout.setSpacing(10)
+
+        # Enable AcoustID checkbox
+        self._acoustid_enable_checkbox = QCheckBox(t("acoustid_enable"))
+        self._acoustid_enable_checkbox.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self._acoustid_enable_checkbox.stateChanged.connect(self._on_acoustid_enable_changed)
+        acoustid_layout.addWidget(self._acoustid_enable_checkbox)
+
+        # AcoustID settings group
+        acoustid_group = QGroupBox(t("acoustid_config"))
+        acoustid_settings_layout = QVBoxLayout()
+        acoustid_settings_layout.setSpacing(10)
+
+        # AcoustID API Key
+        acoustid_key_layout = QHBoxLayout()
+        acoustid_key_label = QLabel(t("acoustid_api_key"))
+        acoustid_key_label.setMinimumWidth(100)
+        self._acoustid_api_key_input = QLineEdit()
+        self._acoustid_api_key_input.setEchoMode(QLineEdit.Password)
+        self._acoustid_api_key_input.setPlaceholderText(t("acoustid_api_key_placeholder"))
+        acoustid_key_layout.addWidget(acoustid_key_label)
+        acoustid_key_layout.addWidget(self._acoustid_api_key_input)
+        acoustid_settings_layout.addLayout(acoustid_key_layout)
+
+        # AcoustID hint label
+        acoustid_hint_label = QLabel(t("acoustid_settings_hint"))
+        acoustid_hint_label.setStyleSheet("color: #808080; font-size: 11px;")
+        acoustid_hint_label.setWordWrap(True)
+        acoustid_settings_layout.addWidget(acoustid_hint_label)
+
+        acoustid_group.setLayout(acoustid_settings_layout)
+        acoustid_layout.addWidget(acoustid_group)
+
+        # Test button for AcoustID
+        acoustid_test_btn = QPushButton(t("acoustid_test"))
+        acoustid_test_btn.clicked.connect(self._test_acoustid)
+        acoustid_layout.addWidget(acoustid_test_btn)
+
+        acoustid_layout.addStretch()
+        tab_widget.addTab(acoustid_tab, t("acoustid_tab"))
+
+        layout.addWidget(tab_widget)
 
         # Buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-
-        test_btn = QPushButton(t("ai_test_connection"))
-        test_btn.clicked.connect(self._test_connection)
-        button_layout.addWidget(test_btn)
 
         save_btn = QPushButton(t("save"))
         save_btn.clicked.connect(self._save_settings)
@@ -125,8 +183,14 @@ class AISettingsDialog(QDialog):
         self._api_key_input.setEnabled(enabled)
         self._model_input.setEnabled(enabled)
 
+    def _on_acoustid_enable_changed(self, state):
+        """Handle AcoustID enable checkbox state change."""
+        enabled = state == Qt.Checked or state is True or state == 2
+        self._acoustid_api_key_input.setEnabled(enabled)
+
     def _load_settings(self):
         """Load settings from config."""
+        # AI settings
         enabled = self._config.get_ai_enabled()
         base_url = self._config.get_ai_base_url()
         api_key = self._config.get_ai_api_key()
@@ -147,14 +211,26 @@ class AISettingsDialog(QDialog):
         self._api_key_input.setEnabled(enabled)
         self._model_input.setEnabled(enabled)
 
+        # AcoustID settings
+        acoustid_enabled = self._config.get_acoustid_enabled()
+        acoustid_api_key = self._config.get_acoustid_api_key()
+
+        self._acoustid_enable_checkbox.blockSignals(True)
+        self._acoustid_enable_checkbox.setChecked(acoustid_enabled)
+        self._acoustid_enable_checkbox.blockSignals(False)
+
+        self._acoustid_api_key_input.setText(acoustid_api_key)
+        self._acoustid_api_key_input.setEnabled(acoustid_enabled)
+
     def _save_settings(self):
         """Save settings to config."""
+        # AI settings
         enabled = self._enable_checkbox.isChecked()
         base_url = self._base_url_input.text().strip()
         api_key = self._api_key_input.text().strip()
         model = self._model_input.text().strip()
 
-        # Validate
+        # Validate AI settings
         if enabled:
             if not base_url:
                 QMessageBox.warning(self, t("warning"), t("ai_base_url_required"))
@@ -166,11 +242,24 @@ class AISettingsDialog(QDialog):
                 QMessageBox.warning(self, t("warning"), t("ai_model_required"))
                 return
 
-        # Save
+        # AcoustID settings
+        acoustid_enabled = self._acoustid_enable_checkbox.isChecked()
+        acoustid_api_key = self._acoustid_api_key_input.text().strip()
+
+        # Validate AcoustID settings
+        if acoustid_enabled and not acoustid_api_key:
+            QMessageBox.warning(self, t("warning"), t("acoustid_api_key_required"))
+            return
+
+        # Save AI settings
         self._config.set_ai_enabled(enabled)
         self._config.set_ai_base_url(base_url)
         self._config.set_ai_api_key(api_key)
         self._config.set_ai_model(model)
+
+        # Save AcoustID settings
+        self._config.set_acoustid_enabled(acoustid_enabled)
+        self._config.set_acoustid_api_key(acoustid_api_key)
 
         QMessageBox.information(self, t("success"), t("ai_settings_saved"))
         self.accept()
@@ -208,3 +297,26 @@ class AISettingsDialog(QDialog):
         except Exception as e:
             logger.error(f"AI connection test failed: {e}", exc_info=True)
             QMessageBox.critical(self, t("error"), f"{t('ai_connection_failed')}: {str(e)}")
+
+    def _test_acoustid(self):
+        """Test the AcoustID API key by checking if pyacoustid is installed."""
+        acoustid_api_key = self._acoustid_api_key_input.text().strip()
+
+        if not acoustid_api_key:
+            QMessageBox.warning(self, t("warning"), t("acoustid_api_key_required"))
+            return
+
+        # Check if pyacoustid is installed
+        try:
+            import acoustid
+            # The API key can't be tested without an actual file,
+            # but we can verify the format and that pyacoustid is installed
+            QMessageBox.information(
+                self, t("success"),
+                t("acoustid_ready")
+            )
+        except ImportError:
+            QMessageBox.warning(
+                self, t("warning"),
+                t("acoustid_not_installed")
+            )

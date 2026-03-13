@@ -1,222 +1,385 @@
-# CLAUDE.md
+# Project Overview
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Harmony** is a desktop music player built with:
 
-## Project Overview
+- Python
+- PySide6 (Qt6 GUI)
+- SQLite
+- mutagen (audio metadata)
 
-Harmony is a modern music player built with PySide6 (Qt6) and SQLite. It features a Spotify-like interface with library management, playlists, lyrics display, album art, cloud drive integration (Quark Drive), and global hotkeys.
+Main capabilities:
 
-## Development Commands
+- Local music library
+- Playlists
+- Lyrics (LRC sync)
+- Album art
+- Cloud playback (Quark Drive)
+- Persistent play queue
+- Global hotkeys
+
+The project prioritizes:
+
+- modular architecture
+- thread safety
+- responsive UI
+- extensibility for cloud sources
+
+---
+
+# How To Run
+
+Install dependencies:
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the application
-python main.py
-
-# Run tests
-python -m pytest tests/
-
-# Database location
-./music_player.db (SQLite database in project root)
-
-# Config location
-~/.config/harmony_player/config.json
 ```
 
-## Architecture
+Run application:
 
-### Layered Architecture
+```bash
+python main.py
+```
 
-The application follows a clear separation of concerns across modules:
+Run tests:
 
-- **database/** - SQLite data persistence with thread-local connections
-  - `DatabaseManager` - All database operations with thread-safe connection handling
-  - `models.py` - Dataclass models: Track, Playlist, PlaylistItem, PlayHistory, Favorite, CloudAccount, CloudFile, PlayQueueItem
+```bash
+python -m pytest tests/
+```
 
-- **player/** - Audio playback engine and control logic
-  - `PlayerEngine` - Low-level QMediaPlayer wrapper, emits signals for state changes
-  - `PlaybackManager` - **Primary controller** for unified local/cloud playback, queue persistence, and download coordination
-  - `PlayerController` - Legacy controller (kept for backward compatibility)
-  - `PlaylistItem` - Unified abstraction for local tracks and cloud files
-  - `CloudProvider` - Enum for cloud providers (LOCAL, QUARK)
-  - `PlayMode` enum - Sequential, Loop, PlaylistLoop, Random, RandomLoop, RandomTrackLoop
-  - `EqualizerWidget` - Audio equalizer with presets
+---
 
-- **services/** - External data fetching and processing
-  - `MetadataService` - Audio metadata extraction using mutagen
-  - `CoverService` - Album art fetching from online sources
-  - `LyricsService` - Lyrics scraping from web sources
-  - `LyricsLoader` - Advanced lyrics loading with LRC file parsing (QThread-based)
-  - `QuarkDriveService` - Quark Drive API integration (QR login, file ops, download URLs)
-  - `CloudDownloadService` - Singleton download manager with caching and progress tracking
+# Key Paths
 
-- **ui/** - PySide6 GUI components
-  - `MainWindow` - Application shell with navigation, tray icon, mini player
-  - `LibraryView` - Track library with search/filter, context menus
-  - `PlaylistView` - Playlist management with drag-drop support
-  - `QueueView` - Current playback queue with drag-drop reordering and persistence
-  - `PlayerControls` - Playback control bar (seek, volume, play mode)
-  - `MiniPlayer` - Floating mini player window with dragging support
-  - `CloudDriveView` - Cloud drive browser with QR login
-  - `CloudLoginDialog` - QR code dialog for cloud account authentication
-  - `LyricsWidget` / `LyricsWidgetPro` - Lyrics display with LRC synchronization
+Database:
 
-- **utils/** - Cross-cutting utilities
-  - `ConfigManager` - JSON config persistence (~/.config/harmony_player/config.json)
-  - `i18n` - Translation system using `t()` function, loads from translations/*.json
-  - `global_hotkeys` - System-wide media key handling
-  - `event_bus` - Centralized singleton EventBus for application-wide signals
-  - `lrc_parser` - LRC lyrics file parser for synchronized lyrics display
-  - `helpers` - Utility functions including `sanitize_filename()` for cloud files
+```
+./music_player.db
+```
 
-### EventBus Pattern
+Tests:
 
-The application uses a centralized singleton `EventBus` (in `utils/event_bus.py`) for decoupled component communication. Instead of direct signal connections between components, most signals flow through the EventBus:
+```
+tests/
+```
 
-- **Playback Events**: `track_changed`, `playback_state_changed`, `position_changed`, `duration_changed`, `play_mode_changed`, `volume_changed`, `track_finished`
-- **Cloud Download Events**: `download_started`, `download_progress`, `download_completed`, `download_error`, `track_needs_download`
-- **UI Events**: `lyrics_loaded`, `lyrics_error`, `metadata_updated`
-- **Library Events**: `tracks_added`, `playlist_created`, `playlist_modified`, `playlist_deleted`, `favorite_changed`
-- **Cloud Account Events**: `cloud_account_added`, `cloud_account_removed`, `cloud_token_updated`
+---
 
-Usage: `bus = EventBus.instance(); bus.track_changed.connect(handler)`
+# Architecture
 
-### Signal Flow Pattern
+The project follows a **layered architecture**.
 
-The application uses Qt's signal/slot mechanism extensively:
+```
+database/
+player/
+services/
+ui/
+utils/
+```
 
-1. UI components emit signals (e.g., `play_track.emit(track_id)`)
-2. `PlaybackManager` (primary controller) coordinates between engine, database, and services
-3. `PlayerEngine` handles actual playback, emits state change signals
-4. Signals are forwarded to EventBus for global consumption
-5. UI components update in response to EventBus signals
+AI agents should maintain this separation.
 
-### Cloud Drive Architecture
+Never mix UI logic, database logic, and playback logic.
 
-Cloud drive support (currently Quark Drive) is integrated throughout the application:
+---
 
-- **`QuarkDriveService`** (`services/quark_drive_service.py`) - API client for Quark Drive including QR code login, file listing, download URL generation, and account info
-- **`CloudDownloadService`** (`services/cloud_download_service.py`) - Singleton service managing cloud file downloads with caching, progress tracking, and cancellation
-- **`CloudDriveView`** (`ui/cloud_drive_view.py`) - UI component for browsing and playing cloud files
-- **`CloudLoginDialog`** (`ui/cloud_login_dialog.py`) - QR code login dialog for cloud accounts
-- **Database models**: `CloudAccount` (credentials + state), `CloudFile` (cached metadata), `PlayQueueItem` (unified local/cloud queue)
+# Module Responsibilities
 
-Cloud files are seamlessly integrated with local playback through the `PlaylistItem` abstraction, which unifies local tracks and cloud files with a single interface.
+## database
 
-### Database Threading Model
+Responsible for **data persistence**.
 
-`DatabaseManager` uses thread-local storage (`threading.local()`) to ensure each thread has its own SQLite connection. This is critical for Qt applications where UI and worker threads may access the database concurrently.
+Important components:
 
-### Full-Text Search (FTS5)
+- `DatabaseManager`
+- `models.py`
 
-The application uses SQLite FTS5 for fast track searching:
+Key rule:
 
-- **Virtual Table**: `tracks_fts` indexes `title`, `artist`, `album` fields from `tracks` table
-- **Automatic Sync**: Triggers (`tracks_ai`, `tracks_ad`, `tracks_au`) keep FTS index synchronized
-- **BM25 Ranking**: Results are ranked by relevance using BM25 algorithm
+Each thread must use **its own SQLite connection**.
 
-**Search Features**:
-- Word search: "beatles" matches any field
-- Prefix search: "beat*" matches "beat", "beatles", "beating"
-- Multi-word: "beatles hey" matches tracks with both words
-- Fallback: LIKE-based search when FTS query fails
+This is implemented using:
 
-**Implementation**:
-- `search_tracks(query)` - Main search method using FTS5
-- `_search_tracks_like(query)` - Fallback LIKE-based search
-- Migration auto-populates FTS index for existing databases
+```
+threading.local()
+```
 
-### Configuration Persistence
+Never share SQLite connections across threads.
 
-Two separate config systems:
-- `QSettings` (Qt) - UI preferences like language, window geometry
-- `ConfigManager` (JSON) - Player state like volume, play mode
+---
 
-### Internationalization
+## player
 
-- Use `t(key, default)` for translatable strings
-- Translation files in `translations/*.json`
-- Language switched via `set_language(lang)` where lang is "en" or "zh"
-- Language preference persisted in QSettings
+Handles playback control and queue management.
 
-### Audio Format Support
+Important classes:
 
-Supported formats (via MetadataService.SUPPORTED_FORMATS): `.mp3`, `.flac`, `.ogg`, `.oga`, `.m4a`, `.mp4`, `.wma`, `.wav`
+### PlayerEngine
 
-### Queue Persistence
+Low‑level wrapper around:
 
-The application maintains a persistent play queue that survives application restarts:
+```
+QMediaPlayer
+```
 
-- Queue items are stored in the database (via `PlayQueueItem` model)
-- `PlaybackManager.save_queue()` - Saves current queue, index, and play mode
-- `PlaybackManager.restore_queue()` - Restores queue on startup without auto-play
-- Queue supports mixed local tracks and cloud files
-- Cloud file state includes navigation history (`last_fid_path`, `last_position`) for resuming
-- Queue order can be changed via drag-drop in `QueueView` and is automatically saved
+Responsibilities:
 
-### QueueView Drag-Drop Reordering
+- audio playback
+- playback signals
 
-The `QueueView` (`ui/queue_view.py`) supports drag-drop reordering:
+---
 
-- Uses `QAbstractItemView.InternalMove` mode for drag-drop
-- On drop, `queue_reordered` signal is emitted
-- `MainWindow` connects this signal to `PlaybackManager.save_queue()` for persistence
-- Current playing track position is tracked and preserved during reorder
-- Track matching uses `track_id` for local tracks, `cloud_file_id` for cloud tracks
+### PlaybackManager
 
-### PlaylistItem Abstraction
+Primary controller of the system.
 
-`PlaylistItem` (in `player/playlist_item.py`) is the core abstraction that unifies local and cloud playback:
+Responsibilities:
 
-- Properties: `is_local`, `is_cloud`, `track_id`, `cloud_file_id`, `local_path`, `needs_download`
-- Factory methods: `from_track()`, `from_cloud_file()`, `from_play_queue_item()`, `from_dict()`
-- Methods: `to_play_queue_item()` for persistence, `to_dict()` for serialization
-- This allows the player engine to treat all sources uniformly
+- playback orchestration
+- queue management
+- local/cloud unification
+- queue persistence
+- download coordination
 
-### Mini Player
+Most playback logic should live here.
 
-The mini player (`ui/mini_player.py`) is a floating, frameless window:
-- Always on top, draggable
-- Shows current track info (title, artist, cover)
-- Window title reflects playback state:
-  - Playing: Shows "Song Title - Artist"
-  - Paused/Stopped: Shows app title (from `t("app_title")`)
-- Keyboard shortcuts: Space (play/pause), Ctrl+Arrow (prev/next), Ctrl+M (close)
+---
 
-## Common Patterns
+### PlaylistItem
 
-- **Models**: Use `@dataclass` for simple data containers (Track, Playlist, etc.)
-- **Services**: Classmethods for stateless operations (MetadataService.extract_metadata())
-- **Singletons**: EventBus and CloudDownloadService use singleton pattern with `.instance()` classmethod
-- **State Management**: Qt signals for reactive updates, QSettings for persistence, EventBus for global events
-- **Error Handling**: Services silently return None/defaults on failure, UI shows fallback values
-- **Logging**: All modules use Python's logging module with consistent format: `'[%(levelname)s] %(name)s - %(message)s'`
+Unified abstraction representing:
 
-## Important Patterns
+- local track
+- cloud file
 
-### Cloud File Download Flow
+Used across the player so the engine treats all sources the same.
 
-1. User selects cloud file to play
-2. `PlaybackManager` creates `PlaylistItem` with `needs_download=True`
-3. Engine emits `track_needs_download` signal via EventBus
-4. `CloudDownloadService` starts download in background thread
-5. Download progress signals emitted via EventBus
-6. On completion, `PlaybackManager.on_download_completed()` updates playlist item and starts playback
+---
 
-### State Restoration on Startup
+## services
 
-The application restores previous state on launch:
-1. `PlaybackManager.restore_queue()` - Loads saved play queue
-2. Restores play mode, volume, and current index from ConfigManager
-3. Determines source type (local/cloud) from saved queue
-4. For cloud: restores account, navigation history, and last playback position
-5. Does NOT auto-play; user must press play
+Services handle **external data or background work**.
 
-### Thread Safety
+Key services:
 
-- DatabaseManager uses thread-local storage for SQLite connections
-- Cloud downloads run in QThread workers (CloudDownloadWorker)
-- LyricsLoader extends QThread for async lyrics loading
-- Qt signals are thread-safe for cross-thread communication
+- MetadataService
+- CoverService
+- LyricsService
+- LyricsLoader
+- QuarkDriveService
+- CloudDownloadService
+
+Rules:
+
+- services should avoid UI logic
+- services should return clean data structures
+
+---
+
+## ui
+
+Contains all PySide6 UI components.
+
+Main components:
+
+- MainWindow
+- LibraryView
+- PlaylistView
+- QueueView
+- PlayerControls
+- MiniPlayer
+- CloudDriveView
+- LyricsWidget
+
+UI should communicate through signals and the EventBus.
+
+Avoid direct coupling between widgets and services.
+
+---
+
+## utils
+
+Shared utilities.
+
+Important modules:
+
+- ConfigManager
+- event_bus
+- i18n
+- global_hotkeys
+- lrc_parser
+- helpers
+
+---
+
+# EventBus Pattern
+
+The project uses a global singleton EventBus for decoupled communication.
+
+Typical usage:
+
+```python
+bus = EventBus.instance()
+bus.track_changed.connect(handler)
+```
+
+Typical events:
+
+- track_changed
+- playback_state_changed
+- position_changed
+- download_progress
+- lyrics_loaded
+- tracks_added
+
+UI components should subscribe to events instead of tightly coupling to services.
+
+---
+
+# Cloud Playback Flow
+
+Cloud files are integrated through PlaylistItem.
+
+Typical flow:
+
+1. User selects cloud file
+2. PlaybackManager creates PlaylistItem(needs_download=True)
+3. CloudDownloadService downloads file
+4. On completion playback begins
+
+Cloud downloads run in background threads.
+
+---
+
+# Search
+
+Track search uses:
+
+```
+SQLite FTS5
+```
+
+Indexed fields:
+
+- title
+- artist
+- album
+
+Fallback search:
+
+```
+LIKE queries
+```
+
+---
+
+# Queue Persistence
+
+Playback queue is persisted in the database.
+
+Managed by:
+
+```
+PlaybackManager.save_queue()
+PlaybackManager.restore_queue()
+```
+
+The queue supports:
+
+- local tracks
+- cloud tracks
+
+Queue is restored on startup but **does not auto‑play**.
+
+---
+
+# Concurrency Model
+
+Important rules:
+
+- database uses thread‑local connections
+- downloads run in background threads
+- lyrics loading runs in QThread
+- UI thread must remain responsive
+
+Communication between threads must use Qt signals.
+
+---
+
+# Coding Patterns
+
+Preferred patterns:
+
+- dataclasses for models
+- service classes for external logic
+- signal‑driven UI updates
+- centralized state management
+- minimal UI‑service coupling
+
+---
+
+# Testing Rules
+
+All tests are located in:
+
+```
+tests/
+```
+
+Use:
+
+```
+pytest
+```
+
+AI agents must ensure tests pass before completing tasks.
+
+---
+
+# AI Development Rules
+
+## Rule 1 — Update README
+
+When **new features are added**, update:
+
+```
+README.md
+```
+
+---
+
+## Rule 2 — Update Tests
+
+When **adding features or fixing bugs**:
+
+- update or add tests
+- ensure:
+
+```
+pytest tests/
+```
+
+passes.
+
+---
+
+## Rule 3 — Update CLAUDE.md
+
+When **major architecture or workflow changes occur**, update:
+
+```
+CLAUDE.md
+```
+
+so future AI agents understand the project.
+
+---
+
+# Goals For AI Agents
+
+When modifying the project:
+
+1. Preserve layered architecture
+2. Maintain thread safety
+3. Keep UI responsive
+4. Avoid tight coupling
+5. Write tests for new behavior
