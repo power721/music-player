@@ -475,13 +475,24 @@ class PlaybackService(QObject):
         # Extract metadata and save to library
         cover_path = self._save_cloud_track_to_library(cloud_file_id, local_path)
 
-        # Update playlist items
+        # Get track from database to retrieve metadata
+        track = self._db.get_track_by_cloud_file_id(cloud_file_id)
+
+        # Update playlist items with metadata
         items = self._engine.playlist_items
         for i, item in enumerate(items):
             if item.cloud_file_id == cloud_file_id:
                 item.local_path = local_path
                 item.needs_download = False
                 item.cover_path = cover_path
+
+                # Update metadata from database track
+                if track:
+                    item.title = track.title or item.title
+                    item.artist = track.artist or item.artist
+                    item.album = track.album or item.album
+                    item.duration = track.duration or item.duration
+                    item.needs_metadata = False
 
                 # Play if this is current track
                 if i == self._engine.current_index:

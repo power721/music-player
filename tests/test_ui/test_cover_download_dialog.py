@@ -146,7 +146,8 @@ class TestCoverDownloadDialog:
         mock_cover_service.save_cover_data_to_cache.assert_called_once_with(
             b"fake_cover_data",
             sample_tracks[0].artist,
-            sample_tracks[0].title
+            sample_tracks[0].title,
+            sample_tracks[0].album
         )
 
         # Verify track was updated in database

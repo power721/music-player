@@ -1430,19 +1430,25 @@ class DatabaseManager:
     # Cloud file operations
 
     def cache_cloud_files(self, account_id: int, files: List[CloudFile]) -> bool:
-        """Cache cloud file metadata (replace existing files for account)."""
+        """Cache cloud file metadata for current folder (preserve local_path and other folders)."""
+        if not files:
+            return True
+
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # First, get all existing local_paths for this account
+        # Get the parent_id from the first file (all files should be in the same folder)
+        parent_id = files[0].parent_id if files else ""
+
+        # First, get existing local_paths for files in this folder
         cursor.execute(
-            "SELECT file_id, local_path FROM cloud_files WHERE account_id = ? AND local_path IS NOT NULL",
-            (account_id,)
+            "SELECT file_id, local_path FROM cloud_files WHERE account_id = ? AND parent_id = ? AND local_path IS NOT NULL",
+            (account_id, parent_id)
         )
         existing_paths = {row["file_id"]: row["local_path"] for row in cursor.fetchall()}
 
-        # Delete old cache
-        cursor.execute("DELETE FROM cloud_files WHERE account_id = ?", (account_id,))
+        # Delete old cache only for this folder (not the entire account)
+        cursor.execute("DELETE FROM cloud_files WHERE account_id = ? AND parent_id = ?", (account_id, parent_id))
 
         # Insert new files, preserving local_path if it existed
         for file in files:

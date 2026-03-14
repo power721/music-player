@@ -258,7 +258,7 @@ class MainWindow(QMainWindow):
         bootstrap = Bootstrap.instance()
 
         self._library_view = LibraryView(self._db, self._player, self._config, bootstrap.cover_service)
-        self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config)
+        self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config, bootstrap.cover_service)
         self._playlist_view = PlaylistView(self._db, self._player)
         self._queue_view = QueueView(self._player, self._db)
 

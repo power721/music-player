@@ -58,13 +58,14 @@ class CoverDownloadThread(QThread):
 class CoverDownloadDialog(QDialog):
     """Dialog for manually downloading album covers."""
 
-    def __init__(self, tracks: List[Track], cover_service: CoverService, parent=None):
+    def __init__(self, tracks: List[Track], cover_service: CoverService, parent=None, save_callback=None):
         super().__init__(parent)
         self.tracks = tracks
         self.current_track_index = 0
         self.cover_service = cover_service
         self.download_thread = None
         self.current_cover_data = None
+        self._save_callback = save_callback  # Custom save callback for non-track items (e.g., cloud files)
         self._setup_ui()
         self._load_track_info()
 
@@ -414,11 +415,31 @@ class CoverDownloadDialog(QDialog):
         cover_path = self.cover_service.save_cover_data_to_cache(
             self.current_cover_data,
             track.artist,
-            track.title
+            track.title,
+            track.album
         )
 
         if cover_path:
-            # Update track in database
+            # Use custom save callback if provided (for cloud files, etc.)
+            if self._save_callback:
+                success = self._save_callback(track, cover_path, self.current_cover_data)
+                if success:
+                    self.status_label.setText(t("cover_saved_success"))
+                    self.save_btn.setEnabled(False)
+                    QMessageBox.information(
+                        self,
+                        t("success"),
+                        t("cover_saved_success")
+                    )
+                else:
+                    QMessageBox.warning(
+                        self,
+                        t("error"),
+                        t("cover_save_failed")
+                    )
+                return
+
+            # Default behavior: Update track in database
             from app import Application
             app = Application.instance()
             if app and app.bootstrap:
@@ -432,7 +453,7 @@ class CoverDownloadDialog(QDialog):
             # Notify listeners to refresh cover display
             from system.event_bus import EventBus
             bus = EventBus.instance()
-            bus.track_changed.emit(track.id)
+            bus.cover_updated.emit(track.id, False)  # False = is_cloud (local track)
 
             QMessageBox.information(
                 self,

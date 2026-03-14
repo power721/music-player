@@ -29,7 +29,7 @@ class CoverService:
 
     def get_cover(self, track_path: str, title: str, artist: str, album: str = "") -> Optional[str]:
         """
-        Get cover art for a track, prioritizing embedded art.
+        Get cover art for a track, prioritizing cached/downloaded covers.
 
         Args:
             track_path: Path to the audio file
@@ -40,18 +40,23 @@ class CoverService:
         Returns:
             Path to the cover image, or None
         """
-        # First try embedded cover
+        # First check cached/downloaded covers (higher priority for user-downloaded covers)
+        cache_key = self._get_cache_key(artist, album or title)
+        logger.info(f"[CoverService] get_cover: cache_key={cache_key}, artist={artist}, album={album}, title={title}")
+        cached_cover = self._get_cached_cover(cache_key)
+        logger.info(f"[CoverService] cached_cover={cached_cover}")
+        if cached_cover and cached_cover.exists():
+            logger.info(f"[CoverService] Returning cached cover: {cached_cover}")
+            return str(cached_cover)
+
+        # Then try embedded cover
         cover_path = self._extract_embedded_cover(track_path)
+        logger.info(f"[CoverService] embedded cover_path={cover_path}")
         if cover_path:
             return cover_path
 
-        # Fall back to cached covers
-        cache_key = self._get_cache_key(artist, album or title)
-        cached_cover = self._get_cached_cover(cache_key)
-        if cached_cover and cached_cover.exists():
-            return str(cached_cover)
-
         # Try online sources
+        logger.info(f"[CoverService] No cover found, trying online sources")
         return self._fetch_online_cover(title, artist, album, cache_key)
 
     def _extract_embedded_cover(self, track_path: str) -> Optional[str]:
@@ -360,19 +365,20 @@ class CoverService:
         except Exception as e:
             logger.error(f"Error clearing cover cache: {e}", exc_info=True)
 
-    def save_cover_data_to_cache(self, cover_data: bytes, artist: str, title: str) -> Optional[str]:
+    def save_cover_data_to_cache(self, cover_data: bytes, artist: str, title: str, album: str = "") -> Optional[str]:
         """
-        Save cover data to cache using artist and title.
+        Save cover data to cache using artist and album/title.
 
         This is a convenience method for saving already-downloaded cover data.
 
         Args:
             cover_data: Image data
             artist: Artist name (used for cache key)
-            title: Track title (used for cache key)
+            title: Track title (used for cache key if no album)
+            album: Album name (used for cache key if available)
 
         Returns:
             Path to cached cover, or None
         """
-        cache_key = self._get_cache_key(artist, title)
+        cache_key = self._get_cache_key(artist, album or title)
         return self._save_cover_to_cache(cover_data, cache_key)

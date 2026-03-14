@@ -391,6 +391,7 @@ class PlayerControls(QWidget):
         bus = EventBus.instance()
         bus.favorite_changed.connect(self._on_favorite_changed)
         bus.metadata_updated.connect(self._on_metadata_updated)
+        bus.cover_updated.connect(self._on_cover_updated)
 
         # Cover loaded signal (for thread-safe UI update)
         self._cover_loaded.connect(self._show_cover)
@@ -573,6 +574,58 @@ class PlayerControls(QWidget):
                 # Fallback: reload with current track
                 logger.info(f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover")
                 QTimer.singleShot(100, lambda: self._load_cover_art_async(current_track))
+
+    def _on_cover_updated(self, item_id, is_cloud: bool = False):
+        """Handle cover update from EventBus."""
+        # Only update if this is the current track
+        current_track = self._player.engine.current_track
+        if not current_track:
+            return
+
+        should_reload = False
+
+        if is_cloud:
+            # For cloud files, match by cloud_file_id
+            current_cloud_file_id = current_track.get("cloud_file_id")
+            logger.debug(f"[PlayerControls] _on_cover_updated: is_cloud=True, item_id={item_id}, current_cloud_file_id={current_cloud_file_id}")
+            if current_cloud_file_id and current_cloud_file_id == item_id:
+                should_reload = True
+        else:
+            # For local tracks, match by track_id
+            current_id = current_track.get("id")
+            logger.debug(f"[PlayerControls] _on_cover_updated: is_cloud=False, item_id={item_id}, current_id={current_id}")
+            if current_id and current_id == item_id:
+                should_reload = True
+
+        if should_reload:
+            logger.info(f"[PlayerControls] Cover updated for current track, reloading")
+            # For local tracks, reload from database to get updated cover_path
+            if not is_cloud and hasattr(self._player, 'db'):
+                try:
+                    track = self._player.db.get_track(item_id)
+                    if track:
+                        updated_track = {
+                            "id": track.id,
+                            "path": track.path,
+                            "title": track.title,
+                            "artist": track.artist,
+                            "album": track.album,
+                            "duration": track.duration,
+                            "cover_path": track.cover_path,
+                            "source_type": "local",
+                        }
+                        QTimer.singleShot(100, lambda t=updated_track: self._load_cover_art_async(t))
+                        return
+                except Exception as e:
+                    logger.error(f"[PlayerControls] Error loading updated track: {e}")
+
+            # For cloud files or fallback: clear current cover and reload
+            # This ensures the cached cover (just saved) will be loaded
+            self._cover_label.clear()
+            self._current_cover_path = None
+            # Use a copy of current_track to avoid closure issues
+            track_copy = dict(current_track)
+            QTimer.singleShot(100, lambda t=track_copy: self._load_cover_art_async(t))
 
     def _update_favorite_button_style(self, is_favorite: bool):
         """Update favorite button style based on favorite status."""
@@ -766,6 +819,7 @@ class PlayerControls(QWidget):
             cover_path = track_dict.get("cover_path")
             if cover_path:
                 if Path(cover_path).exists():
+                    logger.debug(f"[PlayerControls] Found cover_path in track_dict: {cover_path}")
                     return cover_path
 
             # Fall back to getting cover (embedded, cached, or online)
@@ -774,8 +828,11 @@ class PlayerControls(QWidget):
             artist = track_dict.get("artist", "")
             album = track_dict.get("album", "")
 
+            logger.debug(f"[PlayerControls] Loading cover for: path={path}, title={title}, artist={artist}, album={album}")
+
             try:
                 cover_path = self._player.get_track_cover(path, title, artist, album)
+                logger.debug(f"[PlayerControls] get_track_cover returned: {cover_path}")
                 if cover_path:
                     return cover_path
             except Exception as e:
@@ -784,6 +841,7 @@ class PlayerControls(QWidget):
 
         def worker():
             cover_path = load_cover()
+            logger.info(f"[PlayerControls] Worker emitting cover_path: {cover_path}")
             # Use signal for thread-safe UI update
             self._cover_loaded.emit(cover_path or "")
 
@@ -794,6 +852,7 @@ class PlayerControls(QWidget):
 
     def _show_cover(self, cover_path: str):
         """Show cover art (called via signal from background thread)."""
+        logger.info(f"[PlayerControls] _show_cover called with: {cover_path}")
         if cover_path:
             try:
                 pixmap = QPixmap(cover_path)

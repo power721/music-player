@@ -665,6 +665,11 @@ class LibraryView(QWidget):
         self._loading_label.setVisible(False)
         self._tracks_table.setVisible(True)
 
+        # Apply current playing indicator after loading
+        if self._current_playing_track_id:
+            self._set_track_playing_status(self._current_playing_track_id, True)
+            self._scroll_to_playing_track()
+
     def _load_artists(self):
         """Load artists view."""
         # Get all unique artists

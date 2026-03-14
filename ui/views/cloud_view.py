@@ -46,11 +46,12 @@ class CloudDriveView(QWidget):
         str, int, list, float
     )  # Signal for playing multiple cloud files (temp_path, index, cloud_files, start_position)
 
-    def __init__(self, db_manager, player, config_manager=None, parent=None):
+    def __init__(self, db_manager, player, config_manager=None, cover_service=None, parent=None):
         super().__init__(parent)
         self._db = db_manager
         self._player = player
         self._config_manager = config_manager
+        self._cover_service = cover_service
         self._current_account: Optional[CloudAccount] = None
         self._current_parent_id = "0"  # Root folder
         self._parent_dir_id = None  # Parent directory ID for back navigation
@@ -1142,8 +1143,31 @@ class CloudDriveView(QWidget):
         if not file or file.file_type != "audio":
             return
 
-        # Check if file has been downloaded
-        has_local_path = file.local_path
+        # Check if file has been downloaded (both memory and database)
+        has_local_path = False
+        if file.local_path:
+            # Check if the file still exists
+            from pathlib import Path
+            if Path(file.local_path).exists():
+                has_local_path = True
+            else:
+                # File was deleted, clear the path
+                file.local_path = None
+
+        # If not in memory, check database
+        if not has_local_path and self._current_account:
+            db_file = self._db.get_cloud_file_by_file_id(file.file_id)
+            if db_file and db_file.local_path:
+                from pathlib import Path
+                if Path(db_file.local_path).exists():
+                    file.local_path = db_file.local_path
+                    has_local_path = True
+
+                    # Also update in _current_audio_files list
+                    for audio_file in self._current_audio_files:
+                        if audio_file.file_id == file.file_id:
+                            audio_file.local_path = db_file.local_path
+                            break
 
         menu = QMenu(self)
         menu.setStyleSheet("""
@@ -1209,6 +1233,15 @@ class CloudDriveView(QWidget):
             edit_action.setEnabled(False)
             edit_action.setText(f"{t('edit_media_info')} ({t('download_first')})")
 
+        # Download cover action - only available if file is downloaded
+        if self._cover_service:
+            download_cover_action = menu.addAction(t("download_cover_manual"))
+            if has_local_path:
+                download_cover_action.triggered.connect(lambda: self._download_cover(file))
+            else:
+                download_cover_action.setEnabled(False)
+                download_cover_action.setText(f"{t('download_cover_manual')} ({t('download_first')})")
+
         # Open file location action - only available if file is downloaded
         open_action = menu.addAction(t("open_file_location"))
         if has_local_path:
@@ -1246,6 +1279,20 @@ class CloudDriveView(QWidget):
             tolerance = file.size * 0.01  # 1% tolerance
 
             if size_diff <= tolerance:
+                # Update database with local path
+                if self._current_account:
+                    self._db.update_cloud_file_local_path(
+                        file.file_id,
+                        self._current_account.id,
+                        str(local_file_path)
+                    )
+                # Update the file object in memory
+                file.local_path = str(local_file_path)
+                # Also update in _current_audio_files
+                for audio_file in self._current_audio_files:
+                    if audio_file.file_id == file.file_id:
+                        audio_file.local_path = str(local_file_path)
+                        break
                 self._status_label.setText(f"✓ {file.name} {t('file_already_exists')}")
                 return
 
@@ -1304,8 +1351,14 @@ class CloudDriveView(QWidget):
                     local_path
                 )
 
-            # Update the file object
+            # Update the file object in memory
             file.local_path = local_path
+
+            # Also update the file in _current_audio_files list
+            for audio_file in self._current_audio_files:
+                if audio_file.file_id == file.file_id:
+                    audio_file.local_path = local_path
+                    break
 
             # Refresh the table to show download status
             self._refresh_file_list()
@@ -1816,6 +1869,81 @@ class CloudDriveView(QWidget):
         except Exception as e:
             logger.error(f"Failed to open file location for {file_path}: {e}", exc_info=True)
             QMessageBox.warning(self, "Error", f"Failed to open file location: {e}")
+
+    def _download_cover(self, file: CloudFile):
+        """Download cover art for a cloud file."""
+        if not file.local_path or not self._cover_service:
+            return
+
+        from pathlib import Path
+        from PySide6.QtWidgets import QMessageBox
+
+        # Check if file exists
+        file_path = Path(file.local_path)
+        if not file_path.exists():
+            QMessageBox.warning(self, t("error"), t("file_not_found"))
+            return
+
+        # Get metadata - prefer database over file extraction for consistency
+        try:
+            title = ""
+            artist = ""
+            album = ""
+
+            # First, try to get metadata from database (for consistency with playback)
+            from app import Application
+            app = Application.instance()
+            if app and app.bootstrap:
+                db = app.bootstrap.db
+                track = db.get_track_by_cloud_file_id(file.file_id)
+                if track:
+                    title = track.title or ""
+                    artist = track.artist or ""
+                    album = track.album or ""
+                    logger.info(f"[CloudView] Using database metadata: title={title}, artist={artist}, album={album}")
+
+            # Fallback to file extraction if no database record
+            if not title and not artist:
+                from services.metadata import MetadataService
+                metadata = MetadataService.extract_metadata(file.local_path)
+                if metadata:
+                    title = metadata.get("title", "")
+                    artist = metadata.get("artist", "")
+                    album = metadata.get("album", "")
+                    logger.info(f"[CloudView] Using file metadata: title={title}, artist={artist}, album={album}")
+
+            if not title:
+                title = file_path.stem
+
+            # Create a pseudo-track for the cover download dialog
+            from domain.track import Track
+            pseudo_track = Track(
+                id=0,
+                title=title,
+                artist=artist,
+                album=album,
+                path=file.local_path,
+                duration=file.duration or 0,
+            )
+
+            # Define save callback for cloud file
+            def save_cover_callback(track, cover_path, cover_data):
+                """Save cover for cloud file - cover is already saved to cache by CoverDownloadDialog."""
+                # The cover is already saved to cache by CoverDownloadDialog._save_cover()
+                # Notify listeners to refresh cover display
+                from system.event_bus import EventBus
+                bus = EventBus.instance()
+                bus.cover_updated.emit(file.file_id, True)  # True = is_cloud
+                return True
+
+            # Show cover download dialog with custom save callback
+            from ui.widgets import CoverDownloadDialog
+            dialog = CoverDownloadDialog([pseudo_track], self._cover_service, self, save_cover_callback)
+            dialog.exec()
+
+        except Exception as e:
+            logger.error(f"Error downloading cover for {file.name}: {e}", exc_info=True)
+            QMessageBox.warning(self, t("error"), f"{t('error')}: {str(e)}")
 
     def _change_download_dir(self):
         """Change the cloud download directory."""

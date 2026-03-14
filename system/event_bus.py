@@ -88,6 +88,10 @@ class EventBus(QObject):
     # Emitted when track metadata is updated (track_id)
     metadata_updated = Signal(int)
 
+    # Emitted when cover art is updated (item_id, is_cloud)
+    # item_id: track_id (int) for local tracks, cloud_file_id (str) for cloud files
+    cover_updated = Signal(object, bool)
+
     # ===== Library Events =====
 
     # Emitted when tracks are added to the library (count)
