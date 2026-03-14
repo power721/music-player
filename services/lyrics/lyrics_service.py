@@ -13,6 +13,16 @@ import zlib
 
 from utils.lrc_parser import LyricLine
 
+# Initialize OpenCC converter for Traditional to Simplified Chinese conversion
+try:
+    from opencc import OpenCC
+    _t2s_converter = OpenCC('t2s')  # Traditional to Simplified
+    _HAS_OPENCC = True
+except ImportError:
+    _HAS_OPENCC = False
+    _t2s_converter = None
+    logger.warning("OpenCC not installed. Traditional Chinese lyrics will not be converted to Simplified.")
+
 
 class LyricsService:
     """Service for fetching lyrics from local files and online sources."""
@@ -24,6 +34,26 @@ class LyricsService:
 
     # Enable online lyrics (default: False to prevent UI blocking)
     ENABLE_ONLINE = True  # Changed to True for better UX
+
+    @classmethod
+    def _convert_to_simplified_chinese(cls, text: str) -> str:
+        """
+        Convert Traditional Chinese to Simplified Chinese.
+
+        Args:
+            text: Text that may contain Traditional Chinese
+
+        Returns:
+            Text with Traditional Chinese converted to Simplified
+        """
+        if not _HAS_OPENCC or not text:
+            return text
+
+        try:
+            return _t2s_converter.convert(text)
+        except Exception as e:
+            logger.warning(f"Failed to convert to Simplified Chinese: {e}")
+            return text
 
     @classmethod
     def search_songs(cls, title: str, artist: str, limit: int = 10) -> List[dict]:
@@ -145,6 +175,8 @@ class LyricsService:
             if synced or plain:
                 # Store lyrics directly in the result for later use
                 lyrics = synced if synced else plain
+                # Convert to Simplified Chinese
+                lyrics = cls._convert_to_simplified_chinese(lyrics)
                 results.append({
                     'id': str(song.get('id', '')),
                     'title': song.get('trackName', ''),
@@ -357,12 +389,12 @@ class LyricsService:
                     # Prioritize synced lyrics
                     synced_lyrics = song.get('syncedLyrics')
                     if synced_lyrics:
-                        return synced_lyrics
+                        return cls._convert_to_simplified_chinese(synced_lyrics)
 
                     # Fall back to plain lyrics
                     plain_lyrics = song.get('plainLyrics')
                     if plain_lyrics:
-                        return plain_lyrics
+                        return cls._convert_to_simplified_chinese(plain_lyrics)
 
                     return ""
 
@@ -652,14 +684,16 @@ class LyricsService:
                 synced_lyrics = song.get('syncedLyrics')
                 if synced_lyrics:
                     print('get lyrics from lrclib')
-                    return synced_lyrics
+                    # Convert to Simplified Chinese
+                    return cls._convert_to_simplified_chinese(synced_lyrics)
 
             # If no synced lyrics, try plain lyrics
             for song in data:
                 plain_lyrics = song.get('plainLyrics')
                 if plain_lyrics:
                     print('get plain lyrics from lrclib')
-                    return plain_lyrics
+                    # Convert to Simplified Chinese
+                    return cls._convert_to_simplified_chinese(plain_lyrics)
 
         except Exception as e:
             print(f"LRCLIB lyrics fetch error: {e}")
