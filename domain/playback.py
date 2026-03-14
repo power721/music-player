@@ -10,11 +10,11 @@ from typing import Optional
 
 class PlayMode(Enum):
     """Playback mode enumeration."""
-    SEQUENTIAL = 0       # Play tracks in order
-    LOOP = 1             # Loop the current track
-    PLAYLIST_LOOP = 2    # Loop the entire playlist
-    RANDOM = 3           # Random playback
-    RANDOM_LOOP = 4      # Random playback with playlist loop
+    SEQUENTIAL = 0  # Play tracks in order
+    LOOP = 1  # Loop the current track
+    PLAYLIST_LOOP = 2  # Loop the entire playlist
+    RANDOM = 3  # Random playback
+    RANDOM_LOOP = 4  # Random playback with playlist loop
     RANDOM_TRACK_LOOP = 5  # Random playback with track loop
 
 

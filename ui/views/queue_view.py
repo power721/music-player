@@ -2,6 +2,10 @@
 Queue view for managing the current playback queue.
 """
 
+from typing import List
+
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -12,16 +16,11 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenu,
     QAbstractItemView,
-    QInputDialog,
     QMessageBox,
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QAction, QColor, QBrush
-from typing import List
 
-from services.playback import PlaybackService
 from domain.playback import PlaybackState
-from utils import format_duration
+from services.playback import PlaybackService
 from system.i18n import t
 
 
@@ -622,7 +621,6 @@ class QueueView(QWidget):
             track_ids: List of track IDs to add
         """
         from infrastructure.database import DatabaseManager
-        from domain.track import Track
 
         db = DatabaseManager()
 

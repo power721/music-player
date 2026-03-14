@@ -5,11 +5,10 @@ Application - Main application singleton.
 import logging
 from typing import Optional
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QObject, Signal
+from PySide6.QtWidgets import QApplication
 
 from .bootstrap import Bootstrap
-
 
 logger = logging.getLogger(__name__)
 

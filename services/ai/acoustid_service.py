@@ -143,9 +143,9 @@ class AcoustIDService:
 
     @classmethod
     def identify_track(
-        cls,
-        file_path: str,
-        api_key: str
+            cls,
+            file_path: str,
+            api_key: str
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Identify a track using AcoustID fingerprinting.
@@ -225,7 +225,8 @@ class AcoustIDService:
                 # This ensures Chinese results are preferred, but within same category, higher match score wins
                 total_score = cn_score * 10 + r.get('score', 0)
                 scored_results.append((r, total_score, cn_score))
-                logger.debug(f"Result score: title={title}, artist={artist}, cn_score={cn_score}, total={total_score:.2f}")
+                logger.debug(
+                    f"Result score: title={title}, artist={artist}, cn_score={cn_score}, total={total_score:.2f}")
 
             # Sort by total score (descending)
             scored_results.sort(key=lambda x: x[1], reverse=True)
@@ -243,11 +244,11 @@ class AcoustIDService:
 
     @classmethod
     def enhance_track(
-        cls,
-        file_path: str,
-        api_key: str,
-        current_metadata: Optional[Dict[str, Any]] = None,
-        update_file: bool = True
+            cls,
+            file_path: str,
+            api_key: str,
+            current_metadata: Optional[Dict[str, Any]] = None,
+            update_file: bool = True
     ) -> Optional[Dict[str, str]]:
         """
         Enhance metadata for a track using AcoustID.

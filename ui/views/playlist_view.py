@@ -2,6 +2,10 @@
 Playlist view widget for managing playlists.
 """
 
+from typing import List, Optional
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QBrush, QColor
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -21,16 +25,12 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMenu,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QAction, QBrush, QColor
-from typing import List, Optional
 
-from infrastructure.database import DatabaseManager
 from domain.track import Track
-from domain.playlist import Playlist
+from infrastructure.database import DatabaseManager
 from services.playback import PlaybackService
-from utils import format_duration
 from system.i18n import t
+from utils import format_duration
 
 
 class DarkInputDialog(QDialog):
@@ -123,10 +123,11 @@ class PlaylistView(QWidget):
     """Playlist view for managing playlists."""
 
     track_double_clicked = Signal(int)  # Signal when track is double-clicked (from library view, plays all)
-    playlist_track_double_clicked = Signal(int, int)  # Signal when playlist track is double-clicked (playlist_id, track_id)
+    playlist_track_double_clicked = Signal(int,
+                                           int)  # Signal when playlist track is double-clicked (playlist_id, track_id)
 
     def __init__(
-        self, db_manager: DatabaseManager, player: PlaybackService, parent=None
+            self, db_manager: DatabaseManager, player: PlaybackService, parent=None
     ):
         """
         Initialize playlist view.

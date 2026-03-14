@@ -14,7 +14,6 @@ from utils.lrc_parser import LyricLine, parse_lrc
 # =============================
 
 class LrcParser:
-
     TIME_RE = re.compile(r"\[(\d+):(\d+(?:\.\d+)?)\]")
 
     @staticmethod
@@ -33,7 +32,6 @@ class LrcParser:
 # =============================
 
 class LyricsWidget(QWidget):
-
     seekRequested = Signal(int)
 
     def __init__(self, parent=None):

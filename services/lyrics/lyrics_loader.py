@@ -49,7 +49,6 @@ class LyricsLoader(QThread):
         import time
         start_time = time.time()
 
-        
         # Check for interruption before starting
         if self.isInterruptionRequested():
             logger.debug("[LyricsLoader] Interruption requested, aborting")
@@ -60,7 +59,7 @@ class LyricsLoader(QThread):
         try:
             lyrics = LyricsService.get_lyrics(self._path, self._title, self._artist)
             elapsed = time.time() - start_time
-            
+
             # Check for interruption before emitting
             if self.isInterruptionRequested():
                 logger.debug("[LyricsLoader] Interruption requested, not emitting result")
@@ -172,7 +171,7 @@ class LyricsDownloadWorker(QThread):
             # Get cover URL
             cover_url = LyricsService.get_song_cover_url(song_id, source)
             if not cover_url:
-                                return
+                return
 
             # Download cover image
             import requests
@@ -180,7 +179,7 @@ class LyricsDownloadWorker(QThread):
 
             response = requests.get(cover_url, headers=LyricsService.HEADERS, timeout=10)
             if response.status_code != 200:
-                                return
+                return
 
             cover_data = response.content
             if not cover_data:

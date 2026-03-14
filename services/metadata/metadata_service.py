@@ -2,15 +2,15 @@
 Metadata extraction service for audio files using mutagen.
 """
 import logging
-
 from pathlib import Path
 from typing import Dict, Any
+
 import mutagen
-from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
-from mutagen.oggvorbis import OggVorbis
-from mutagen.mp4 import MP4
 from mutagen.id3 import ID3NoHeaderError
+from mutagen.mp3 import MP3
+from mutagen.mp4 import MP4
+from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 # Configure logging
@@ -270,7 +270,7 @@ class MetadataService:
 
     @classmethod
     def save_metadata(
-        cls, file_path: str, title: str = None, artist: str = None, album: str = None
+            cls, file_path: str, title: str = None, artist: str = None, album: str = None
     ) -> bool:
         """
         Save metadata to an audio file.

@@ -11,7 +11,7 @@ from typing import Optional, TYPE_CHECKING
 from PySide6.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
-    from domain.playlist_item import PlaylistItem
+    pass
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -2,8 +2,9 @@
 Lyrics download dialog for searching and downloading lyrics from online sources.
 """
 import logging
-from typing import Optional, Callable
+from typing import Optional
 
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -14,7 +15,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QCheckBox,
 )
-from PySide6.QtCore import Qt, Signal
 
 from system.i18n import t
 
@@ -32,11 +32,11 @@ class LyricsDownloadDialog(QDialog):
     download_requested = Signal(dict, bool)  # Emits (song_info, download_cover)
 
     def __init__(
-        self,
-        results: list,
-        track_title: str,
-        track_artist: str,
-        parent=None
+            self,
+            results: list,
+            track_title: str,
+            track_artist: str,
+            parent=None
     ):
         """Initialize the lyrics download dialog.
 
@@ -213,10 +213,10 @@ class LyricsDownloadDialog(QDialog):
 
     @staticmethod
     def show_dialog(
-        results: list,
-        track_title: str,
-        track_artist: str,
-        parent=None
+            results: list,
+            track_title: str,
+            track_artist: str,
+            parent=None
     ) -> Optional[tuple]:
         """Static method to show the dialog and get the result.
 

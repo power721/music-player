@@ -1,10 +1,10 @@
 """
 Cover art service for extracting and fetching album covers.
 """
+import hashlib
 import logging
 from pathlib import Path
 from typing import Optional, List
-import hashlib
 
 from infrastructure.network import HttpClient
 from utils.match_scorer import MatchScorer, TrackInfo, SearchResult
@@ -28,7 +28,8 @@ class CoverService:
         """
         self.http_client = http_client
 
-    def get_cover(self, track_path: str, title: str, artist: str, album: str = "", duration: float = None, skip_online: bool = False) -> Optional[str]:
+    def get_cover(self, track_path: str, title: str, artist: str, album: str = "", duration: float = None,
+                  skip_online: bool = False) -> Optional[str]:
         """
         Get cover art for a track, prioritizing cached/downloaded covers.
 
@@ -179,7 +180,8 @@ class CoverService:
         cache_key = self._get_cache_key(artist, album or title)
         return self._fetch_online_cover(title, artist, album, cache_key, duration)
 
-    def _fetch_online_cover(self, title: str, artist: str, album: str, cache_key: str, duration: float = None) -> Optional[str]:
+    def _fetch_online_cover(self, title: str, artist: str, album: str, cache_key: str, duration: float = None) -> \
+    Optional[str]:
         """
         Fetch cover art from online sources with smart matching.
 
@@ -224,7 +226,8 @@ class CoverService:
 
             if best_match:
                 result, score = best_match
-                logger.info(f"Best cover match: {result.title} - {result.artist} (score: {score:.1f}, source: {result.source})")
+                logger.info(
+                    f"Best cover match: {result.title} - {result.artist} (score: {score:.1f}, source: {result.source})")
 
                 if score >= 50 and result.cover_url:
                     cover_data = self.http_client.get_content(result.cover_url, timeout=5)
@@ -248,7 +251,8 @@ class CoverService:
 
         return None
 
-    def _search_covers_from_netease(self, title: str, artist: str, album: str, duration: float = None) -> List[SearchResult]:
+    def _search_covers_from_netease(self, title: str, artist: str, album: str, duration: float = None) -> List[
+        SearchResult]:
         """
         Search for covers from NetEase Cloud Music.
 

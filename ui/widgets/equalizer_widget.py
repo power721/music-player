@@ -1,12 +1,13 @@
 """
 Audio equalizer widget for the music player UI.
 """
+from typing import List
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSlider,
     QLabel, QPushButton, QComboBox
 )
-from PySide6.QtCore import Qt, Signal
-from typing import List
 
 
 class EqualizerPreset:

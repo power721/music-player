@@ -6,8 +6,8 @@ import sqlite3
 import threading
 from typing import List, Optional
 
-from domain.track import Track, TrackId
 from domain.playlist import Playlist
+from domain.track import Track, TrackId
 from repositories.track_repository import SqliteTrackRepository
 
 
@@ -52,11 +52,12 @@ class SqlitePlaylistRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT t.* FROM tracks t
-            JOIN playlist_items pi ON t.id = pi.track_id
-            WHERE pi.playlist_id = ?
-            ORDER BY pi.position
-        """, (playlist_id,))
+                       SELECT t.*
+                       FROM tracks t
+                                JOIN playlist_items pi ON t.id = pi.track_id
+                       WHERE pi.playlist_id = ?
+                       ORDER BY pi.position
+                       """, (playlist_id,))
         rows = cursor.fetchall()
         return [self._track_repo._row_to_track(row) for row in rows]
 
@@ -99,9 +100,9 @@ class SqlitePlaylistRepository:
         position = (row[0] or -1) + 1
 
         cursor.execute("""
-            INSERT INTO playlist_items (playlist_id, track_id, position)
-            VALUES (?, ?, ?)
-        """, (playlist_id, track_id, position))
+                       INSERT INTO playlist_items (playlist_id, track_id, position)
+                       VALUES (?, ?, ?)
+                       """, (playlist_id, track_id, position))
         conn.commit()
         return cursor.rowcount > 0
 
@@ -110,7 +111,10 @@ class SqlitePlaylistRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            DELETE FROM playlist_items WHERE playlist_id = ? AND track_id = ?
-        """, (playlist_id, track_id))
+                       DELETE
+                       FROM playlist_items
+                       WHERE playlist_id = ?
+                         AND track_id = ?
+                       """, (playlist_id, track_id))
         conn.commit()
         return cursor.rowcount > 0

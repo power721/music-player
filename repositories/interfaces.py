@@ -2,12 +2,12 @@
 Repository interfaces - Abstract base classes for data access.
 """
 
-from abc import ABC, abstractmethod
 from typing import List, Optional, Protocol
-from domain.track import Track, TrackId
-from domain.playlist import Playlist
+
 from domain.cloud import CloudAccount, CloudFile
 from domain.playback import PlayQueueItem
+from domain.playlist import Playlist
+from domain.track import Track, TrackId
 
 
 class TrackRepository(Protocol):

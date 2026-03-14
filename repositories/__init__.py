@@ -2,16 +2,16 @@
 Repository module - Data access abstraction layer.
 """
 
+from .cloud_repository import SqliteCloudRepository
 from .interfaces import (
     TrackRepository,
     PlaylistRepository,
     CloudRepository,
     QueueRepository,
 )
-from .track_repository import SqliteTrackRepository
 from .playlist_repository import SqlitePlaylistRepository
-from .cloud_repository import SqliteCloudRepository
 from .queue_repository import SqliteQueueRepository
+from .track_repository import SqliteTrackRepository
 
 __all__ = [
     'TrackRepository', 'PlaylistRepository', 'CloudRepository', 'QueueRepository',

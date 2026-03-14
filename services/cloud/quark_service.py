@@ -11,7 +11,7 @@ from domain import CloudFile
 # Configure logging
 logger = logging.getLogger(__name__)
 import time
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict
 
 
 class QuarkDriveService:
@@ -93,7 +93,7 @@ class QuarkDriveService:
 
     @classmethod
     def poll_login_status(cls, token: str, max_attempts: int = 60,
-                         poll_interval: int = 2) -> Optional[Dict[str, str]]:
+                          poll_interval: int = 2) -> Optional[Dict[str, str]]:
         """Poll for login status after QR scan"""
         for attempt in range(max_attempts):
             try:
@@ -246,7 +246,7 @@ class QuarkDriveService:
             data = {'fids': [file_id]}
 
             response = requests.post(url, params=params, json=data,
-                                    headers=headers, timeout=30)
+                                     headers=headers, timeout=30)
 
             # Check for updated cookies
             updated_token = cls._update_cookie_from_response(access_token, response.cookies)
@@ -356,7 +356,7 @@ class QuarkDriveService:
 
     @classmethod
     def download_file(cls, url: str, dest_path: str,
-                     access_token: str = None) -> bool:
+                      access_token: str = None) -> bool:
         """Download file from URL to destination"""
         try:
             headers = {}

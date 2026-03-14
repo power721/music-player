@@ -4,18 +4,18 @@ Database manager for the music player using SQLite.
 import logging
 import sqlite3
 import threading
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
-from domain.track import Track
-from domain.playlist import Playlist
 from domain.cloud import CloudAccount, CloudFile
-from domain.playback import PlayQueueItem
 from domain.history import PlayHistory
-
+from domain.playback import PlayQueueItem
+from domain.playlist import Playlist
+from domain.track import Track
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
 
 class DatabaseManager:
     """Manages SQLite database operations for the music player."""
@@ -45,176 +45,407 @@ class DatabaseManager:
 
         # Create tracks table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tracks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                path TEXT UNIQUE NOT NULL,
-                title TEXT,
-                artist TEXT,
-                album TEXT,
-                duration REAL DEFAULT 0,
-                cover_path TEXT,
-                cloud_file_id TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS tracks
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           path
+                           TEXT
+                           UNIQUE
+                           NOT
+                           NULL,
+                           title
+                           TEXT,
+                           artist
+                           TEXT,
+                           album
+                           TEXT,
+                           duration
+                           REAL
+                           DEFAULT
+                           0,
+                           cover_path
+                           TEXT,
+                           cloud_file_id
+                           TEXT,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
 
         # Create playlists table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS playlists (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS playlists
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           name
+                           TEXT
+                           NOT
+                           NULL,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
 
         # Create playlist_items table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS playlist_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                playlist_id INTEGER NOT NULL,
-                track_id INTEGER NOT NULL,
-                position INTEGER NOT NULL,
-                FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
-                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
-                UNIQUE(playlist_id, track_id),
-                UNIQUE(playlist_id, position)
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS playlist_items
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           playlist_id
+                           INTEGER
+                           NOT
+                           NULL,
+                           track_id
+                           INTEGER
+                           NOT
+                           NULL,
+                           position
+                           INTEGER
+                           NOT
+                           NULL,
+                           FOREIGN
+                           KEY
+                       (
+                           playlist_id
+                       ) REFERENCES playlists
+                       (
+                           id
+                       ) ON DELETE CASCADE,
+                           FOREIGN KEY
+                       (
+                           track_id
+                       ) REFERENCES tracks
+                       (
+                           id
+                       )
+                         ON DELETE CASCADE,
+                           UNIQUE
+                       (
+                           playlist_id,
+                           track_id
+                       ),
+                           UNIQUE
+                       (
+                           playlist_id,
+                           position
+                       )
+                           )
+                       """)
 
         # Create play_history table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS play_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                track_id INTEGER NOT NULL,
-                played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                play_count INTEGER DEFAULT 1,
-                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS play_history
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           track_id
+                           INTEGER
+                           NOT
+                           NULL,
+                           played_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP,
+                           play_count
+                           INTEGER
+                           DEFAULT
+                           1,
+                           FOREIGN
+                           KEY
+                       (
+                           track_id
+                       ) REFERENCES tracks
+                       (
+                           id
+                       ) ON DELETE CASCADE
+                           )
+                       """)
 
         # Create favorites table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS favorites (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                track_id INTEGER,
-                cloud_file_id TEXT,
-                cloud_account_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
-                FOREIGN KEY (cloud_account_id) REFERENCES cloud_accounts(id) ON DELETE CASCADE,
-                UNIQUE(track_id),
-                UNIQUE(cloud_file_id)
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS favorites
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           track_id
+                           INTEGER,
+                           cloud_file_id
+                           TEXT,
+                           cloud_account_id
+                           INTEGER,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP,
+                           FOREIGN
+                           KEY
+                       (
+                           track_id
+                       ) REFERENCES tracks
+                       (
+                           id
+                       ) ON DELETE CASCADE,
+                           FOREIGN KEY
+                       (
+                           cloud_account_id
+                       ) REFERENCES cloud_accounts
+                       (
+                           id
+                       )
+                         ON DELETE CASCADE,
+                           UNIQUE
+                       (
+                           track_id
+                       ),
+                           UNIQUE
+                       (
+                           cloud_file_id
+                       )
+                           )
+                       """)
 
         # Create indexes for better performance
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tracks_artist
-            ON tracks(artist)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_tracks_artist
+                           ON tracks(artist)
+                       """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_tracks_album
-            ON tracks(album)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_tracks_album
+                           ON tracks(album)
+                       """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_play_history_track
-            ON play_history(track_id)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_play_history_track
+                           ON play_history(track_id)
+                       """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_play_history_played_at
-            ON play_history(played_at DESC)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_play_history_played_at
+                           ON play_history(played_at DESC)
+                       """)
 
         # Create cloud_accounts table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cloud_accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                provider TEXT NOT NULL,
-                account_name TEXT,
-                account_email TEXT,
-                access_token TEXT,
-                refresh_token TEXT,
-                token_expires_at TIMESTAMP,
-                is_active BOOLEAN DEFAULT 1,
-                last_folder_id TEXT DEFAULT '0',
-                last_folder_path TEXT DEFAULT '/',
-                last_parent_folder_id TEXT DEFAULT '0',
-                last_fid_path TEXT DEFAULT '0',
-                last_playing_fid TEXT DEFAULT '',
-                last_position REAL DEFAULT 0.0,
-                last_playing_local_path TEXT DEFAULT '',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS cloud_accounts
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           provider
+                           TEXT
+                           NOT
+                           NULL,
+                           account_name
+                           TEXT,
+                           account_email
+                           TEXT,
+                           access_token
+                           TEXT,
+                           refresh_token
+                           TEXT,
+                           token_expires_at
+                           TIMESTAMP,
+                           is_active
+                           BOOLEAN
+                           DEFAULT
+                           1,
+                           last_folder_id
+                           TEXT
+                           DEFAULT
+                           '0',
+                           last_folder_path
+                           TEXT
+                           DEFAULT
+                           '/',
+                           last_parent_folder_id
+                           TEXT
+                           DEFAULT
+                           '0',
+                           last_fid_path
+                           TEXT
+                           DEFAULT
+                           '0',
+                           last_playing_fid
+                           TEXT
+                           DEFAULT
+                           '',
+                           last_position
+                           REAL
+                           DEFAULT
+                           0.0,
+                           last_playing_local_path
+                           TEXT
+                           DEFAULT
+                           '',
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP,
+                           updated_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
 
         # Create cloud_files table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cloud_files (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                account_id INTEGER NOT NULL,
-                file_id TEXT NOT NULL,
-                parent_id TEXT DEFAULT '',
-                name TEXT NOT NULL,
-                file_type TEXT NOT NULL,
-                size INTEGER,
-                mime_type TEXT,
-                duration REAL,
-                metadata TEXT,
-                local_path TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (account_id) REFERENCES cloud_accounts(id) ON DELETE CASCADE
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS cloud_files
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           account_id
+                           INTEGER
+                           NOT
+                           NULL,
+                           file_id
+                           TEXT
+                           NOT
+                           NULL,
+                           parent_id
+                           TEXT
+                           DEFAULT
+                           '',
+                           name
+                           TEXT
+                           NOT
+                           NULL,
+                           file_type
+                           TEXT
+                           NOT
+                           NULL,
+                           size
+                           INTEGER,
+                           mime_type
+                           TEXT,
+                           duration
+                           REAL,
+                           metadata
+                           TEXT,
+                           local_path
+                           TEXT,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP,
+                           updated_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP,
+                           FOREIGN
+                           KEY
+                       (
+                           account_id
+                       ) REFERENCES cloud_accounts
+                       (
+                           id
+                       ) ON DELETE CASCADE
+                           )
+                       """)
 
         # Create indexes for cloud tables
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cloud_accounts_provider
-            ON cloud_accounts(provider)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_cloud_accounts_provider
+                           ON cloud_accounts(provider)
+                       """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cloud_files_account
-            ON cloud_files(account_id)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_cloud_files_account
+                           ON cloud_files(account_id)
+                       """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_cloud_files_parent
-            ON cloud_files(parent_id)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_cloud_files_parent
+                           ON cloud_files(parent_id)
+                       """)
 
         # Create settings table for unified configuration storage
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS settings
+                       (
+                           key
+                           TEXT
+                           PRIMARY
+                           KEY,
+                           value
+                           TEXT,
+                           updated_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
 
         # Create play_queue table for persistent playback queue
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS play_queue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                position INTEGER NOT NULL,
-                source_type TEXT NOT NULL,
-                cloud_type TEXT,
-                track_id INTEGER,
-                cloud_file_id TEXT,
-                cloud_account_id INTEGER,
-                local_path TEXT,
-                title TEXT,
-                artist TEXT,
-                album TEXT,
-                duration REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS play_queue
+                       (
+                           id
+                           INTEGER
+                           PRIMARY
+                           KEY
+                           AUTOINCREMENT,
+                           position
+                           INTEGER
+                           NOT
+                           NULL,
+                           source_type
+                           TEXT
+                           NOT
+                           NULL,
+                           cloud_type
+                           TEXT,
+                           track_id
+                           INTEGER,
+                           cloud_file_id
+                           TEXT,
+                           cloud_account_id
+                           INTEGER,
+                           local_path
+                           TEXT,
+                           title
+                           TEXT,
+                           artist
+                           TEXT,
+                           album
+                           TEXT,
+                           duration
+                           REAL,
+                           created_at
+                           TIMESTAMP
+                           DEFAULT
+                           CURRENT_TIMESTAMP
+                       )
+                       """)
 
         # Create index for play_queue position
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_play_queue_position
-            ON play_queue(position)
-        """)
+                       CREATE INDEX IF NOT EXISTS idx_play_queue_position
+                           ON play_queue(position)
+                       """)
 
         # Create FTS5 virtual table for full-text search
         cursor.execute("""
@@ -229,27 +460,33 @@ class DatabaseManager:
 
         # Create triggers to keep FTS index in sync with tracks table
         cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS tracks_ai AFTER INSERT ON tracks BEGIN
+                       CREATE TRIGGER IF NOT EXISTS tracks_ai AFTER INSERT ON tracks
+                       BEGIN
                 INSERT INTO tracks_fts(rowid, title, artist, album)
                 VALUES (new.id, new.title, new.artist, new.album);
-            END
-        """)
+                       END
+                       """)
 
         cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS tracks_ad AFTER DELETE ON tracks BEGIN
-                DELETE FROM tracks_fts WHERE rowid = old.id;
-            END
-        """)
+                       CREATE TRIGGER IF NOT EXISTS tracks_ad AFTER
+                       DELETE
+                       ON tracks BEGIN
+                       DELETE
+                       FROM tracks_fts
+                       WHERE rowid = old.id;
+                       END
+                       """)
 
         cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS tracks_au AFTER UPDATE ON tracks BEGIN
-                UPDATE tracks_fts
-                SET title = new.title,
-                    artist = new.artist,
-                    album = new.album
-                WHERE rowid = new.id;
-            END
-        """)
+                       CREATE TRIGGER IF NOT EXISTS tracks_au AFTER
+                       UPDATE ON tracks BEGIN
+                       UPDATE tracks_fts
+                       SET title  = new.title,
+                           artist = new.artist,
+                           album  = new.album
+                       WHERE rowid = new.id;
+                       END
+                       """)
 
         # Run migrations for existing databases
         self._run_migrations(conn, cursor)
@@ -278,22 +515,54 @@ class DatabaseManager:
         if needs_rebuild:
             # Recreate table with nullable track_id and proper constraints
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS favorites_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    track_id INTEGER,
-                    cloud_file_id TEXT,
-                    cloud_account_id INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
-                    FOREIGN KEY (cloud_account_id) REFERENCES cloud_accounts(id) ON DELETE CASCADE,
-                    UNIQUE(track_id),
-                    UNIQUE(cloud_file_id)
-                )
-            """)
+                           CREATE TABLE IF NOT EXISTS favorites_new
+                           (
+                               id
+                               INTEGER
+                               PRIMARY
+                               KEY
+                               AUTOINCREMENT,
+                               track_id
+                               INTEGER,
+                               cloud_file_id
+                               TEXT,
+                               cloud_account_id
+                               INTEGER,
+                               created_at
+                               TIMESTAMP
+                               DEFAULT
+                               CURRENT_TIMESTAMP,
+                               FOREIGN
+                               KEY
+                           (
+                               track_id
+                           ) REFERENCES tracks
+                           (
+                               id
+                           ) ON DELETE CASCADE,
+                               FOREIGN KEY
+                           (
+                               cloud_account_id
+                           ) REFERENCES cloud_accounts
+                           (
+                               id
+                           )
+                             ON DELETE CASCADE,
+                               UNIQUE
+                           (
+                               track_id
+                           ),
+                               UNIQUE
+                           (
+                               cloud_file_id
+                           )
+                               )
+                           """)
             cursor.execute("""
-                INSERT INTO favorites_new (id, track_id, cloud_file_id, cloud_account_id, created_at)
-                SELECT id, track_id, cloud_file_id, cloud_account_id, created_at FROM favorites
-            """)
+                           INSERT INTO favorites_new (id, track_id, cloud_file_id, cloud_account_id, created_at)
+                           SELECT id, track_id, cloud_file_id, cloud_account_id, created_at
+                           FROM favorites
+                           """)
             cursor.execute("DROP TABLE favorites")
             cursor.execute("ALTER TABLE favorites_new RENAME TO favorites")
 
@@ -335,19 +604,19 @@ class DatabaseManager:
                     logger.info(f"[Database] Rebuilding FTS5 index (was {fts_count} entries, expected {tracks_count})")
                     cursor.execute("DELETE FROM tracks_fts")
                     cursor.execute("""
-                        INSERT INTO tracks_fts(rowid, title, artist, album)
-                        SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
-                        FROM tracks
-                    """)
+                                   INSERT INTO tracks_fts(rowid, title, artist, album)
+                                   SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
+                                   FROM tracks
+                                   """)
                     logger.info(f"[Database] Rebuilt FTS5 index with {tracks_count} tracks")
             else:
                 # FTS table doesn't exist but tracks do - this shouldn't happen with current init
                 logger.info(f"[Database] Populating FTS5 index with {tracks_count} tracks")
                 cursor.execute("""
-                    INSERT INTO tracks_fts(rowid, title, artist, album)
-                    SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
-                    FROM tracks
-                """)
+                               INSERT INTO tracks_fts(rowid, title, artist, album)
+                               SELECT id, COALESCE(title, ''), COALESCE(artist, ''), COALESCE(album, '')
+                               FROM tracks
+                               """)
 
     # Track operations
 
@@ -523,10 +792,9 @@ class DatabaseManager:
                 """
                 SELECT t.*, bm25(tracks_fts) AS score
                 FROM tracks t
-                JOIN tracks_fts f ON t.id = f.rowid
+                         JOIN tracks_fts f ON t.id = f.rowid
                 WHERE tracks_fts MATCH ?
-                ORDER BY score
-                LIMIT 100
+                ORDER BY score LIMIT 100
                 """,
                 (fts_query,),
             )
@@ -540,10 +808,9 @@ class DatabaseManager:
                     """
                     SELECT t.*, bm25(tracks_fts) AS score
                     FROM tracks t
-                    JOIN tracks_fts f ON t.id = f.rowid
+                             JOIN tracks_fts f ON t.id = f.rowid
                     WHERE tracks_fts MATCH ?
-                    ORDER BY score
-                    LIMIT 100
+                    ORDER BY score LIMIT 100
                     """,
                     (fts_query,),
                 )
@@ -584,8 +851,11 @@ class DatabaseManager:
         search_pattern = f"%{query}%"
         cursor.execute(
             """
-            SELECT * FROM tracks
-            WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?
+            SELECT *
+            FROM tracks
+            WHERE title LIKE ?
+               OR artist LIKE ?
+               OR album LIKE ?
             ORDER BY artist, album, title
             """,
             (search_pattern, search_pattern, search_pattern),
@@ -619,7 +889,7 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_track(
-        self, track_id: int, title: str = None, artist: str = None, album: str = None
+            self, track_id: int, title: str = None, artist: str = None, album: str = None
     ) -> bool:
         """Update track metadata in the database."""
         conn = self._get_connection()
@@ -668,7 +938,7 @@ class DatabaseManager:
             UPDATE tracks
             SET cover_path = ?
             WHERE id = ?
-        """,
+            """,
             (cover_path, track_id),
         )
 
@@ -688,7 +958,7 @@ class DatabaseManager:
             """
             INSERT INTO playlists (name)
             VALUES (?)
-        """,
+            """,
             (name,),
         )
 
@@ -735,11 +1005,12 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT t.* FROM tracks t
-            INNER JOIN playlist_items pi ON t.id = pi.track_id
+            SELECT t.*
+            FROM tracks t
+                     INNER JOIN playlist_items pi ON t.id = pi.track_id
             WHERE pi.playlist_id = ?
             ORDER BY pi.position
-        """,
+            """,
             (playlist_id,),
         )
 
@@ -798,9 +1069,11 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            DELETE FROM playlist_items
-            WHERE playlist_id = ? AND track_id = ?
-        """,
+            DELETE
+            FROM playlist_items
+            WHERE playlist_id = ?
+              AND track_id = ?
+            """,
             (playlist_id, track_id),
         )
 
@@ -810,11 +1083,12 @@ class DatabaseManager:
                 """
                 UPDATE playlist_items
                 SET position = position - 1
-                WHERE playlist_id = ? AND position > (
-                    SELECT position FROM playlist_items
-                    WHERE playlist_id = ? AND track_id = ?
-                )
-            """,
+                WHERE playlist_id = ?
+                  AND position > (SELECT position
+                                  FROM playlist_items
+                                  WHERE playlist_id = ?
+                                    AND track_id = ?)
+                """,
                 (playlist_id, playlist_id, track_id),
             )
 
@@ -864,10 +1138,11 @@ class DatabaseManager:
         # Check if there's a recent entry for today
         cursor.execute(
             """
-            SELECT id, play_count FROM play_history
-            WHERE track_id = ? AND DATE(played_at) = DATE('now')
+            SELECT id, play_count
+            FROM play_history
+            WHERE track_id = ? AND DATE (played_at) = DATE ('now')
             ORDER BY played_at DESC LIMIT 1
-        """,
+            """,
             (track_id,),
         )
 
@@ -878,9 +1153,10 @@ class DatabaseManager:
             cursor.execute(
                 """
                 UPDATE play_history
-                SET play_count = play_count + 1, played_at = CURRENT_TIMESTAMP
+                SET play_count = play_count + 1,
+                    played_at  = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (row["id"],),
             )
             history_id = row["id"]
@@ -890,7 +1166,7 @@ class DatabaseManager:
                 """
                 INSERT INTO play_history (track_id, play_count)
                 VALUES (?, 1)
-            """,
+                """,
                 (track_id,),
             )
             history_id = cursor.lastrowid
@@ -905,10 +1181,10 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM play_history
-            ORDER BY played_at DESC
-            LIMIT ?
-        """,
+            SELECT *
+            FROM play_history
+            ORDER BY played_at DESC LIMIT ?
+            """,
             (limit,),
         )
 
@@ -933,11 +1209,10 @@ class DatabaseManager:
             """
             SELECT t.*, SUM(ph.play_count) as total_plays
             FROM tracks t
-            INNER JOIN play_history ph ON t.id = ph.track_id
+                     INNER JOIN play_history ph ON t.id = ph.track_id
             GROUP BY t.id
-            ORDER BY total_plays DESC
-            LIMIT ?
-        """,
+            ORDER BY total_plays DESC LIMIT ?
+            """,
             (limit,),
         )
 
@@ -963,7 +1238,7 @@ class DatabaseManager:
                 """
                 INSERT INTO favorites (track_id, cloud_file_id, cloud_account_id)
                 VALUES (?, ?, ?)
-            """,
+                """,
                 (track_id, cloud_file_id, cloud_account_id),
             )
 
@@ -1017,11 +1292,12 @@ class DatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT t.* FROM tracks t
-            INNER JOIN favorites f ON t.id = f.track_id
-            WHERE f.track_id IS NOT NULL
-            ORDER BY f.created_at DESC
-        """)
+                       SELECT t.*
+                       FROM tracks t
+                                INNER JOIN favorites f ON t.id = f.track_id
+                       WHERE f.track_id IS NOT NULL
+                       ORDER BY f.created_at DESC
+                       """)
 
         rows = cursor.fetchall()
 
@@ -1049,11 +1325,12 @@ class DatabaseManager:
 
         # Get track favorites (including downloaded cloud files that now have track_id)
         cursor.execute("""
-            SELECT t.*, f.created_at as fav_created_at FROM tracks t
-            INNER JOIN favorites f ON t.id = f.track_id
-            WHERE f.track_id IS NOT NULL
-            ORDER BY f.created_at DESC
-        """)
+                       SELECT t.*, f.created_at as fav_created_at
+                       FROM tracks t
+                                INNER JOIN favorites f ON t.id = f.track_id
+                       WHERE f.track_id IS NOT NULL
+                       ORDER BY f.created_at DESC
+                       """)
 
         for row in cursor.fetchall():
             is_cloud = row["cloud_file_id"] is not None if "cloud_file_id" in row.keys() else False
@@ -1072,13 +1349,18 @@ class DatabaseManager:
 
         # Get undownloaded cloud file favorites (no track_id yet)
         cursor.execute("""
-            SELECT f.cloud_file_id, f.cloud_account_id, f.created_at,
-                   cf.name, cf.duration, cf.local_path
-            FROM favorites f
-            LEFT JOIN cloud_files cf ON f.cloud_file_id = cf.file_id
-            WHERE f.cloud_file_id IS NOT NULL AND f.track_id IS NULL
-            ORDER BY f.created_at DESC
-        """)
+                       SELECT f.cloud_file_id,
+                              f.cloud_account_id,
+                              f.created_at,
+                              cf.name,
+                              cf.duration,
+                              cf.local_path
+                       FROM favorites f
+                                LEFT JOIN cloud_files cf ON f.cloud_file_id = cf.file_id
+                       WHERE f.cloud_file_id IS NOT NULL
+                         AND f.track_id IS NULL
+                       ORDER BY f.created_at DESC
+                       """)
 
         for row in cursor.fetchall():
             # Extract title from filename (remove extension)
@@ -1111,12 +1393,12 @@ class DatabaseManager:
     # Cloud account operations
 
     def create_cloud_account(
-        self,
-        provider: str,
-        account_name: str,
-        account_email: str,
-        access_token: str,
-        refresh_token: str = "",
+            self,
+            provider: str,
+            account_name: str,
+            account_email: str,
+            access_token: str,
+            refresh_token: str = "",
     ) -> int:
         """Create a new cloud account."""
         conn = self._get_connection()
@@ -1125,9 +1407,9 @@ class DatabaseManager:
         cursor.execute(
             """
             INSERT INTO cloud_accounts
-            (provider, account_name, account_email, access_token, refresh_token)
+                (provider, account_name, account_email, access_token, refresh_token)
             VALUES (?, ?, ?, ?, ?)
-        """,
+            """,
             (provider, account_name, account_email, access_token, refresh_token),
         )
 
@@ -1142,19 +1424,22 @@ class DatabaseManager:
         if provider:
             cursor.execute(
                 """
-                SELECT * FROM cloud_accounts
-                WHERE provider = ? AND is_active = 1
+                SELECT *
+                FROM cloud_accounts
+                WHERE provider = ?
+                  AND is_active = 1
                 ORDER BY created_at DESC
-            """,
+                """,
                 (provider,),
             )
         else:
             cursor.execute(
                 """
-                SELECT * FROM cloud_accounts
+                SELECT *
+                FROM cloud_accounts
                 WHERE is_active = 1
                 ORDER BY created_at DESC
-            """
+                """
             )
 
         rows = cursor.fetchall()
@@ -1205,14 +1490,15 @@ class DatabaseManager:
                 last_fid_path=row["last_fid_path"] if "last_fid_path" in row.keys() else "0",
                 last_playing_fid=row["last_playing_fid"] if "last_playing_fid" in row.keys() else "",
                 last_position=row["last_position"] if "last_position" in row.keys() else 0.0,
-                last_playing_local_path=row["last_playing_local_path"] if "last_playing_local_path" in row.keys() else "",
+                last_playing_local_path=row[
+                    "last_playing_local_path"] if "last_playing_local_path" in row.keys() else "",
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
             )
         return None
 
     def update_cloud_account_token(
-        self, account_id: int, access_token: str, refresh_token: str = None
+            self, account_id: int, access_token: str, refresh_token: str = None
     ) -> bool:
         """Update account tokens."""
         conn = self._get_connection()
@@ -1222,18 +1508,21 @@ class DatabaseManager:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET access_token = ?, refresh_token = ?, updated_at = CURRENT_TIMESTAMP
+                SET access_token  = ?,
+                    refresh_token = ?,
+                    updated_at    = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (access_token, refresh_token, account_id),
             )
         else:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET access_token = ?, updated_at = CURRENT_TIMESTAMP
+                SET access_token = ?,
+                    updated_at   = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (access_token, account_id),
             )
 
@@ -1241,7 +1530,7 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_cloud_account_folder(
-        self, account_id: int, folder_id: str, folder_path: str, parent_folder_id: str = "0", fid_path: str = "0"
+            self, account_id: int, folder_id: str, folder_path: str, parent_folder_id: str = "0", fid_path: str = "0"
     ) -> bool:
         """Update the last opened folder for an account."""
         conn = self._get_connection()
@@ -1250,9 +1539,11 @@ class DatabaseManager:
         cursor.execute(
             """
             UPDATE cloud_accounts
-            SET last_folder_path = ?, last_fid_path = ?, updated_at = CURRENT_TIMESTAMP
+            SET last_folder_path = ?,
+                last_fid_path    = ?,
+                updated_at       = CURRENT_TIMESTAMP
             WHERE id = ?
-        """,
+            """,
             (folder_path, fid_path, account_id),
         )
 
@@ -1260,7 +1551,7 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_cloud_account_playing_state(
-        self, account_id: int, playing_fid: str = None, position: float = None, local_path: str = None
+            self, account_id: int, playing_fid: str = None, position: float = None, local_path: str = None
     ) -> bool:
         """Update the last playing file and position for an account."""
         conn = self._get_connection()
@@ -1271,54 +1562,64 @@ class DatabaseManager:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_playing_fid = ?, last_position = ?, last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_playing_fid        = ?,
+                    last_position           = ?,
+                    last_playing_local_path = ?,
+                    updated_at              = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (playing_fid, position, local_path, account_id),
             )
         elif playing_fid is not None and position is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_playing_fid = ?, last_position = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_playing_fid = ?,
+                    last_position    = ?,
+                    updated_at       = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (playing_fid, position, account_id),
             )
         elif playing_fid is not None and local_path is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_playing_fid = ?, last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_playing_fid        = ?,
+                    last_playing_local_path = ?,
+                    updated_at              = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (playing_fid, local_path, account_id),
             )
         elif playing_fid is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_playing_fid = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_playing_fid = ?,
+                    updated_at       = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (playing_fid, account_id),
             )
         elif position is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_position = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_position = ?,
+                    updated_at    = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (position, account_id),
             )
         elif local_path is not None:
             cursor.execute(
                 """
                 UPDATE cloud_accounts
-                SET last_playing_local_path = ?, updated_at = CURRENT_TIMESTAMP
+                SET last_playing_local_path = ?,
+                    updated_at              = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """,
+                """,
                 (local_path, account_id),
             )
 
@@ -1326,7 +1627,7 @@ class DatabaseManager:
         return cursor.rowcount > 0
 
     def update_cloud_file_local_path(
-        self, file_id: str, account_id: int, local_path: str
+            self, file_id: str, account_id: int, local_path: str
     ) -> bool:
         """Update the local path for a downloaded cloud file."""
         conn = self._get_connection()
@@ -1335,9 +1636,11 @@ class DatabaseManager:
         cursor.execute(
             """
             UPDATE cloud_files
-            SET local_path = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE file_id = ? AND account_id = ?
-        """,
+            SET local_path = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE file_id = ?
+              AND account_id = ?
+            """,
             (local_path, file_id, account_id),
         )
 
@@ -1351,8 +1654,10 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM cloud_files WHERE local_path = ?
-        """,
+            SELECT *
+            FROM cloud_files
+            WHERE local_path = ?
+            """,
             (local_path,),
         )
 
@@ -1383,10 +1688,12 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM cloud_files
-            WHERE local_path IS NOT NULL AND local_path != ''
+            SELECT *
+            FROM cloud_files
+            WHERE local_path IS NOT NULL
+              AND local_path != ''
             ORDER BY name ASC
-        """
+            """
         )
 
         rows = cursor.fetchall()
@@ -1418,9 +1725,10 @@ class DatabaseManager:
         cursor.execute(
             """
             UPDATE cloud_accounts
-            SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+            SET is_active  = 0,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """,
+            """,
             (account_id,),
         )
 
@@ -1459,7 +1767,7 @@ class DatabaseManager:
                 INSERT INTO cloud_files
                 (account_id, file_id, parent_id, name, file_type, size, mime_type, duration, metadata, local_path)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+                """,
                 (
                     account_id,
                     file.file_id,
@@ -1484,10 +1792,12 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM cloud_files
-            WHERE account_id = ? AND parent_id = ?
+            SELECT *
+            FROM cloud_files
+            WHERE account_id = ?
+              AND parent_id = ?
             ORDER BY file_type DESC, name ASC
-        """,
+            """,
             (account_id, parent_id),
         )
 
@@ -1519,9 +1829,11 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM cloud_files
-            WHERE file_id = ? AND account_id = ?
-        """,
+            SELECT *
+            FROM cloud_files
+            WHERE file_id = ?
+              AND account_id = ?
+            """,
             (file_id, account_id),
         )
 
@@ -1552,9 +1864,10 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM cloud_files
+            SELECT *
+            FROM cloud_files
             WHERE file_id = ?
-        """,
+            """,
             (file_id,),
         )
 
@@ -1700,7 +2013,6 @@ class DatabaseManager:
         Returns:
             True if successful
         """
-        from domain.playlist_item import PlaylistItem
 
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -1748,7 +2060,9 @@ class DatabaseManager:
 
         cursor.execute(
             """
-            SELECT * FROM play_queue ORDER BY position ASC
+            SELECT *
+            FROM play_queue
+            ORDER BY position ASC
             """
         )
 

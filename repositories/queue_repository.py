@@ -40,15 +40,14 @@ class SqliteQueueRepository:
         # Insert new items
         for item in items:
             cursor.execute("""
-                INSERT INTO play_queue (
-                    position, source_type, cloud_type, track_id, cloud_file_id,
-                    cloud_account_id, local_path, title, artist, album, duration
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                item.position, item.source_type, item.cloud_type, item.track_id,
-                item.cloud_file_id, item.cloud_account_id, item.local_path,
-                item.title, item.artist, item.album, item.duration
-            ))
+                           INSERT INTO play_queue (position, source_type, cloud_type, track_id, cloud_file_id,
+                                                   cloud_account_id, local_path, title, artist, album, duration)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           """, (
+                               item.position, item.source_type, item.cloud_type, item.track_id,
+                               item.cloud_file_id, item.cloud_account_id, item.local_path,
+                               item.title, item.artist, item.album, item.duration
+                           ))
         conn.commit()
         return True
 

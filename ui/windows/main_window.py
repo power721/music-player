@@ -178,7 +178,8 @@ class MainWindow(QMainWindow):
             def cover_service(self):
                 return playback.cover_service
 
-            def get_track_cover(self, track_path: str, title: str, artist: str, album: str = "", skip_online: bool = False):
+            def get_track_cover(self, track_path: str, title: str, artist: str, album: str = "",
+                                skip_online: bool = False):
                 return playback.get_track_cover(track_path, title, artist, album, skip_online=skip_online)
 
             def save_cover_from_metadata(self, track_path: str, cover_data: bytes):
@@ -1090,7 +1091,8 @@ class MainWindow(QMainWindow):
         self._lyrics_download_artist = track_artist
 
         # Clean up existing search thread if any
-        if hasattr(self, '_lyrics_search_thread') and self._lyrics_search_thread and isValid(self._lyrics_search_thread) and self._lyrics_search_thread.isRunning():
+        if hasattr(self, '_lyrics_search_thread') and self._lyrics_search_thread and isValid(
+                self._lyrics_search_thread) and self._lyrics_search_thread.isRunning():
             self._lyrics_search_thread.quit()
             self._lyrics_search_thread.wait(100)
 
@@ -1132,7 +1134,8 @@ class MainWindow(QMainWindow):
             download_cover: Whether to download cover art (default: True)
         """
         # Clean up existing download thread if any
-        if self._lyrics_download_thread and isValid(self._lyrics_download_thread) and self._lyrics_download_thread.isRunning():
+        if self._lyrics_download_thread and isValid(
+                self._lyrics_download_thread) and self._lyrics_download_thread.isRunning():
             self._lyrics_download_thread.quit()
             self._lyrics_download_thread.wait(100)
 
@@ -1206,7 +1209,7 @@ class MainWindow(QMainWindow):
                 if current_item:
                     # Match by track_id OR by local path (for cloud downloads)
                     is_match = (current_item.track_id == track_id or
-                               current_item.local_path == track_path)
+                                current_item.local_path == track_path)
                     if is_match:
                         old_cover = current_item.cover_path
                         current_item.cover_path = cover_path
@@ -1777,7 +1780,8 @@ class MainWindow(QMainWindow):
         current_track_id = self._config.get_current_track_id()
         playback_position = self._config.get_playback_position()
         was_playing = self._config.get_was_playing()
-        print(f"[DEBUG] Local restore: track_id={current_track_id}, position={playback_position}, was_playing={was_playing}")
+        print(
+            f"[DEBUG] Local restore: track_id={current_track_id}, position={playback_position}, was_playing={was_playing}")
 
         if current_track_id and current_track_id > 0:
             def restore_later():
@@ -1810,7 +1814,8 @@ class MainWindow(QMainWindow):
         current_index = self._player.engine.current_index
         current_volume = self._player.volume
 
-        print(f"[DEBUG] closeEvent: index={current_index}, playing={is_playing}, position={current_position}, volume={current_volume}")
+        print(
+            f"[DEBUG] closeEvent: index={current_index}, playing={is_playing}, position={current_position}, volume={current_volume}")
 
         # Save volume
         self._config.set_volume(current_volume)
@@ -1879,14 +1884,16 @@ class MainWindow(QMainWindow):
                     self._lyrics_thread.terminate()
                     self._lyrics_thread.wait()
 
-        if self._lyrics_download_thread and isValid(self._lyrics_download_thread) and self._lyrics_download_thread.isRunning():
+        if self._lyrics_download_thread and isValid(
+                self._lyrics_download_thread) and self._lyrics_download_thread.isRunning():
             self._lyrics_download_thread.requestInterruption()
             self._lyrics_download_thread.quit()
             if not self._lyrics_download_thread.wait(1000):
                 self._lyrics_download_thread.terminate()
                 self._lyrics_download_thread.wait()
 
-        if self._lyrics_search_thread and isValid(self._lyrics_search_thread) and self._lyrics_search_thread.isRunning():
+        if self._lyrics_search_thread and isValid(
+                self._lyrics_search_thread) and self._lyrics_search_thread.isRunning():
             self._lyrics_search_thread.requestInterruption()
             self._lyrics_search_thread.quit()
             if not self._lyrics_search_thread.wait(1000):

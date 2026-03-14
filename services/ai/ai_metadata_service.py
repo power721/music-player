@@ -3,12 +3,10 @@ AI Metadata Service for enhancing music metadata using AI models.
 """
 import json
 import logging
-from pathlib import Path
 from typing import Dict, Optional, Any
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
 
 METADATA_PROMPT_TEMPLATE = """You are a music metadata parser specialized in Chinese music.
 
@@ -32,12 +30,12 @@ class AIMetadataService:
 
     @classmethod
     def enhance_metadata(
-        cls,
-        filename: str,
-        base_url: str,
-        api_key: str,
-        model: str,
-        current_metadata: Optional[Dict[str, Any]] = None
+            cls,
+            filename: str,
+            base_url: str,
+            api_key: str,
+            model: str,
+            current_metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, str]]:
         """
         Enhance metadata using AI model.
@@ -195,13 +193,13 @@ class AIMetadataService:
 
     @classmethod
     def enhance_track(
-        cls,
-        file_path: str,
-        base_url: str,
-        api_key: str,
-        model: str,
-        current_metadata: Dict[str, Any],
-        update_file: bool = True
+            cls,
+            file_path: str,
+            base_url: str,
+            api_key: str,
+            model: str,
+            current_metadata: Dict[str, Any],
+            update_file: bool = True
     ) -> Optional[Dict[str, str]]:
         """
         Enhance metadata for a single track.

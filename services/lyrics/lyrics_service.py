@@ -12,11 +12,12 @@ import base64
 import zlib
 
 from utils.lrc_parser import LyricLine
-from utils.match_scorer import MatchScorer, TrackInfo, SearchResult
+from utils.match_scorer import MatchScorer, TrackInfo
 
 # Initialize OpenCC converter for Traditional to Simplified Chinese conversion
 try:
     from opencc import OpenCC
+
     _t2s_converter = OpenCC('t2s')  # Traditional to Simplified
     _HAS_OPENCC = True
 except ImportError:
@@ -784,7 +785,7 @@ class LyricsService:
         """
         # Skip saving if track_path is empty or invalid
         if not track_path or track_path in ('.', '', '/'):
-                        return False
+            return False
 
         try:
             track_file = Path(track_path)

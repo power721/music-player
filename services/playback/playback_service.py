@@ -6,8 +6,8 @@ favorites management, and EventBus integration.
 """
 
 import logging
-from typing import Optional, List, TYPE_CHECKING
 from pathlib import Path
+from typing import Optional, List, TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
@@ -47,11 +47,11 @@ class PlaybackService(QObject):
     source_changed = Signal(str)  # "local" or "cloud"
 
     def __init__(
-        self,
-        db_manager: DatabaseManager,
-        config_manager: ConfigManager,
-        cover_service: 'CoverService' = None,
-        parent=None
+            self,
+            db_manager: DatabaseManager,
+            config_manager: ConfigManager,
+            cover_service: 'CoverService' = None,
+            parent=None
     ):
         """
         Initialize the playback service.
@@ -370,10 +370,10 @@ class PlaybackService(QObject):
     # ===== Cloud Playback =====
 
     def play_cloud_track(
-        self,
-        cloud_file: "CloudFile",
-        account: "CloudAccount",
-        cloud_files: List["CloudFile"] = None
+            self,
+            cloud_file: "CloudFile",
+            account: "CloudAccount",
+            cloud_files: List["CloudFile"] = None
     ):
         """
         Play a cloud file.
@@ -410,12 +410,12 @@ class PlaybackService(QObject):
         self._config.set_cloud_account_id(account.id)
 
     def play_cloud_playlist(
-        self,
-        cloud_files: List["CloudFile"],
-        start_index: int,
-        account: "CloudAccount",
-        first_file_path: str = "",
-        start_position: float = 0.0
+            self,
+            cloud_files: List["CloudFile"],
+            start_index: int,
+            account: "CloudAccount",
+            first_file_path: str = "",
+            start_position: float = 0.0
     ):
         """
         Play a cloud file playlist.
@@ -511,10 +511,10 @@ class PlaybackService(QObject):
     # ===== Favorites Management =====
 
     def toggle_favorite(
-        self,
-        track_id: int = None,
-        cloud_file_id: str = None,
-        cloud_account_id: int = None
+            self,
+            track_id: int = None,
+            cloud_file_id: str = None,
+            cloud_account_id: int = None
     ) -> bool:
         """
         Toggle favorite status for a track or cloud file.
@@ -913,7 +913,8 @@ class PlaybackService(QObject):
         self._db.add_track(track)
         return cover_path
 
-    def get_track_cover(self, track_path: str, title: str, artist: str, album: str = "", skip_online: bool = False) -> Optional[str]:
+    def get_track_cover(self, track_path: str, title: str, artist: str, album: str = "", skip_online: bool = False) -> \
+    Optional[str]:
         """
         Get cover art for a track.
 

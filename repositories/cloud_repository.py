@@ -48,17 +48,16 @@ class SqliteCloudRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO cloud_accounts (
-                provider, account_name, account_email, access_token, refresh_token,
-                token_expires_at, is_active, last_folder_path, last_fid_path,
-                last_playing_fid, last_position, last_playing_local_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            account.provider, account.account_name, account.account_email,
-            account.access_token, account.refresh_token, account.token_expires_at,
-            account.is_active, account.last_folder_path, account.last_fid_path,
-            account.last_playing_fid, account.last_position, account.last_playing_local_path
-        ))
+                       INSERT INTO cloud_accounts (provider, account_name, account_email, access_token, refresh_token,
+                                                   token_expires_at, is_active, last_folder_path, last_fid_path,
+                                                   last_playing_fid, last_position, last_playing_local_path)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       """, (
+                           account.provider, account.account_name, account.account_email,
+                           account.access_token, account.refresh_token, account.token_expires_at,
+                           account.is_active, account.last_folder_path, account.last_fid_path,
+                           account.last_playing_fid, account.last_position, account.last_playing_local_path
+                       ))
         conn.commit()
         return cursor.lastrowid
 
@@ -69,19 +68,27 @@ class SqliteCloudRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE cloud_accounts SET
-                provider = ?, account_name = ?, account_email = ?, access_token = ?,
-                refresh_token = ?, token_expires_at = ?, is_active = ?,
-                last_folder_path = ?, last_fid_path = ?, last_playing_fid = ?,
-                last_position = ?, last_playing_local_path = ?
-            WHERE id = ?
-        """, (
-            account.provider, account.account_name, account.account_email,
-            account.access_token, account.refresh_token, account.token_expires_at,
-            account.is_active, account.last_folder_path, account.last_fid_path,
-            account.last_playing_fid, account.last_position, account.last_playing_local_path,
-            account.id
-        ))
+                       UPDATE cloud_accounts
+                       SET provider                = ?,
+                           account_name            = ?,
+                           account_email           = ?,
+                           access_token            = ?,
+                           refresh_token           = ?,
+                           token_expires_at        = ?,
+                           is_active               = ?,
+                           last_folder_path        = ?,
+                           last_fid_path           = ?,
+                           last_playing_fid        = ?,
+                           last_position           = ?,
+                           last_playing_local_path = ?
+                       WHERE id = ?
+                       """, (
+                           account.provider, account.account_name, account.account_email,
+                           account.access_token, account.refresh_token, account.token_expires_at,
+                           account.is_active, account.last_folder_path, account.last_fid_path,
+                           account.last_playing_fid, account.last_position, account.last_playing_local_path,
+                           account.id
+                       ))
         conn.commit()
         return cursor.rowcount > 0
 
@@ -121,15 +128,14 @@ class SqliteCloudRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO cloud_files (
-                account_id, file_id, parent_id, name, file_type, size,
-                mime_type, duration, metadata, local_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            file.account_id, file.file_id, file.parent_id, file.name,
-            file.file_type, file.size, file.mime_type, file.duration,
-            file.metadata, file.local_path
-        ))
+                       INSERT INTO cloud_files (account_id, file_id, parent_id, name, file_type, size,
+                                                mime_type, duration, metadata, local_path)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       """, (
+                           file.account_id, file.file_id, file.parent_id, file.name,
+                           file.file_type, file.size, file.mime_type, file.duration,
+                           file.metadata, file.local_path
+                       ))
         conn.commit()
         return cursor.lastrowid
 

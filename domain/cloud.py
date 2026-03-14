@@ -4,14 +4,14 @@ Cloud domain models - CloudProvider, CloudAccount, CloudFile.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 
 class CloudProvider(Enum):
     """Cloud storage provider enumeration."""
-    LOCAL = "local"      # Local music files
-    QUARK = "quark"      # Quark cloud drive
+    LOCAL = "local"  # Local music files
+    QUARK = "quark"  # Quark cloud drive
     # Future extensions: ONEDRIVE, GOOGLE_DRIVE, DROPBOX, etc.
 
 

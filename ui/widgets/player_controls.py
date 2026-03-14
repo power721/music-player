@@ -2,7 +2,10 @@
 Player controls widget for playback control.
 """
 import logging
+import threading
 
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QPixmap, QCursor, QMouseEvent, QScreen
 from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -12,15 +15,12 @@ from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QPixmap, QCursor, QMouseEvent, QScreen
-import threading
 
-from services.playback import PlaybackService
 from domain.playback import PlaybackState, PlayMode
-from utils import format_time
-from system.i18n import t
+from services.playback import PlaybackService
 from system.event_bus import EventBus
+from system.i18n import t
+from utils import format_time
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -405,9 +405,9 @@ class PlayerControls(QWidget):
 
         # Sync shuffle button
         if current_mode in (
-            PlayMode.RANDOM,
-            PlayMode.RANDOM_LOOP,
-            PlayMode.RANDOM_TRACK_LOOP,
+                PlayMode.RANDOM,
+                PlayMode.RANDOM_LOOP,
+                PlayMode.RANDOM_TRACK_LOOP,
         ):
             self._shuffle_btn.setChecked(True)
             self._shuffle_btn.setText("🔀")
@@ -566,7 +566,8 @@ class PlayerControls(QWidget):
                             "cover_path": track.cover_path,
                             "source_type": "local",
                         }
-                        logger.info(f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover with cover_path={track.cover_path}")
+                        logger.info(
+                            f"[PlayerControls] Metadata updated for current track {track_id}, reloading cover with cover_path={track.cover_path}")
                         QTimer.singleShot(100, lambda: self._load_cover_art_async(updated_track))
                 except Exception as e:
                     logger.error(f"[PlayerControls] Error loading updated track: {e}")
@@ -587,13 +588,15 @@ class PlayerControls(QWidget):
         if is_cloud:
             # For cloud files, match by cloud_file_id
             current_cloud_file_id = current_track.get("cloud_file_id")
-            logger.debug(f"[PlayerControls] _on_cover_updated: is_cloud=True, item_id={item_id}, current_cloud_file_id={current_cloud_file_id}")
+            logger.debug(
+                f"[PlayerControls] _on_cover_updated: is_cloud=True, item_id={item_id}, current_cloud_file_id={current_cloud_file_id}")
             if current_cloud_file_id and current_cloud_file_id == item_id:
                 should_reload = True
         else:
             # For local tracks, match by track_id
             current_id = current_track.get("id")
-            logger.debug(f"[PlayerControls] _on_cover_updated: is_cloud=False, item_id={item_id}, current_id={current_id}")
+            logger.debug(
+                f"[PlayerControls] _on_cover_updated: is_cloud=False, item_id={item_id}, current_id={current_id}")
             if current_id and current_id == item_id:
                 should_reload = True
 
@@ -630,7 +633,8 @@ class PlayerControls(QWidget):
                         updated_track["artist"] = track.artist or ""
                         updated_track["album"] = track.album or ""
                         updated_track["cover_path"] = track.cover_path  # Use database cover_path
-                        logger.info(f"[PlayerControls] Reloaded cloud track metadata: artist={track.artist}, album={track.album}, cover_path={track.cover_path}")
+                        logger.info(
+                            f"[PlayerControls] Reloaded cloud track metadata: artist={track.artist}, album={track.album}, cover_path={track.cover_path}")
                         QTimer.singleShot(100, lambda t=updated_track: self._load_cover_art_async(t))
                         return
                 except Exception as e:
@@ -712,7 +716,6 @@ class PlayerControls(QWidget):
 
     def _update_button_style(self, button: QPushButton, active: bool):
         """Update button style based on active state."""
-        from PySide6.QtGui import QPalette
 
         if active:
             # Set white background and green color for active state
@@ -831,6 +834,7 @@ class PlayerControls(QWidget):
 
     def _load_cover_art_async(self, track_dict: dict):
         """Load cover art in background thread."""
+
         def load_cover():
             from pathlib import Path
 
@@ -853,7 +857,8 @@ class PlayerControls(QWidget):
             is_cloud = track_dict.get("is_cloud", False)
             skip_online = needs_download or (is_cloud and not path)
 
-            logger.debug(f"[PlayerControls] Loading cover for: path={path}, title={title}, artist={artist}, album={album}, skip_online={skip_online}")
+            logger.debug(
+                f"[PlayerControls] Loading cover for: path={path}, title={title}, artist={artist}, album={album}, skip_online={skip_online}")
 
             try:
                 cover_path = self._player.get_track_cover(path, title, artist, album, skip_online=skip_online)

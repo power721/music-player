@@ -3,11 +3,11 @@ AI Settings Dialog for configuring AI model API and AcoustID.
 """
 import logging
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QGroupBox, QMessageBox, QTabWidget, QWidget
 )
-from PySide6.QtCore import Qt
 
 from system.i18n import t
 

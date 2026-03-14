@@ -2,6 +2,10 @@
 Mini player mode - a small floating window.
 """
 
+import threading
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -10,14 +14,11 @@ from PySide6.QtWidgets import (
     QLabel,
     QSlider,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
 
-from services.playback import PlaybackService
 from domain.playback import PlaybackState, PlayMode
-from utils import format_time
+from services.playback import PlaybackService
 from system.i18n import t
-import threading
+from utils import format_time
 
 
 class MiniPlayer(QWidget):
@@ -399,6 +400,7 @@ class MiniPlayer(QWidget):
 
     def _load_cover_async(self, track_dict: dict):
         """Load cover art in background thread."""
+
         def load_cover():
             from pathlib import Path
 
@@ -451,7 +453,7 @@ class MiniPlayer(QWidget):
         if event.button() == Qt.LeftButton:
             self._is_dragging = True
             self._drag_position = (
-                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+                    event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             )
 
     def mouseMoveEvent(self, event):

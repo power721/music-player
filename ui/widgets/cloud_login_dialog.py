@@ -2,13 +2,14 @@
 Cloud login dialog for QR code authentication.
 """
 import logging
+from io import BytesIO
 
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QProgressBar)
+import qrcode
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
-import qrcode
-from io import BytesIO
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                               QPushButton, QProgressBar)
+
 from services.cloud.quark_service import QuarkDriveService
 from system.i18n import t
 
@@ -137,7 +138,7 @@ class CloudLoginDialog(QDialog):
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
                 box_size=8,  # Reduced box size for better fit
-                border=2,    # Reduced border
+                border=2,  # Reduced border
             )
             qr.add_data(url)
             qr.make(fit=True)
@@ -182,7 +183,7 @@ class CloudLoginDialog(QDialog):
         result = QuarkDriveService.poll_login_status(
             self._qr_token,
             max_attempts=1,  # Single attempt per timer tick
-            poll_interval=0   # No delay, we use QTimer for timing
+            poll_interval=0  # No delay, we use QTimer for timing
         )
 
         if result:

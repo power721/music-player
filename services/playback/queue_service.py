@@ -9,7 +9,6 @@ from domain.playback import PlayMode
 from infrastructure.audio import PlayerEngine
 from repositories.queue_repository import SqliteQueueRepository
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,10 +18,10 @@ class QueueService:
     """
 
     def __init__(
-        self,
-        queue_repo: SqliteQueueRepository,
-        config_manager,
-        engine: PlayerEngine
+            self,
+            queue_repo: SqliteQueueRepository,
+            config_manager,
+            engine: PlayerEngine
     ):
         self._queue_repo = queue_repo
         self._config = config_manager

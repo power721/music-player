@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 class LyricLine:
 
     def __init__(self, time: float, text: str, words=None):
-
         self.time = time
         self.text = text
 
@@ -19,9 +18,7 @@ class LyricLine:
         self.words = words or []
 
     def __repr__(self):
-
         return f"<LyricLine {self.time:.2f} {self.text}>"
-
 
 
 # =========================
@@ -39,13 +36,11 @@ WORD_RE = re.compile(r"<(\d+),(\d+),\d+>([^<]+)")
 CHAR_WORD_RE = re.compile(r"<(\d+):(\d+\.\d+)>([^<]+)")
 
 
-
 # =========================
 # LRC 解析
 # =========================
 
 def parse_lrc(text: str):
-
     lyrics = []
 
     meta = {}
@@ -68,7 +63,6 @@ def parse_lrc(text: str):
         meta_match = META_RE.match(line)
 
         if meta_match:
-
             key = meta_match.group(1).lower()
             val = meta_match.group(2).strip()
 
@@ -95,7 +89,6 @@ def parse_lrc(text: str):
             content = "".join([w[2] for w in words])
 
         for m, s in times:
-
             t = int(m) * 60 + float(s)
 
             lyrics.append(
@@ -201,13 +194,11 @@ def parse_char_word_lrc(text: str):
     return lyrics
 
 
-
 # =========================
 # 逐字解析
 # =========================
 
 def parse_words(text):
-
     words = []
 
     matches = WORD_RE.findall(text)
@@ -216,7 +207,6 @@ def parse_words(text):
         return []
 
     for start, dur, word in matches:
-
         words.append(
             (
                 int(start) / 1000,

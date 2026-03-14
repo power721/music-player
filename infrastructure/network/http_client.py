@@ -4,6 +4,7 @@ HTTP client wrapper for network requests.
 
 import logging
 from typing import Dict, Any, Optional
+
 import requests
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class HttpClient:
         """
         final_headers = {**self.default_headers, **(headers or {})}
         return requests.get(url, params=params, headers=final_headers,
-                           timeout=timeout or self.timeout)
+                            timeout=timeout or self.timeout)
 
     def get_content(self, url: str, params: Dict = None, headers: Dict = None,
                     timeout: int = None) -> Optional[bytes]:
@@ -82,7 +83,7 @@ class HttpClient:
         """
         final_headers = {**self.default_headers, **(headers or {})}
         return requests.post(url, json=json, data=data, headers=final_headers,
-                            timeout=timeout or self.timeout)
+                             timeout=timeout or self.timeout)
 
     def download(self, url: str, dest_path: str, headers: Dict = None,
                  chunk_size: int = 8192, progress_callback=None) -> bool:
@@ -103,7 +104,7 @@ class HttpClient:
 
         try:
             response = requests.get(url, headers=final_headers, stream=True,
-                                   timeout=self.timeout)
+                                    timeout=self.timeout)
             response.raise_for_status()
 
             total_size = int(response.headers.get('content-length', 0))

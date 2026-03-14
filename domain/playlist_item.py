@@ -40,7 +40,7 @@ class PlaylistItem:
 
     # Metadata state
     needs_download: bool = False  # Whether cloud file needs to be downloaded
-    needs_metadata: bool = True   # Whether metadata needs to be extracted
+    needs_metadata: bool = True  # Whether metadata needs to be extracted
 
     # Additional metadata (for cloud files)
     cloud_file_size: Optional[int] = None
@@ -71,10 +71,10 @@ class PlaylistItem:
 
     @classmethod
     def from_cloud_file(
-        cls,
-        cloud_file: "CloudFile",
-        account_id: int,
-        local_path: str = ""
+            cls,
+            cloud_file: "CloudFile",
+            account_id: int,
+            local_path: str = ""
     ) -> "PlaylistItem":
         """
         Create a PlaylistItem from a cloud file.

@@ -6,13 +6,12 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from domain.track import Track
 from domain.playlist import Playlist
-from repositories.track_repository import SqliteTrackRepository
+from domain.track import Track
 from repositories.playlist_repository import SqlitePlaylistRepository
+from repositories.track_repository import SqliteTrackRepository
 from services.metadata.metadata_service import MetadataService
 from system.event_bus import EventBus
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +23,11 @@ class LibraryService:
     """
 
     def __init__(
-        self,
-        track_repo: SqliteTrackRepository,
-        playlist_repo: SqlitePlaylistRepository,
-        event_bus: EventBus = None,
-        cover_service: 'CoverService' = None
+            self,
+            track_repo: SqliteTrackRepository,
+            playlist_repo: SqlitePlaylistRepository,
+            event_bus: EventBus = None,
+            cover_service: 'CoverService' = None
     ):
         self._track_repo = track_repo
         self._playlist_repo = playlist_repo

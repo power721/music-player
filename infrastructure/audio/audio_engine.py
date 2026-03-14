@@ -2,14 +2,13 @@
 Audio playback engine using Qt Multimedia.
 """
 import logging
-
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PySide6.QtCore import QUrl, QObject, Signal
 from typing import Optional, List, Union
+
+from PySide6.QtCore import QUrl, QObject, Signal
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 from domain import PlaylistItem
 from domain.playback import PlayMode, PlaybackState
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -576,7 +575,6 @@ class PlayerEngine(QObject):
 
     def _on_media_status_changed(self, status):
         """Handle media status change."""
-        import time
 
         logger.debug(f"[PlayerEngine] _on_media_status_changed: status={status}")
 
@@ -598,7 +596,8 @@ class PlayerEngine(QObject):
                 # Track loop modes
                 self.seek(0)
                 self.play()
-            elif self._play_mode in (PlayMode.SEQUENTIAL, PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM, PlayMode.RANDOM_LOOP):
+            elif self._play_mode in (PlayMode.SEQUENTIAL, PlayMode.PLAYLIST_LOOP, PlayMode.RANDOM,
+                                     PlayMode.RANDOM_LOOP):
                 # Modes that advance to next track
                 self.play_next()
 

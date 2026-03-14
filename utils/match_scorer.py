@@ -5,8 +5,8 @@ Used for lyrics and cover art matching to select the best result.
 """
 import logging
 import re
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +97,10 @@ class MatchScorer:
             duration_weight = cls.DURATION_WEIGHT
 
         total_score = (
-            title_score * title_weight / 100 +
-            artist_score * artist_weight / 100 +
-            album_score * album_weight / 100 +
-            duration_score * duration_weight / 100
+                title_score * title_weight / 100 +
+                artist_score * artist_weight / 100 +
+                album_score * album_weight / 100 +
+                duration_score * duration_weight / 100
         )
 
         logger.debug(

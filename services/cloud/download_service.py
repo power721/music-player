@@ -26,11 +26,11 @@ class CloudDownloadWorker(QThread):
     download_error = Signal(str, str)  # file_id, error_message
 
     def __init__(
-        self,
-        cloud_file: "CloudFile",
-        account: "CloudAccount",
-        download_dir: str,
-        parent=None
+            self,
+            cloud_file: "CloudFile",
+            account: "CloudAccount",
+            download_dir: str,
+            parent=None
     ):
         super().__init__(parent)
         self._cloud_file = cloud_file
@@ -198,10 +198,10 @@ class CloudDownloadService(QObject):
         self._download_dir = directory
 
     def download_file(
-        self,
-        cloud_file: "CloudFile",
-        account: "CloudAccount",
-        priority: bool = False
+            self,
+            cloud_file: "CloudFile",
+            account: "CloudAccount",
+            priority: bool = False
     ) -> bool:
         """
         Start downloading a cloud file.
@@ -267,10 +267,10 @@ class CloudDownloadService(QObject):
         return False
 
     def get_cached_path(
-        self,
-        file_id: str,
-        cloud_file: Optional["CloudFile"] = None,
-        account: Optional["CloudAccount"] = None
+            self,
+            file_id: str,
+            cloud_file: Optional["CloudFile"] = None,
+            account: Optional["CloudAccount"] = None
     ) -> Optional[str]:
         """
         Check if a file is already downloaded and cached.

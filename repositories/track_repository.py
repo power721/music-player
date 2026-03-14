@@ -59,23 +59,25 @@ class SqliteTrackRepository:
         # Try FTS5 search first
         try:
             cursor.execute("""
-                SELECT t.* FROM tracks t
-                JOIN tracks_fts fts ON t.id = fts.rowid
-                WHERE tracks_fts MATCH ?
-                ORDER BY t.id DESC
-                LIMIT ?
-            """, (query, limit))
+                           SELECT t.*
+                           FROM tracks t
+                                    JOIN tracks_fts fts ON t.id = fts.rowid
+                           WHERE tracks_fts MATCH ?
+                           ORDER BY t.id DESC LIMIT ?
+                           """, (query, limit))
             rows = cursor.fetchall()
             return [self._row_to_track(row) for row in rows]
         except sqlite3.OperationalError:
             # Fallback to LIKE search
             like_query = f"%{query}%"
             cursor.execute("""
-                SELECT * FROM tracks
-                WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?
-                ORDER BY id DESC
-                LIMIT ?
-            """, (like_query, like_query, like_query, limit))
+                           SELECT *
+                           FROM tracks
+                           WHERE title LIKE ?
+                              OR artist LIKE ?
+                              OR album LIKE ?
+                           ORDER BY id DESC LIMIT ?
+                           """, (like_query, like_query, like_query, limit))
             rows = cursor.fetchall()
             return [self._row_to_track(row) for row in rows]
 
@@ -85,12 +87,12 @@ class SqliteTrackRepository:
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                INSERT INTO tracks (path, title, artist, album, duration, cover_path, cloud_file_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                track.path, track.title, track.artist, track.album,
-                track.duration, track.cover_path, track.cloud_file_id
-            ))
+                           INSERT INTO tracks (path, title, artist, album, duration, cover_path, cloud_file_id)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)
+                           """, (
+                               track.path, track.title, track.artist, track.album,
+                               track.duration, track.cover_path, track.cloud_file_id
+                           ))
             conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError:
@@ -104,12 +106,18 @@ class SqliteTrackRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE tracks SET title = ?, artist = ?, album = ?, duration = ?, cover_path = ?, cloud_file_id = ?
-            WHERE id = ?
-        """, (
-            track.title, track.artist, track.album, track.duration,
-            track.cover_path, track.cloud_file_id, track.id
-        ))
+                       UPDATE tracks
+                       SET title         = ?,
+                           artist        = ?,
+                           album         = ?,
+                           duration      = ?,
+                           cover_path    = ?,
+                           cloud_file_id = ?
+                       WHERE id = ?
+                       """, (
+                           track.title, track.artist, track.album, track.duration,
+                           track.cover_path, track.cloud_file_id, track.id
+                       ))
         conn.commit()
         return cursor.rowcount > 0
 

@@ -2,7 +2,6 @@
 Library view widget for browsing the music library.
 """
 import logging
-
 import shutil
 
 from services.ai import AcoustIDService, AIMetadataService
@@ -50,7 +49,8 @@ class LibraryView(QWidget):
     )  # Signal when tracks should be added to a playlist
 
     def __init__(
-        self, db_manager: DatabaseManager, player: PlaybackService, config_manager: ConfigManager = None, cover_service: CoverService = None, parent=None
+            self, db_manager: DatabaseManager, player: PlaybackService, config_manager: ConfigManager = None,
+            cover_service: CoverService = None, parent=None
     ):
         """
         Initialize library view.
@@ -801,9 +801,9 @@ class LibraryView(QWidget):
         query_lower = query.lower() if isinstance(query, str) else query
 
         return (
-            (track.title and query_lower in track.title.lower())
-            or (track.artist and query_lower in track.artist.lower())
-            or (track.album and query_lower in track.album.lower())
+                (track.title and query_lower in track.title.lower())
+                or (track.artist and query_lower in track.artist.lower())
+                or (track.album and query_lower in track.album.lower())
         )
 
     def _format_file_size(self, size_bytes: int) -> str:
@@ -923,10 +923,9 @@ class LibraryView(QWidget):
         self._update_playing_icon_state()
 
     def _update_playing_indicator_in_table(
-        self, old_track_id: Optional[int], new_track_id: Optional[int]
+            self, old_track_id: Optional[int], new_track_id: Optional[int]
     ):
         """Update playing indicator by modifying existing items instead of reloading."""
-        from PySide6.QtGui import QFont, QBrush, QColor
 
         # Remove playing indicator from old track
         if old_track_id is not None:
@@ -944,10 +943,10 @@ class LibraryView(QWidget):
             )
 
     def _set_track_playing_status(
-        self, track_id: int, is_playing: bool, update_icon_only: bool = False
+            self, track_id: int, is_playing: bool, update_icon_only: bool = False
     ):
         """Set the playing status for a specific track in the table."""
-        from PySide6.QtGui import QFont, QBrush, QColor
+        from PySide6.QtGui import QBrush, QColor
 
         # Find the row with this track
         for row in range(self._tracks_table.rowCount()):
@@ -1508,7 +1507,6 @@ class LibraryView(QWidget):
         from PySide6.QtWidgets import (
             QDialog,
             QVBoxLayout,
-            QHBoxLayout,
             QLabel,
             QLineEdit,
             QDialogButtonBox,
@@ -2158,7 +2156,7 @@ class LibraryView(QWidget):
             track_ids: List of track IDs to refresh
         """
         # format_duration imported at top
-        from PySide6.QtGui import QBrush, QColor, QFont
+        from PySide6.QtGui import QBrush, QColor
 
         # Find and update rows for the given track IDs
         for row in range(self._tracks_table.rowCount()):
@@ -2293,7 +2291,8 @@ class LibraryView(QWidget):
                         )
                         success_count += 1
                         identified_track_ids.append(track_id)
-                        logger.info(f"AcoustID identified track {track_id}: {enhanced.get('title')} - {enhanced.get('artist')}")
+                        logger.info(
+                            f"AcoustID identified track {track_id}: {enhanced.get('title')} - {enhanced.get('artist')}")
                     else:
                         failed_count += 1
                         logger.warning(f"AcoustID failed to identify track {track_id}")
@@ -2338,7 +2337,6 @@ class LibraryView(QWidget):
         progress_dialog.show()
         worker.start()
 
-
     def _download_cover(self):
         """Download cover art for selected tracks."""
         selected_items = self._tracks_table.selectedItems()
@@ -2376,4 +2374,3 @@ class LibraryView(QWidget):
         from ui.widgets import CoverDownloadDialog
         dialog = CoverDownloadDialog(tracks, self._cover_service, self)
         dialog.exec()
-

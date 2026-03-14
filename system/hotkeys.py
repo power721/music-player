@@ -12,7 +12,7 @@ which work when the window has focus.
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt, QObject
 from PySide6.QtGui import QKeySequence, QShortcut
 
 # Configure logging

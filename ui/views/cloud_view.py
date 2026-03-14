@@ -23,13 +23,10 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QSplitter,
-    QApplication,
 )
 from PySide6.QtCore import Qt, Signal, QThread, QTimer
 from PySide6.QtGui import QCursor, QColor, QBrush
 from typing import List, Optional
-import tempfile
-import os
 from domain.cloud import CloudAccount, CloudFile
 from services.cloud.quark_service import QuarkDriveService
 from ui.widgets.cloud_login_dialog import CloudLoginDialog
@@ -591,7 +588,6 @@ class CloudDriveView(QWidget):
     def _populate_table(self, files: List[CloudFile]):
         """Populate table with files."""
         from domain.playback import PlaybackState
-        from PySide6.QtGui import QFont
 
         self._file_table.setRowCount(0)
         self._file_table.setUpdatesEnabled(False)
@@ -602,9 +598,9 @@ class CloudDriveView(QWidget):
 
                 # Check if this file is currently playing
                 is_currently_playing = (
-                    self._current_playing_file_id and
-                    file.file_id == self._current_playing_file_id and
-                    file.file_type == "audio"
+                        self._current_playing_file_id and
+                        file.file_id == self._current_playing_file_id and
+                        file.file_type == "audio"
                 )
 
                 # Name
@@ -1572,7 +1568,7 @@ class CloudDriveView(QWidget):
 
     def _add_to_queue(self, file: CloudFile):
         """Add file to play queue."""
-        from domain.playlist_item import PlaylistItem, CloudProvider
+        from domain.playlist_item import PlaylistItem
 
         if file.file_type != 'audio':
             return
@@ -1615,7 +1611,6 @@ class CloudDriveView(QWidget):
         from PySide6.QtWidgets import (
             QDialog,
             QVBoxLayout,
-            QHBoxLayout,
             QLabel,
             QLineEdit,
             QDialogButtonBox,
@@ -1934,7 +1929,8 @@ class CloudDriveView(QWidget):
                         album = metadata.get("album", "")
                     if not title and metadata.get("title"):
                         title = metadata.get("title", "")
-                    logger.info(f"[CloudView] Supplemented with file metadata: title={title}, artist={artist}, album={album}")
+                    logger.info(
+                        f"[CloudView] Supplemented with file metadata: title={title}, artist={artist}, album={album}")
 
                     # Update database record with supplemented metadata for cache key consistency
                     if app and app.bootstrap and (artist or album):
@@ -1942,7 +1938,8 @@ class CloudDriveView(QWidget):
                         track = db.get_track_by_cloud_file_id(file.file_id)
                         if track and track.id:
                             db.update_track(track.id, artist=artist or None, album=album or None)
-                            logger.info(f"[CloudView] Updated database track {track.id} with metadata: artist={artist}, album={album}")
+                            logger.info(
+                                f"[CloudView] Updated database track {track.id} with metadata: artist={artist}, album={album}")
 
             if not title:
                 title = file_path.stem
@@ -1978,7 +1975,8 @@ class CloudDriveView(QWidget):
                     db_track = db.get_track_by_cloud_file_id(file.file_id)
                     if db_track and db_track.id:
                         db.update_track_cover_path(db_track.id, new_cover_path)
-                        logger.info(f"[CloudView] Updated cover_path in database: track_id={db_track.id}, cover_path={new_cover_path}")
+                        logger.info(
+                            f"[CloudView] Updated cover_path in database: track_id={db_track.id}, cover_path={new_cover_path}")
 
                 # Notify listeners to refresh cover display
                 from system.event_bus import EventBus
@@ -2045,7 +2043,8 @@ class CloudDriveView(QWidget):
                 if empty_label:
                     empty_label.setText(t("add_cloud_account"))
 
-    def restore_playback_state(self, account_id: int, file_path: str, file_fid: str, auto_play: bool = False, start_position: float = 0.0, local_path: str = ""):
+    def restore_playback_state(self, account_id: int, file_path: str, file_fid: str, auto_play: bool = False,
+                               start_position: float = 0.0, local_path: str = ""):
         """
         Restore previous cloud playback state.
 
@@ -2180,7 +2179,8 @@ class CloudDriveView(QWidget):
     def _select_and_play_file_by_fid(self, file_fid: str, auto_play: bool = False):
         """Select and optionally play a file in the table by its file ID."""
         start_pos = getattr(self, '_restore_start_position', 0.0)
-        print(f"[DEBUG] _select_and_play_file_by_fid: file_fid={file_fid}, auto_play={auto_play}, start_position={start_pos}")
+        print(
+            f"[DEBUG] _select_and_play_file_by_fid: file_fid={file_fid}, auto_play={auto_play}, start_position={start_pos}")
         if not hasattr(self, '_file_table'):
             print("[DEBUG] _file_table not found")
             return
@@ -2202,7 +2202,8 @@ class CloudDriveView(QWidget):
                         captured_file = cloud_file
                         captured_position = getattr(self, '_restore_start_position', 0.0)
                         print(f"[DEBUG] Restoring with start_position: {captured_position}s")
-                        QTimer.singleShot(300, lambda f=captured_file, p=captured_position: self._play_audio_file(f, start_position=p))
+                        QTimer.singleShot(300, lambda f=captured_file, p=captured_position: self._play_audio_file(f,
+                                                                                                                  start_position=p))
                     break
 
     def _select_file_by_fid(self, file_fid: str):
@@ -2221,8 +2222,6 @@ class CloudDriveView(QWidget):
 
     def _on_track_changed(self, track_item):
         """Handle track change event from EventBus."""
-        from domain.playback import PlaybackState
-        from PySide6.QtGui import QBrush, QColor
 
         # Get cloud_file_id from track_item
         new_file_id = None
@@ -2264,7 +2263,7 @@ class CloudDriveView(QWidget):
 
     def _set_file_playing_status(self, file_id: str, is_playing: bool, update_icon_only: bool = False):
         """Set the playing status for a specific file in the table."""
-        from PySide6.QtGui import QBrush, QColor, QFont
+        from PySide6.QtGui import QBrush, QColor
         from domain.playback import PlaybackState
 
         if not hasattr(self, '_file_table'):
@@ -2328,7 +2327,8 @@ class CloudDriveView(QWidget):
             name_item = self._file_table.item(row, 0)
             if name_item:
                 cloud_file = name_item.data(Qt.UserRole)
-                if cloud_file and hasattr(cloud_file, 'file_id') and cloud_file.file_id == self._current_playing_file_id:
+                if cloud_file and hasattr(cloud_file,
+                                          'file_id') and cloud_file.file_id == self._current_playing_file_id:
                     # Select the row
                     self._file_table.selectRow(row)
                     # Scroll to the item
@@ -2362,7 +2362,6 @@ class CloudFileDownloadThread(QThread):
 
     def run(self):
         """Download file in background thread."""
-        import os
         from pathlib import Path
         import time
 
@@ -2459,7 +2458,8 @@ class CloudFileDownloadThread(QThread):
                         else:
                             # Delete incomplete file
                             local_file_path.unlink()
-                            logger.error(f"[CloudFileDownloadThread] Download size mismatch, expected {expected_size}, got {downloaded_size}")
+                            logger.error(
+                                f"[CloudFileDownloadThread] Download size mismatch, expected {expected_size}, got {downloaded_size}")
                             self.finished.emit("")
                     else:
                         # No size info, assume download was successful

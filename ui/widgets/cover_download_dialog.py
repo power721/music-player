@@ -2,18 +2,18 @@
 Cover download dialog for manually downloading album covers.
 """
 import logging
-from typing import Optional, List
+from typing import List
 
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QProgressBar, QMessageBox, QScrollArea, QWidget,
     QListWidget, QListWidgetItem, QSplitter
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QPixmap, QImage
 
-from services.metadata import CoverService
 from domain.track import Track
+from services.metadata import CoverService
 from system.i18n import t
 
 logger = logging.getLogger(__name__)
