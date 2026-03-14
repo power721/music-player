@@ -75,6 +75,9 @@ jobs:
 
           cp dist/Harmony dist/Harmony.AppDir/usr/bin/
 
+          # Copy icon
+          cp icon.png dist/Harmony.AppDir/Harmony.png
+
           # Create desktop file
           cat > dist/Harmony.AppDir/usr/share/applications/Harmony.desktop << EOF
           [Desktop Entry]
@@ -88,7 +91,6 @@ jobs:
           EOF
 
           ln -sf usr/share/applications/Harmony.desktop dist/Harmony.AppDir/Harmony.desktop
-          ln -sf usr/share/icons/hicolor/256x256/apps/Harmony.png dist/Harmony.AppDir/Harmony.png 2>/dev/null || true
 
           # Create AppRun
           cat > dist/Harmony.AppDir/AppRun << 'EOF'
