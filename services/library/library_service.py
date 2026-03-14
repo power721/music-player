@@ -6,6 +6,8 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from domain.album import Album
+from domain.artist import Artist
 from domain.playlist import Playlist
 from domain.track import Track
 from repositories.playlist_repository import SqlitePlaylistRepository
@@ -159,3 +161,27 @@ class LibraryService:
         except Exception as e:
             logger.error(f"Error creating track from {file_path}: {e}")
             return None
+
+    # ===== Album Operations =====
+
+    def get_albums(self) -> List[Album]:
+        """Get all albums in the library."""
+        return self._track_repo.get_albums()
+
+    def get_album_tracks(self, album_name: str, artist: str = None) -> List[Track]:
+        """Get all tracks for a specific album."""
+        return self._track_repo.get_album_tracks(album_name, artist)
+
+    # ===== Artist Operations =====
+
+    def get_artists(self) -> List[Artist]:
+        """Get all artists in the library."""
+        return self._track_repo.get_artists()
+
+    def get_artist_tracks(self, artist_name: str) -> List[Track]:
+        """Get all tracks for a specific artist."""
+        return self._track_repo.get_artist_tracks(artist_name)
+
+    def get_artist_albums(self, artist_name: str) -> List[Album]:
+        """Get all albums for a specific artist."""
+        return self._track_repo.get_artist_albums(artist_name)

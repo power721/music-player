@@ -47,6 +47,9 @@ from ui.views.library_view import LibraryView
 from ui.views.playlist_view import PlaylistView
 from ui.views.queue_view import QueueView
 from ui.views.cloud_view import CloudDriveView
+from ui.views.albums_view import AlbumsView
+from ui.views.artists_view import ArtistsView
+from ui.views.artist_view import ArtistView
 from ui.widgets.player_controls import PlayerControls
 from ui.widgets.lyrics_widget_pro import LyricsWidget
 from ui.widgets.ai_settings_dialog import AISettingsDialog
@@ -263,11 +266,17 @@ class MainWindow(QMainWindow):
         self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config, bootstrap.cover_service)
         self._playlist_view = PlaylistView(self._db, self._player)
         self._queue_view = QueueView(self._player, self._db)
+        self._albums_view = AlbumsView(bootstrap.library_service, bootstrap.cover_service)
+        self._artists_view = ArtistsView(bootstrap.library_service, bootstrap.cover_service)
+        self._artist_view = ArtistView(bootstrap.library_service, self._playback, bootstrap.cover_service)
 
-        self._stacked_widget.addWidget(self._library_view)
-        self._stacked_widget.addWidget(self._cloud_drive_view)
-        self._stacked_widget.addWidget(self._playlist_view)
-        self._stacked_widget.addWidget(self._queue_view)
+        self._stacked_widget.addWidget(self._library_view)       # 0
+        self._stacked_widget.addWidget(self._cloud_drive_view)   # 1
+        self._stacked_widget.addWidget(self._playlist_view)      # 2
+        self._stacked_widget.addWidget(self._queue_view)         # 3
+        self._stacked_widget.addWidget(self._albums_view)        # 4
+        self._stacked_widget.addWidget(self._artists_view)       # 5
+        self._stacked_widget.addWidget(self._artist_view)        # 6
 
         self._splitter.addWidget(self._stacked_widget)
 
@@ -367,6 +376,8 @@ class MainWindow(QMainWindow):
         # Create navigation buttons with emoji font
         nav_buttons = [
             ("_nav_library", "🎼 " + t("library")),
+            ("_nav_albums", t("albums")),
+            ("_nav_artists", t("artists")),
             ("_nav_cloud", "☁️ " + t("cloud_drive")),
             ("_nav_playlists", "📋 " + t("playlists")),
             ("_nav_queue", "🎶 " + t("queue")),
@@ -501,6 +512,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.clicked.connect(lambda: self._show_page(1))
         self._nav_playlists.clicked.connect(lambda: self._show_page(2))
         self._nav_queue.clicked.connect(lambda: self._show_page(3))
+        self._nav_albums.clicked.connect(lambda: self._show_page(4))
+        self._nav_artists.clicked.connect(lambda: self._show_page(5))
         self._nav_favorites.clicked.connect(self._show_favorites)
         self._nav_history.clicked.connect(self._show_history)
         self._lyrics_view.seekRequested.connect(self._playback.seek)
@@ -525,6 +538,17 @@ class MainWindow(QMainWindow):
         self._queue_view.queue_reordered.connect(self._on_queue_reordered)
         self._cloud_drive_view.track_double_clicked.connect(self._play_cloud_track)
         self._cloud_drive_view.play_cloud_files.connect(self._play_cloud_playlist)
+
+        # Albums view connections
+        self._albums_view.album_clicked.connect(self._on_album_clicked)
+        self._albums_view.play_album.connect(self._play_tracks)
+
+        # Artists view connections
+        self._artists_view.artist_clicked.connect(self._on_artist_clicked)
+
+        # Artist view connections
+        self._artist_view.play_tracks.connect(self._play_tracks)
+        self._artist_view.track_double_clicked.connect(self._play_track)
 
     def _setup_system_tray(self):
         """Setup system tray icon."""
@@ -638,6 +662,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(index == 1)
         self._nav_playlists.setChecked(index == 2)
         self._nav_queue.setChecked(index == 3)
+        self._nav_albums.setChecked(index == 4)
+        self._nav_artists.setChecked(index == 5)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(False)
 
@@ -670,6 +696,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(True)
         self._nav_history.setChecked(False)
 
@@ -688,6 +716,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(True)
 
@@ -695,6 +725,49 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import QTimer
 
         QTimer.singleShot(50, self._library_view.show_history)
+
+    def _on_album_clicked(self, album):
+        """Handle album card click."""
+        from app.bootstrap import Bootstrap
+        bootstrap = Bootstrap.instance()
+
+        # Get album tracks and play them
+        tracks = bootstrap.library_service.get_album_tracks(album.name, album.artist)
+        if tracks:
+            self._play_tracks(tracks)
+
+    def _on_artist_clicked(self, artist):
+        """Handle artist card click."""
+        # Show artist detail view
+        self._artist_view.set_artist(artist)
+        self._stacked_widget.setCurrentIndex(6)
+
+        # Update nav button states
+        self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
+        self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
+        self._nav_favorites.setChecked(False)
+        self._nav_history.setChecked(False)
+
+    def _play_tracks(self, tracks):
+        """Play a list of tracks."""
+        if tracks:
+            from domain.playlist_item import PlaylistItem
+            from pathlib import Path
+
+            # Create PlaylistItems with full track info (including local_path)
+            items = []
+            for track in tracks:
+                if track.id and track.id > 0 and Path(track.path).exists():
+                    items.append(PlaylistItem.from_track(track))
+
+            if items:
+                self._playback.engine.clear_playlist()
+                self._playback.engine.load_playlist_items(items)
+                self._playback.engine.play_at(0)
 
     def _add_music(self):
         """Add music to the library."""

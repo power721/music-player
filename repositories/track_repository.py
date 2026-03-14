@@ -151,3 +151,174 @@ class SqliteTrackRepository:
             cover_path=row["cover_path"],
             cloud_file_id=row["cloud_file_id"],
         )
+
+    # ===== Album Operations =====
+
+    def get_albums(self) -> List['Album']:
+        """
+        Get all albums aggregated from tracks.
+
+        Returns:
+            List of Album objects with aggregated info
+        """
+        from domain.album import Album
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                album as name,
+                artist,
+                cover_path,
+                COUNT(*) as song_count,
+                SUM(duration) as total_duration
+            FROM tracks
+            WHERE album IS NOT NULL AND album != ''
+            GROUP BY album, artist
+            ORDER BY artist, album
+        """)
+        rows = cursor.fetchall()
+
+        albums = []
+        for row in rows:
+            albums.append(Album(
+                name=row["name"] or "",
+                artist=row["artist"] or "",
+                cover_path=row["cover_path"],
+                song_count=row["song_count"] or 0,
+                duration=row["total_duration"] or 0.0,
+            ))
+        return albums
+
+    def get_album_tracks(self, album_name: str, artist: str = None) -> List[Track]:
+        """
+        Get all tracks for a specific album.
+
+        Args:
+            album_name: Album name
+            artist: Optional artist filter
+
+        Returns:
+            List of Track objects in the album
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        if artist:
+            cursor.execute("""
+                SELECT * FROM tracks
+                WHERE album = ? AND artist = ?
+                ORDER BY id
+            """, (album_name, artist))
+        else:
+            cursor.execute("""
+                SELECT * FROM tracks
+                WHERE album = ?
+                ORDER BY id
+            """, (album_name,))
+
+        rows = cursor.fetchall()
+        return [self._row_to_track(row) for row in rows]
+
+    # ===== Artist Operations =====
+
+    def get_artists(self) -> List['Artist']:
+        """
+        Get all artists aggregated from tracks.
+
+        Returns:
+            List of Artist objects with aggregated info
+        """
+        from domain.artist import Artist
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                artist as name,
+                COUNT(*) as song_count,
+                COUNT(DISTINCT album) as album_count
+            FROM tracks
+            WHERE artist IS NOT NULL AND artist != ''
+            GROUP BY artist
+            ORDER BY artist
+        """)
+        rows = cursor.fetchall()
+
+        artists = []
+        for row in rows:
+            # Get cover from first track of artist
+            cursor.execute("""
+                SELECT cover_path FROM tracks
+                WHERE artist = ? AND cover_path IS NOT NULL
+                LIMIT 1
+            """, (row["name"],))
+            cover_row = cursor.fetchone()
+            cover_path = cover_row["cover_path"] if cover_row else None
+
+            artists.append(Artist(
+                name=row["name"] or "",
+                cover_path=cover_path,
+                song_count=row["song_count"] or 0,
+                album_count=row["album_count"] or 0,
+            ))
+        return artists
+
+    def get_artist_tracks(self, artist_name: str) -> List[Track]:
+        """
+        Get all tracks for a specific artist.
+
+        Args:
+            artist_name: Artist name
+
+        Returns:
+            List of Track objects by the artist
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM tracks
+            WHERE artist = ?
+            ORDER BY album, id
+        """, (artist_name,))
+        rows = cursor.fetchall()
+        return [self._row_to_track(row) for row in rows]
+
+    def get_artist_albums(self, artist_name: str) -> List['Album']:
+        """
+        Get all albums for a specific artist.
+
+        Args:
+            artist_name: Artist name
+
+        Returns:
+            List of Album objects by the artist
+        """
+        from domain.album import Album
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT
+                album as name,
+                artist,
+                cover_path,
+                COUNT(*) as song_count,
+                SUM(duration) as total_duration
+            FROM tracks
+            WHERE artist = ? AND album IS NOT NULL AND album != ''
+            GROUP BY album
+            ORDER BY album
+        """, (artist_name,))
+        rows = cursor.fetchall()
+
+        albums = []
+        for row in rows:
+            albums.append(Album(
+                name=row["name"] or "",
+                artist=row["artist"] or "",
+                cover_path=row["cover_path"],
+                song_count=row["song_count"] or 0,
+                duration=row["total_duration"] or 0.0,
+            ))
+        return albums
