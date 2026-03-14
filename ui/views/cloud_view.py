@@ -972,6 +972,12 @@ class CloudDriveView(QWidget):
                         self._current_account.id,
                         temp_path
                     )
+                    # Also update last_playing_local_path for faster restore
+                    self._db.update_cloud_account_playing_state(
+                        self._current_account.id,
+                        playing_fid=cloud_file.file_id,
+                        local_path=temp_path
+                    )
 
             # Emit signal with playlist info and start position
             self.play_cloud_files.emit(temp_path, file_index, audio_files, start_position)
@@ -1037,6 +1043,12 @@ class CloudDriveView(QWidget):
                             cloud_file.file_id,
                             self._current_account.id,
                             temp_path
+                        )
+                        # Also update last_playing_local_path for faster restore
+                        self._db.update_cloud_account_playing_state(
+                            self._current_account.id,
+                            playing_fid=cloud_file.file_id,
+                            local_path=temp_path
                         )
 
                 # Emit signal with playlist info and start position
