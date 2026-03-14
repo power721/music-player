@@ -769,3 +769,91 @@ class CoverService:
         """
         cache_key = self._get_cache_key(artist, album or title)
         return self._save_cover_to_cache(cover_data, cache_key)
+
+    def search_artist_covers(self, artist_name: str, limit: int = 10) -> List[dict]:
+        """
+        Search for artist covers from NetEase Cloud Music.
+
+        Args:
+            artist_name: Artist name to search
+            limit: Maximum number of results
+
+        Returns:
+            List of dicts with artist cover info
+        """
+        results = []
+
+        try:
+            search_url = "https://music.163.com/api/search/get/web"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://music.163.com/'
+            }
+
+            params = {
+                's': artist_name,
+                'type': 100,  # Artist search
+                'limit': limit,
+                'offset': 0
+            }
+
+            response = self.http_client.get(
+                search_url,
+                params=params,
+                headers=headers,
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                if data.get('code') == 200 and data.get('result', {}).get('artists'):
+                    for artist_info in data['result']['artists']:
+                        pic_url = artist_info.get('picUrl') or artist_info.get('img1v1Url')
+                        if pic_url:
+                            # Get high quality version
+                            if '?' not in pic_url:
+                                pic_url += '?param=512y512'
+
+                            # Calculate match score based on name similarity
+                            name = artist_info.get('name', '')
+                            score = self._calculate_artist_name_score(artist_name, name)
+
+                            results.append({
+                                'name': name,
+                                'id': artist_info.get('id'),
+                                'cover_url': pic_url,
+                                'album_count': artist_info.get('albumSize', 0),
+                                'score': score,
+                                'source': 'netease'
+                            })
+
+            # Sort by score descending
+            results.sort(key=lambda x: x['score'], reverse=True)
+
+        except Exception as e:
+            logger.error(f"Error searching artist covers: {e}", exc_info=True)
+
+        return results
+
+    def _calculate_artist_name_score(self, query: str, name: str) -> float:
+        """Calculate similarity score between query and artist name."""
+        query_lower = query.lower().strip()
+        name_lower = name.lower().strip()
+
+        if query_lower == name_lower:
+            return 100.0
+
+        if query_lower in name_lower or name_lower in query_lower:
+            return 85.0
+
+        # Word-level matching
+        query_words = set(query_lower.split())
+        name_words = set(name_lower.split())
+
+        if query_words & name_words:
+            common = len(query_words & name_words)
+            total = max(len(query_words), len(name_words))
+            return 70.0 + (common / total) * 15
+
+        return 50.0

@@ -149,103 +149,103 @@ class LibraryView(QWidget):
         layout.addLayout(header_layout)
 
         # View type selector
-        view_selector = QHBoxLayout()
-        view_selector.setSpacing(10)
+        # view_selector = QHBoxLayout()
+        # view_selector.setSpacing(10)
 
         # Get emoji-supporting font
-        from PySide6.QtGui import QFontDatabase, QFont
-
-        emoji_fonts = [
-            "Segoe UI Emoji",
-            "Apple Color Emoji",
-            "Noto Color Emoji",
-            "Symbola",
-            "Arial Unicode MS",
-            "DejaVu Sans",
-        ]
-        available_families = QFontDatabase.families()
-        emoji_font = None
-        for font_name in emoji_fonts:
-            if any(font_name.lower() in f.lower() for f in available_families):
-                emoji_font = font_name
-                break
+        # from PySide6.QtGui import QFontDatabase, QFont
+        #
+        # emoji_fonts = [
+        #     "Segoe UI Emoji",
+        #     "Apple Color Emoji",
+        #     "Noto Color Emoji",
+        #     "Symbola",
+        #     "Arial Unicode MS",
+        #     "DejaVu Sans",
+        # ]
+        # available_families = QFontDatabase.families()
+        # emoji_font = None
+        # for font_name in emoji_fonts:
+        #     if any(font_name.lower() in f.lower() for f in available_families):
+        #         emoji_font = font_name
+        #         break
 
         # Create view buttons with emoji font
-        self._btn_all = QPushButton(t("all_tracks"))
-        self._btn_all.setCheckable(True)
-        self._btn_all.setChecked(True)
-        self._btn_all.setObjectName("viewBtn")
-        self._btn_all.setCursor(Qt.PointingHandCursor)
-        self._btn_all.setMinimumWidth(120)
-        if emoji_font:
-            btn_font = QFont()
-            btn_font.setFamily(emoji_font)
-            btn_font.setPointSize(13)
-            self._btn_all.setFont(btn_font)
-        view_selector.addWidget(self._btn_all)
-
-        self._btn_artists = QPushButton(t("artists"))
-        self._btn_artists.setCheckable(True)
-        self._btn_artists.setObjectName("viewBtn")
-        self._btn_artists.setCursor(Qt.PointingHandCursor)
-        self._btn_artists.setMinimumWidth(110)
-        if emoji_font:
-            btn_font = QFont()
-            btn_font.setFamily(emoji_font)
-            btn_font.setPointSize(13)
-            self._btn_artists.setFont(btn_font)
-        view_selector.addWidget(self._btn_artists)
-
-        self._btn_albums = QPushButton(t("albums"))
-        self._btn_albums.setCheckable(True)
-        self._btn_albums.setObjectName("viewBtn")
-        self._btn_albums.setCursor(Qt.PointingHandCursor)
-        self._btn_albums.setMinimumWidth(100)
-        if emoji_font:
-            btn_font = QFont()
-            btn_font.setFamily(emoji_font)
-            btn_font.setPointSize(13)
-            self._btn_albums.setFont(btn_font)
-        view_selector.addWidget(self._btn_albums)
-
-        # Style the view buttons
-        view_button_style = """
-            QPushButton#viewBtn {
-                background-color: #2a2a2a;
-                color: #e0e0e0;
-                border: 2px solid #3a3a3a;
-                border-radius: 20px;
-                padding: 8px 20px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-            QPushButton#viewBtn:hover {
-                background-color: #3a3a3a;
-                border: 2px solid #1db954;
-                color: #1db954;
-            }
-            QPushButton#viewBtn:checked {
-                background-color: #1db954;
-                color: #000000;
-                border: 2px solid #1db954;
-                font-weight: bold;
-            }
-            QPushButton#viewBtn:checked:hover {
-                background-color: #1ed760;
-            }
-        """
+        # self._btn_all = QPushButton(t("all_tracks"))
+        # self._btn_all.setCheckable(True)
+        # self._btn_all.setChecked(True)
+        # self._btn_all.setObjectName("viewBtn")
+        # self._btn_all.setCursor(Qt.PointingHandCursor)
+        # self._btn_all.setMinimumWidth(120)
+        # if emoji_font:
+        #     btn_font = QFont()
+        #     btn_font.setFamily(emoji_font)
+        #     btn_font.setPointSize(13)
+        #     self._btn_all.setFont(btn_font)
+        # view_selector.addWidget(self._btn_all)
+        #
+        # self._btn_artists = QPushButton(t("artists"))
+        # self._btn_artists.setCheckable(True)
+        # self._btn_artists.setObjectName("viewBtn")
+        # self._btn_artists.setCursor(Qt.PointingHandCursor)
+        # self._btn_artists.setMinimumWidth(110)
+        # if emoji_font:
+        #     btn_font = QFont()
+        #     btn_font.setFamily(emoji_font)
+        #     btn_font.setPointSize(13)
+        #     self._btn_artists.setFont(btn_font)
+        # view_selector.addWidget(self._btn_artists)
+        #
+        # self._btn_albums = QPushButton(t("albums"))
+        # self._btn_albums.setCheckable(True)
+        # self._btn_albums.setObjectName("viewBtn")
+        # self._btn_albums.setCursor(Qt.PointingHandCursor)
+        # self._btn_albums.setMinimumWidth(100)
+        # if emoji_font:
+        #     btn_font = QFont()
+        #     btn_font.setFamily(emoji_font)
+        #     btn_font.setPointSize(13)
+        #     self._btn_albums.setFont(btn_font)
+        # view_selector.addWidget(self._btn_albums)
+        #
+        # # Style the view buttons
+        # view_button_style = """
+        #     QPushButton#viewBtn {
+        #         background-color: #2a2a2a;
+        #         color: #e0e0e0;
+        #         border: 2px solid #3a3a3a;
+        #         border-radius: 20px;
+        #         padding: 8px 20px;
+        #         font-size: 13px;
+        #         font-weight: 500;
+        #     }
+        #     QPushButton#viewBtn:hover {
+        #         background-color: #3a3a3a;
+        #         border: 2px solid #1db954;
+        #         color: #1db954;
+        #     }
+        #     QPushButton#viewBtn:checked {
+        #         background-color: #1db954;
+        #         color: #000000;
+        #         border: 2px solid #1db954;
+        #         font-weight: bold;
+        #     }
+        #     QPushButton#viewBtn:checked:hover {
+        #         background-color: #1ed760;
+        #     }
+        # """
 
         # Apply styles to all buttons
-        self._btn_all.setStyleSheet(view_button_style)
-        self._btn_artists.setStyleSheet(view_button_style)
-        self._btn_albums.setStyleSheet(view_button_style)
-        self._btn_all.setStyleSheet(view_button_style)
-        self._btn_artists.setStyleSheet(view_button_style)
-        self._btn_albums.setStyleSheet(view_button_style)
+        # self._btn_all.setStyleSheet(view_button_style)
+        # self._btn_artists.setStyleSheet(view_button_style)
+        # self._btn_albums.setStyleSheet(view_button_style)
+        # self._btn_all.setStyleSheet(view_button_style)
+        # self._btn_artists.setStyleSheet(view_button_style)
+        # self._btn_albums.setStyleSheet(view_button_style)
 
-        view_selector.addStretch()
-
-        layout.addLayout(view_selector)
+        # view_selector.addStretch()
+        #
+        # layout.addLayout(view_selector)
 
         # Tracks table
         self._tracks_table = QTableWidget()
@@ -413,9 +413,9 @@ class LibraryView(QWidget):
         self._search_input.textChanged.connect(self._on_search)
         self._tracks_table.itemDoubleClicked.connect(self._on_item_double_clicked)
 
-        self._btn_all.clicked.connect(lambda: self._change_view("all"))
-        self._btn_artists.clicked.connect(lambda: self._change_view("artists"))
-        self._btn_albums.clicked.connect(lambda: self._change_view("albums"))
+        # self._btn_all.clicked.connect(lambda: self._change_view("all"))
+        # self._btn_artists.clicked.connect(lambda: self._change_view("artists"))
+        # self._btn_albums.clicked.connect(lambda: self._change_view("albums"))
 
         # Connect to player engine signals
         self._player.engine.current_track_changed.connect(
@@ -429,9 +429,9 @@ class LibraryView(QWidget):
         self._search_input.setPlaceholderText(t("search_tracks"))
 
         # Update filter buttons
-        self._btn_all.setText(t("all_tracks"))
-        self._btn_artists.setText(t("artists"))
-        self._btn_albums.setText(t("albums"))
+        # self._btn_all.setText(t("all_tracks"))
+        # self._btn_artists.setText(t("artists"))
+        # self._btn_albums.setText(t("albums"))
 
         # Update table headers
         self._tracks_table.setHorizontalHeaderLabels(
@@ -478,13 +478,13 @@ class LibraryView(QWidget):
             # 否则加载所有歌曲
             self._load_all_tracks()
         # Show view buttons
-        self._btn_all.setVisible(True)
-        self._btn_artists.setVisible(True)
-        self._btn_albums.setVisible(True)
-        # Restore the sub-view button state
-        self._btn_all.setChecked(self._current_sub_view == "all")
-        self._btn_artists.setChecked(self._current_sub_view == "artists")
-        self._btn_albums.setChecked(self._current_sub_view == "albums")
+        # self._btn_all.setVisible(True)
+        # self._btn_artists.setVisible(True)
+        # self._btn_albums.setVisible(True)
+        # # Restore the sub-view button state
+        # self._btn_all.setChecked(self._current_sub_view == "all")
+        # self._btn_artists.setChecked(self._current_sub_view == "artists")
+        # self._btn_albums.setChecked(self._current_sub_view == "albums")
         # Load the appropriate sub-view content
         if self._current_sub_view == "artists":
             self._load_artists()
@@ -516,9 +516,9 @@ class LibraryView(QWidget):
             self._load_favorites()
 
         # Hide view buttons
-        self._btn_all.setVisible(False)
-        self._btn_artists.setVisible(False)
-        self._btn_albums.setVisible(False)
+        # self._btn_all.setVisible(False)
+        # self._btn_artists.setVisible(False)
+        # self._btn_albums.setVisible(False)
 
     def show_history(self):
         """Show play history."""
@@ -540,10 +540,10 @@ class LibraryView(QWidget):
             self._load_history()
 
         # Hide view buttons
-        self._btn_all.setVisible(False)
-        self._btn_artists.setVisible(False)
-        self._btn_albums.setVisible(False)
-        self._btn_albums.setVisible(False)
+        # self._btn_all.setVisible(False)
+        # self._btn_artists.setVisible(False)
+        # self._btn_albums.setVisible(False)
+        # self._btn_albums.setVisible(False)
 
     def _change_view(self, view_type: str):
         """Change the view type."""
@@ -551,9 +551,9 @@ class LibraryView(QWidget):
         self._current_sub_view = view_type
 
         # Update button states
-        self._btn_all.setChecked(view_type == "all")
-        self._btn_artists.setChecked(view_type == "artists")
-        self._btn_albums.setChecked(view_type == "albums")
+        # self._btn_all.setChecked(view_type == "all")
+        # self._btn_artists.setChecked(view_type == "artists")
+        # self._btn_albums.setChecked(view_type == "albums")
 
         if view_type == "all":
             self._load_all_tracks()

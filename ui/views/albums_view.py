@@ -56,6 +56,7 @@ class AlbumsView(QWidget):
 
     album_clicked = Signal(object)  # Emits Album object
     play_album = Signal(list)  # Emits list of Track objects
+    download_cover_requested = Signal(object)  # Emits Album object
 
     # Grid settings
     CARDS_PER_ROW = 5
@@ -282,6 +283,7 @@ class AlbumsView(QWidget):
         for i, album in enumerate(self._filtered_albums):
             card = AlbumCard(album)
             card.clicked.connect(self._on_album_clicked)
+            card.download_cover_requested.connect(self.download_cover_requested.emit)
 
             row = i // cards_per_row
             col = i % cards_per_row

@@ -53,6 +53,7 @@ class ArtistsView(QWidget):
     """
 
     artist_clicked = Signal(object)  # Emits Artist object
+    download_cover_requested = Signal(object)  # Emits Artist object
 
     # Grid settings
     CARDS_PER_ROW = 5
@@ -279,6 +280,7 @@ class ArtistsView(QWidget):
         for i, artist in enumerate(self._filtered_artists):
             card = ArtistCard(artist)
             card.clicked.connect(self._on_artist_clicked)
+            card.download_cover_requested.connect(self.download_cover_requested.emit)
 
             row = i // cards_per_row
             col = i % cards_per_row

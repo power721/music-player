@@ -10,9 +10,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QFrame,
+    QMenu,
 )
 from PySide6.QtCore import Qt, Signal, QRect
-from PySide6.QtGui import QPixmap, QColor, QPainter, QFont
+from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QAction
 
 from domain.artist import Artist
 
@@ -27,9 +28,11 @@ class ArtistCard(QWidget):
         - Circular artist avatar
         - Artist name and song count
         - Click signal for navigation
+        - Right-click context menu for cover download
     """
 
     clicked = Signal(object)  # Emits Artist object
+    download_cover_requested = Signal(object)  # Emits Artist object
 
     # Card size constants
     AVATAR_SIZE = 160
@@ -49,6 +52,8 @@ class ArtistCard(QWidget):
         """Set up the card UI."""
         self.setFixedSize(self.CARD_WIDTH, self.CARD_HEIGHT)
         self.setCursor(Qt.PointingHandCursor)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
         # Main layout
         layout = QVBoxLayout(self)
@@ -112,6 +117,39 @@ class ArtistCard(QWidget):
         layout.addWidget(self._avatar_container, 0, Qt.AlignHCenter)
         layout.addWidget(info_widget)
         layout.addStretch()
+
+    def _show_context_menu(self, pos):
+        """Show context menu."""
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #3a3a3a;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #1db954;
+                color: #000000;
+            }
+        """)
+
+        # Download cover action
+        download_action = QAction("⬇️ 下载封面", self)
+        download_action.triggered.connect(lambda: self.download_cover_requested.emit(self._artist))
+        menu.addAction(download_action)
+
+        # View artist action
+        view_action = QAction("👤 查看歌手", self)
+        view_action.triggered.connect(lambda: self.clicked.emit(self._artist))
+        menu.addAction(view_action)
+
+        menu.exec_(self.mapToGlobal(pos))
 
     def _load_avatar(self):
         """Load artist avatar image."""
@@ -224,3 +262,8 @@ class ArtistCard(QWidget):
     def get_artist(self) -> Artist:
         """Get the artist object."""
         return self._artist
+
+    def update_avatar(self, cover_path: str):
+        """Update avatar after download."""
+        self._artist.cover_path = cover_path
+        self._load_avatar()

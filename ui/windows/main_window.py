@@ -542,9 +542,11 @@ class MainWindow(QMainWindow):
         # Albums view connections
         self._albums_view.album_clicked.connect(self._on_album_clicked)
         self._albums_view.play_album.connect(self._play_tracks)
+        self._albums_view.download_cover_requested.connect(self._on_download_album_cover)
 
         # Artists view connections
         self._artists_view.artist_clicked.connect(self._on_artist_clicked)
+        self._artists_view.download_cover_requested.connect(self._on_download_artist_cover)
 
         # Artist view connections
         self._artist_view.play_tracks.connect(self._play_tracks)
@@ -736,6 +738,28 @@ class MainWindow(QMainWindow):
         if tracks:
             self._play_tracks(tracks)
 
+    def _on_download_album_cover(self, album):
+        """Handle download album cover request."""
+        from ui.widgets.album_cover_download_dialog import AlbumCoverDownloadDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = AlbumCoverDownloadDialog(
+            album,
+            bootstrap.cover_service,
+            self
+        )
+
+        def on_cover_saved(cover_path):
+            # Update the specific album card instead of reloading entire view
+            for card in self._albums_view._cards:
+                if card.get_album().name == album.name and card.get_album().artist == album.artist:
+                    card.update_cover(cover_path)
+                    break
+
+        dialog.cover_saved.connect(on_cover_saved)
+        dialog.exec()
+
     def _on_artist_clicked(self, artist):
         """Handle artist card click."""
         # Show artist detail view
@@ -751,6 +775,28 @@ class MainWindow(QMainWindow):
         self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(False)
+
+    def _on_download_artist_cover(self, artist):
+        """Handle download artist cover request."""
+        from ui.widgets.artist_cover_download_dialog import ArtistCoverDownloadDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = ArtistCoverDownloadDialog(
+            artist,
+            bootstrap.cover_service,
+            self
+        )
+
+        def on_cover_saved(cover_path):
+            # Update the specific artist card instead of reloading entire view
+            for card in self._artists_view._cards:
+                if card.get_artist().name == artist.name:
+                    card.update_avatar(cover_path)
+                    break
+
+        dialog.cover_saved.connect(on_cover_saved)
+        dialog.exec()
 
     def _play_tracks(self, tracks):
         """Play a list of tracks."""

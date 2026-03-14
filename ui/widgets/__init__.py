@@ -4,7 +4,9 @@ UI widgets module.
 
 from .ai_settings_dialog import AISettingsDialog
 from .album_card import AlbumCard
+from .album_cover_download_dialog import AlbumCoverDownloadDialog
 from .artist_card import ArtistCard
+from .artist_cover_download_dialog import ArtistCoverDownloadDialog
 from .cloud_login_dialog import CloudLoginDialog
 from .cover_download_dialog import CoverDownloadDialog
 from .equalizer_widget import EqualizerWidget, EqualizerPreset
@@ -14,5 +16,5 @@ from .player_controls import PlayerControls
 __all__ = [
     'PlayerControls', 'LyricsWidget', 'CloudLoginDialog', 'AISettingsDialog',
     'EqualizerWidget', 'EqualizerPreset', 'CoverDownloadDialog',
-    'AlbumCard', 'ArtistCard',
+    'AlbumCard', 'ArtistCard', 'AlbumCoverDownloadDialog', 'ArtistCoverDownloadDialog',
 ]
