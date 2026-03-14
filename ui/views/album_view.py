@@ -405,6 +405,10 @@ class AlbumView(QWidget):
 
         QTimer.singleShot(10, lambda: self._do_load_album(album))
 
+    def get_album(self) -> Album:
+        """Get the currently displayed album."""
+        return self._album
+
     def _do_load_album(self, album: Album):
         """Actually load album data."""
         try:

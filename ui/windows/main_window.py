@@ -1835,8 +1835,131 @@ class MainWindow(QMainWindow):
         volume = self._config.get_volume()
         self._player_controls.set_volume(volume)
 
+        # Restore view state (album/artist detail view)
+        self._restore_view_state()
+
         # Restore playback state
         self._restore_playback_state()
+
+    def _save_view_state(self):
+        """Save current view state to config."""
+        import json
+
+        current_index = self._stacked_widget.currentIndex()
+        view_type = "library"
+        view_data = {}
+
+        # Map index to view type
+        index_to_type = {
+            0: "library",
+            1: "cloud",
+            2: "playlists",
+            3: "queue",
+            4: "albums",
+            5: "artists",
+            6: "artist",
+            7: "album",
+        }
+
+        view_type = index_to_type.get(current_index, "library")
+
+        # Save view-specific data
+        if view_type == "album":
+            album = self._album_view.get_album()
+            if album:
+                view_data = {
+                    "name": album.name,
+                    "artist": album.artist,
+                }
+        elif view_type == "artist":
+            artist = self._artist_view.get_artist()
+            if artist:
+                view_data = {
+                    "name": artist.name,
+                }
+
+        self._config.set_view_type(view_type)
+        self._config.set_view_data(json.dumps(view_data))
+
+    def _restore_view_state(self):
+        """Restore view state from config."""
+        from PySide6.QtCore import QTimer
+        import json
+
+        view_type = self._config.get_view_type()
+        view_data_raw = self._config.get_view_data()
+
+        if not view_type or view_type == "library":
+            return
+
+        # Handle both string and dict types from config
+        if isinstance(view_data_raw, dict):
+            view_data = view_data_raw
+        elif isinstance(view_data_raw, str) and view_data_raw:
+            try:
+                view_data = json.loads(view_data_raw)
+            except json.JSONDecodeError:
+                view_data = {}
+        else:
+            view_data = {}
+
+        def restore_view():
+            if view_type == "album":
+                name = view_data.get("name")
+                artist = view_data.get("artist")
+                if name and artist:
+                    # Find album from library
+                    from app.bootstrap import Bootstrap
+                    bootstrap = Bootstrap.instance()
+                    albums = bootstrap.library_service.get_albums()
+                    for album in albums:
+                        if album.name == name and album.artist == artist:
+                            self._album_view.set_album(album)
+                            self._stacked_widget.setCurrentIndex(7)
+                            self._update_nav_buttons_for_detail_view()
+                            break
+            elif view_type == "artist":
+                name = view_data.get("name")
+                if name:
+                    # Find artist from library
+                    from app.bootstrap import Bootstrap
+                    bootstrap = Bootstrap.instance()
+                    artists = bootstrap.library_service.get_artists()
+                    for artist in artists:
+                        if artist.name == name:
+                            self._artist_view.set_artist(artist)
+                            self._stacked_widget.setCurrentIndex(6)
+                            self._update_nav_buttons_for_detail_view()
+                            break
+            elif view_type == "cloud":
+                self._show_page(1)
+            elif view_type == "playlists":
+                self._show_page(2)
+            elif view_type == "queue":
+                self._show_page(3)
+            elif view_type == "albums":
+                self._show_page(4)
+            elif view_type == "artists":
+                self._show_page(5)
+            elif view_type == "favorites":
+                self._show_favorites()
+            elif view_type == "history":
+                self._show_history()
+
+
+        # Delay to ensure UI is ready
+        QTimer.singleShot(100, restore_view)
+
+    def _update_nav_buttons_for_detail_view(self):
+        """Update navigation buttons for detail view (album/artist)."""
+        self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
+        self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
+        self._nav_favorites.setChecked(False)
+        self._nav_history.setChecked(False)
 
     def _restore_playback_state(self):
         """Restore previous playback state."""
@@ -1852,11 +1975,11 @@ class MainWindow(QMainWindow):
             source = self._config.get_playback_source()
 
             # Update navigation buttons immediately based on source
-            if source == "cloud":
-                if hasattr(self, '_nav_cloud'):
-                    self._nav_cloud.setChecked(True)
-                if hasattr(self, '_nav_library'):
-                    self._nav_library.setChecked(False)
+            # if source == "cloud":
+            #     if hasattr(self, '_nav_cloud'):
+            #         self._nav_cloud.setChecked(True)
+            #     if hasattr(self, '_nav_library'):
+            #         self._nav_library.setChecked(False)
 
             def restore_queue_state():
                 current_item = self._player.current_track
@@ -1965,6 +2088,9 @@ class MainWindow(QMainWindow):
         # Save window settings using QSettings (Qt native format)
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("splitter", self._splitter.saveState())
+
+        # Save current view state
+        self._save_view_state()
 
         # Check if playing cloud files BEFORE stopping
         is_playing_cloud = self._player.current_source == "cloud"

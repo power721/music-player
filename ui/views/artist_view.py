@@ -480,6 +480,10 @@ class ArtistView(QWidget):
 
         QTimer.singleShot(10, lambda: self._do_load_artist(artist))
 
+    def get_artist(self) -> Artist:
+        """Get the currently displayed artist."""
+        return self._artist
+
     def _do_load_artist(self, artist: Artist):
         """Actually load artist data."""
         try:
