@@ -39,7 +39,6 @@ jobs:
             libglib2.0-0 \
             libpulse0 \
             libxcb1 \
-            libxkbcommon-x11-0 \
             libxcb-icccm4 \
             libxcb-image0 \
             libxcb-keysyms1 \
@@ -102,7 +101,7 @@ jobs:
           chmod +x dist/Harmony.AppDir/AppRun
 
           # Build AppImage
-          /tmp/appimagetool dist/Harmony.AppDir dist/Harmony-${{ env.APP_VERSION }}-x86_64.AppImage
+          ARCH=x86_64 /tmp/appimagetool dist/Harmony.AppDir dist/Harmony-${{ env.APP_VERSION }}-x86_64.AppImage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
