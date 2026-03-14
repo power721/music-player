@@ -406,7 +406,7 @@ class AlbumCoverDownloadDialog(QDialog):
         )
 
         if cover_path:
-            # Update albums_cache in database
+            # Update albums in database
             from app import Application
             app = Application.instance()
             if app and app.bootstrap:
@@ -414,7 +414,7 @@ class AlbumCoverDownloadDialog(QDialog):
                 conn = db._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("""
-                    UPDATE albums_cache
+                    UPDATE albums
                     SET cover_path = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE name = ? AND artist = ?
                 """, (cover_path, self._album.name, self._album.artist))

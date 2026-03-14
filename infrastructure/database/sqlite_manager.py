@@ -684,17 +684,6 @@ class DatabaseManager:
                                FROM tracks
                                """)
 
-        # Migration 3: Drop old cache tables and rename to new tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='albums_cache'")
-        if cursor.fetchone():
-            cursor.execute("DROP TABLE albums_cache")
-            logger.info("[Database] Dropped old albums_cache table")
-
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='artists_cache'")
-        if cursor.fetchone():
-            cursor.execute("DROP TABLE artists_cache")
-            logger.info("[Database] Dropped old artists_cache table")
-
     # Track operations
 
     def add_track(self, track: Track) -> int:

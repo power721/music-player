@@ -18,13 +18,14 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QStyledItemDelegate,
     QStyle,
+    QMenu,
     QApplication,
 )
 from PySide6.QtCore import (
     Qt, Signal, QTimer, QThread,
-    QAbstractListModel, QModelIndex, QSize, QRect
+    QAbstractListModel, QModelIndex, QSize, QRect, QEvent
 )
-from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QPen
+from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QPen, QAction, QCursor
 
 from domain.album import Album
 from services.library import LibraryService
@@ -92,14 +93,10 @@ class AlbumDelegate(QStyledItemDelegate):
     BORDER_RADIUS = 8
     SPACING = 20
 
-    clicked = Signal(object)  # Emits Album object
-    download_cover_requested = Signal(object)  # Emits Album object
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cover_cache = {}  # Cache for loaded covers
         self._default_cover = self._create_default_cover()
-        self._hovered_index = -1
 
     def _create_default_cover(self) -> QPixmap:
         """Create default cover pixmap."""
@@ -163,8 +160,21 @@ class AlbumDelegate(QStyledItemDelegate):
             self.COVER_SIZE
         )
 
-        # Draw border on hover
+        # Draw highlight background on hover
         if is_hovered:
+            # Draw rounded rect background
+            bg_rect = QRect(
+                cover_rect.x() - 4,
+                cover_rect.y() - 4,
+                self.COVER_SIZE + 8,
+                self.CARD_HEIGHT - 40
+            )
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(30, 30, 30, 200))
+            painter.drawRoundedRect(bg_rect, 12, 12)
+
+            # Draw border
             painter.setPen(QPen(QColor("#1db954"), 2))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(cover_rect, self.BORDER_RADIUS, self.BORDER_RADIUS)
@@ -230,6 +240,7 @@ class AlbumsView(QWidget):
         self._filtered_albums: List[Album] = []
         self._data_loaded = False
         self._load_worker = None
+        self._hovered_index = -1
 
         self._setup_ui()
         self._connect_signals()
@@ -243,6 +254,7 @@ class AlbumsView(QWidget):
     def _setup_ui(self):
         """Set up the albums view UI."""
         self.setStyleSheet("background-color: #121212;")
+        self.setMouseTracking(True)
 
         # Main layout
         layout = QVBoxLayout(self)
@@ -261,10 +273,16 @@ class AlbumsView(QWidget):
         self._list_view.setSelectionMode(QListView.SingleSelection)
         self._list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._list_view.setVerticalScrollMode(QListView.ScrollPerPixel)
+        self._list_view.setMouseTracking(True)
+        self._list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._list_view.customContextMenuRequested.connect(self._show_context_menu)
         self._list_view.setStyleSheet("""
             QListView {
                 background-color: #121212;
                 border: none;
+            }
+            QListView::item {
+                background: transparent;
             }
             QScrollBar:vertical {
                 background-color: #121212;
@@ -388,7 +406,54 @@ class AlbumsView(QWidget):
         """Connect signals."""
         self._search_input.textChanged.connect(self._on_search_changed)
         self._list_view.clicked.connect(self._on_album_clicked)
+        self._list_view.entered.connect(self._on_item_entered)
         EventBus.instance().tracks_added.connect(self._on_tracks_added)
+
+    def _on_item_entered(self, index):
+        """Handle item entered for hover effect."""
+        self._hovered_index = index.row()
+        self._list_view.viewport().setCursor(Qt.PointingHandCursor)
+
+    def _show_context_menu(self, pos):
+        """Show context menu for album."""
+        index = self._list_view.indexAt(pos)
+        if not index.isValid():
+            return
+
+        album = index.data(Qt.UserRole)
+        if not album:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #3a3a3a;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #1db954;
+                color: #000000;
+            }
+        """)
+
+        # Play action
+        play_action = QAction(t("play"), self)
+        play_action.triggered.connect(lambda: self.album_clicked.emit(album))
+        menu.addAction(play_action)
+
+        # Download cover action
+        download_action = QAction(t("download_cover_manual"), self)
+        download_action.triggered.connect(lambda: self.download_cover_requested.emit(album))
+        menu.addAction(download_action)
+
+        menu.exec_(self._list_view.mapToGlobal(pos))
 
     def _load_albums(self):
         """Load albums from library in background thread."""

@@ -18,12 +18,13 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QStyledItemDelegate,
     QStyle,
+    QMenu,
 )
 from PySide6.QtCore import (
     Qt, Signal, QTimer, QThread,
     QAbstractListModel, QModelIndex, QSize, QRect
 )
-from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QPen
+from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QPen, QAction
 
 from domain.artist import Artist
 from services.library import LibraryService
@@ -90,9 +91,6 @@ class ArtistDelegate(QStyledItemDelegate):
     CARD_HEIGHT = 240
     BORDER_RADIUS = 90  # Circular
     SPACING = 20
-
-    clicked = Signal(object)  # Emits Artist object
-    download_cover_requested = Signal(object)  # Emits Artist object
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -258,6 +256,7 @@ class ArtistsView(QWidget):
     def _setup_ui(self):
         """Set up the artists view UI."""
         self.setStyleSheet("background-color: #121212;")
+        self.setMouseTracking(True)
 
         # Main layout
         layout = QVBoxLayout(self)
@@ -276,10 +275,16 @@ class ArtistsView(QWidget):
         self._list_view.setSelectionMode(QListView.SingleSelection)
         self._list_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._list_view.setVerticalScrollMode(QListView.ScrollPerPixel)
+        self._list_view.setMouseTracking(True)
+        self._list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._list_view.customContextMenuRequested.connect(self._show_context_menu)
         self._list_view.setStyleSheet("""
             QListView {
                 background-color: #121212;
                 border: none;
+            }
+            QListView::item {
+                background: transparent;
             }
             QScrollBar:vertical {
                 background-color: #121212;
@@ -403,7 +408,53 @@ class ArtistsView(QWidget):
         """Connect signals."""
         self._search_input.textChanged.connect(self._on_search_changed)
         self._list_view.clicked.connect(self._on_artist_clicked)
+        self._list_view.entered.connect(self._on_item_entered)
         EventBus.instance().tracks_added.connect(self._on_tracks_added)
+
+    def _on_item_entered(self, index):
+        """Handle item entered for hover effect."""
+        self._list_view.viewport().setCursor(Qt.PointingHandCursor)
+
+    def _show_context_menu(self, pos):
+        """Show context menu for artist."""
+        index = self._list_view.indexAt(pos)
+        if not index.isValid():
+            return
+
+        artist = index.data(Qt.UserRole)
+        if not artist:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #3a3a3a;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #1db954;
+                color: #000000;
+            }
+        """)
+
+        # Play action
+        play_action = QAction(t("play"), self)
+        play_action.triggered.connect(lambda: self.artist_clicked.emit(artist))
+        menu.addAction(play_action)
+
+        # Download cover action
+        download_action = QAction(t("download_cover_manual"), self)
+        download_action.triggered.connect(lambda: self.download_cover_requested.emit(artist))
+        menu.addAction(download_action)
+
+        menu.exec_(self._list_view.mapToGlobal(pos))
 
     def _load_artists(self):
         """Load artists from library in background thread."""

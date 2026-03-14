@@ -20,9 +20,10 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QProgressBar,
     QAbstractItemView,
+    QMenu,
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QSize
-from PySide6.QtGui import QPixmap, QColor, QPainter, QFont
+from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QAction
 
 from domain.artist import Artist
 from domain.album import Album
@@ -52,6 +53,9 @@ class ArtistView(QWidget):
     back_clicked = Signal()
     play_tracks = Signal(list)  # Emits list of Track objects
     track_double_clicked = Signal(int)  # Emits track_id
+    add_to_queue = Signal(list)  # Emits list of Track objects
+    add_to_playlist = Signal(list)  # Emits list of Track objects
+    download_cover_requested = Signal(object)  # Emits Album object
 
     def __init__(
         self,
@@ -235,6 +239,7 @@ class ArtistView(QWidget):
                 border-color: #ffffff;
             }
         """)
+        self._shuffle_btn.clicked.connect(self._on_shuffle)
         btn_layout.addWidget(self._shuffle_btn)
         btn_layout.addStretch()
 
@@ -432,6 +437,8 @@ class ArtistView(QWidget):
         """)
 
         self._tracks_table.doubleClicked.connect(self._on_track_double_clicked)
+        self._tracks_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._tracks_table.customContextMenuRequested.connect(self._show_context_menu)
 
         layout.addWidget(self._tracks_table)
 
@@ -558,6 +565,7 @@ class ArtistView(QWidget):
         for i, album in enumerate(self._albums[:10]):  # Limit to 10 albums
             card = AlbumCard(album)
             card.clicked.connect(self._on_album_clicked)
+            card.download_cover_requested.connect(self._on_download_cover_requested)
 
             row = i // 5
             col = i % 5
@@ -600,12 +608,83 @@ class ArtistView(QWidget):
         if self._tracks:
             self.play_tracks.emit(self._tracks)
 
+    def _on_shuffle(self):
+        """Handle shuffle button click."""
+        if self._tracks:
+            import random
+            shuffled = self._tracks.copy()
+            random.shuffle(shuffled)
+            self.play_tracks.emit(shuffled)
+
     def _on_track_double_clicked(self, index):
-        """Handle track double click."""
+        """Handle track double click - play from this track."""
         item = self._tracks_table.item(index.row(), 1)
-        if item:
+        if item and self._tracks:
             track_id = item.data(Qt.UserRole)
-            self.track_double_clicked.emit(track_id)
+            # Find the index of the clicked track
+            start_index = 0
+            for i, track in enumerate(self._tracks):
+                if track.id == track_id:
+                    start_index = i
+                    break
+            # Play tracks starting from the clicked one
+            tracks_to_play = self._tracks[start_index:]
+            self.play_tracks.emit(tracks_to_play)
+
+    def _show_context_menu(self, pos):
+        """Show context menu for tracks."""
+        item = self._tracks_table.itemAt(pos)
+        if not item:
+            return
+
+        # Get selected track IDs
+        selected_rows = set()
+        for selected_item in self._tracks_table.selectedItems():
+            selected_rows.add(selected_item.row())
+
+        selected_tracks = []
+        for row in selected_rows:
+            title_item = self._tracks_table.item(row, 1)
+            if title_item:
+                track_id = title_item.data(Qt.UserRole)
+                for track in self._tracks:
+                    if track.id == track_id:
+                        selected_tracks.append(track)
+                        break
+
+        if not selected_tracks:
+            return
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #282828;
+                color: #ffffff;
+                border: 1px solid #404040;
+            }
+            QMenu::item {
+                padding: 8px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #1db954;
+            }
+        """)
+
+        # Play action
+        play_action = menu.addAction(t("play"))
+        play_action.triggered.connect(lambda: self.play_tracks.emit(selected_tracks))
+
+        # Add to queue action
+        add_queue_action = menu.addAction(t("add_to_queue"))
+        add_queue_action.triggered.connect(lambda: self.add_to_queue.emit(selected_tracks))
+
+        menu.addSeparator()
+
+        # Add to playlist action
+        add_playlist_action = menu.addAction(t("add_to_playlist"))
+        add_playlist_action.triggered.connect(lambda: self.add_to_playlist.emit(selected_tracks))
+
+        menu.exec_(self._tracks_table.mapToGlobal(pos))
 
     def _on_album_clicked(self, album: Album):
         """Handle album card click."""
@@ -614,3 +693,7 @@ class ArtistView(QWidget):
         tracks = self._library.get_album_tracks(album.name, album.artist)
         if tracks:
             self.play_tracks.emit(tracks)
+
+    def _on_download_cover_requested(self, album: Album):
+        """Handle download cover request from album card."""
+        self.download_cover_requested.emit(album)

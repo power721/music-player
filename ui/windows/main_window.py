@@ -554,10 +554,15 @@ class MainWindow(QMainWindow):
         # Artist view connections
         self._artist_view.play_tracks.connect(self._play_tracks)
         self._artist_view.track_double_clicked.connect(self._play_track)
+        self._artist_view.add_to_queue.connect(self._add_tracks_to_queue)
+        self._artist_view.add_to_playlist.connect(self._add_tracks_to_playlist)
+        self._artist_view.download_cover_requested.connect(self._on_download_album_cover)
 
         # Album view connections
         self._album_view.play_tracks.connect(self._play_tracks)
         self._album_view.track_double_clicked.connect(self._play_track)
+        self._album_view.add_to_queue.connect(self._add_tracks_to_queue)
+        self._album_view.add_to_playlist.connect(self._add_tracks_to_playlist)
 
     def _setup_system_tray(self):
         """Setup system tray icon."""
@@ -767,6 +772,11 @@ class MainWindow(QMainWindow):
             # Clear the delegate's cover cache and refresh the view
             self._albums_view._delegate.clear_cache()
             self._albums_view._list_view.viewport().update()
+            # Update album cards in artist view if visible
+            for card in self._artist_view._album_cards:
+                if card.get_album().name == album.name and card.get_album().artist == album.artist:
+                    card.update_cover(cover_path)
+                    break
 
         dialog.cover_saved.connect(on_cover_saved)
         dialog.exec()
@@ -1749,6 +1759,22 @@ class MainWindow(QMainWindow):
         s = "s" if count > 1 else ""
         msg = t("added_to_queue").replace("{count}", str(count)).replace("{s}", s)
         self._status_bar.showMessage(msg, 3000)
+
+    def _add_tracks_to_queue(self, tracks: list):
+        """Add Track objects to the play queue."""
+        track_ids = [t.id for t in tracks if t.id]
+        if track_ids:
+            self._add_to_queue(track_ids)
+
+    def _add_tracks_to_playlist(self, tracks: list):
+        """Add Track objects to a playlist."""
+        from ui.widgets.add_to_playlist_dialog import AddToPlaylistDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = AddToPlaylistDialog(bootstrap.library_service, self)
+        dialog.set_tracks(tracks)
+        dialog.exec()
 
     def _on_position_changed(self, position_ms):
         """Handle playback position change."""
