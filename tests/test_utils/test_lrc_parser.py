@@ -239,3 +239,70 @@ Another line"""
 
         lyrics = parse_lrc(lrc_text)
         assert len(lyrics) == 0
+
+
+class TestParseCharWordLrc:
+    """Test parsing character-word lyrics format."""
+
+    def test_parse_char_word_format(self):
+        """Test parsing character-word lyrics format."""
+        lrc_text = """[00:00.00]<00:00.000>青<00:00.366>花<00:00.732>瓷
+[00:05.49]<00:05.490>词<00:06.588>：<00:07.686>方<00:08.784>文<00:09.882>山"""
+
+        lyrics = parse_lrc(lrc_text)
+
+        assert len(lyrics) == 2
+
+        # First line
+        assert lyrics[0].time == 0.0
+        assert lyrics[0].text == "青花瓷"
+        assert len(lyrics[0].words) == 3
+        assert lyrics[0].words[0] == (0.0, 0.366, "青")
+        assert lyrics[0].words[1] == (0.366, 0.366, "花")
+        assert lyrics[0].words[2] == (0.732, 1.0, "瓷")
+
+        # Second line
+        assert lyrics[1].time == 5.49
+        assert lyrics[1].text == "词：方文山"
+        assert len(lyrics[1].words) == 5
+
+    def test_parse_char_word_with_spaces(self):
+        """Test parsing character-word lyrics with spaces and symbols."""
+        lrc_text = """[00:00.00]<00:00.000>青<00:00.366>花<00:00.732>瓷<00:01.098> <00:01.464>-<00:01.830> <00:02.196>周<00:02.562>杰<00:02.928>伦"""
+
+        lyrics = parse_lrc(lrc_text)
+
+        assert len(lyrics) == 1
+        assert lyrics[0].text == "青花瓷 - 周杰伦"
+        assert len(lyrics[0].words) == 9
+        # Check space character
+        assert lyrics[0].words[3][2] == " "
+        # Check dash
+        assert lyrics[0].words[4][2] == "-"
+
+    def test_parse_char_word_with_english(self):
+        """Test parsing character-word lyrics with English text."""
+        lrc_text = """[00:00.00]<00:00.000>(<00:01.000>Jay<00:02.000> <00:03.000>Chou<00:04.000>)"""
+
+        lyrics = parse_lrc(lrc_text)
+
+        assert len(lyrics) == 1
+        assert lyrics[0].text == "(Jay Chou)"
+        assert len(lyrics[0].words) == 5
+        assert lyrics[0].words[0][2] == "("
+        assert lyrics[0].words[1][2] == "Jay"
+        assert lyrics[0].words[2][2] == " "
+        assert lyrics[0].words[3][2] == "Chou"
+        assert lyrics[0].words[4][2] == ")"
+
+    def test_parse_char_word_empty_lines(self):
+        """Test parsing character-word lyrics with empty lines."""
+        lrc_text = """[00:00.00]<00:00.000>青<00:00.366>花
+
+[00:05.49]<00:05.490>词<00:06.588>："""
+
+        lyrics = parse_lrc(lrc_text)
+
+        assert len(lyrics) == 2
+        assert lyrics[0].text == "青花"
+        assert lyrics[1].text == "词："

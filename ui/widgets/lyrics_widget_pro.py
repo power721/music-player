@@ -6,7 +6,7 @@ from PySide6.QtGui import QPainter, QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import QWidget
 
 from system.i18n import t
-from utils.lrc_parser import LyricLine
+from utils.lrc_parser import LyricLine, parse_lrc
 
 
 # =============================
@@ -19,25 +19,13 @@ class LrcParser:
 
     @staticmethod
     def parse(lrc: str) -> List[LyricLine]:
+        """
+        解析LRC歌词文本，支持标准LRC格式和逐字歌词格式。
 
-        lines = []
-
-        for raw in lrc.splitlines():
-
-            times = LrcParser.TIME_RE.findall(raw)
-
-            text = LrcParser.TIME_RE.sub("", raw).strip()
-
-            if not times:
-                continue
-
-            for m, s in times:
-                t = int(m) * 60 + float(s)
-                lines.append(LyricLine(t, text))
-
-        lines.sort(key=lambda x: x.time)
-
-        return lines
+        使用统一的parse_lrc函数来处理所有格式。
+        """
+        # 使用改进的parse_lrc函数，支持所有格式
+        return parse_lrc(lrc)
 
 
 # =============================

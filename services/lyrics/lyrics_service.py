@@ -131,11 +131,17 @@ class LyricsService:
                 pic_str = str(song['album']['pic'])
                 cover_url = f"https://p1.music.126.net/{pic_str}/{pic_str}.jpg"
 
+            # Get duration (convert from milliseconds to seconds)
+            duration = None
+            if song.get('duration'):
+                duration = song['duration'] / 1000  # Convert ms to seconds
+
             results.append({
                 'id': str(song['id']),
                 'title': song.get('name', ''),
                 'artist': song['artists'][0]['name'] if song.get('artists') else '',
                 'album': song['album']['name'] if song.get('album') else '',
+                'duration': duration,  # Duration in seconds
                 'cover_url': cover_url,
                 'source': 'netease'
             })
@@ -182,6 +188,7 @@ class LyricsService:
                     'title': song.get('trackName', ''),
                     'artist': song.get('artistName', ''),
                     'album': song.get('albumName', ''),
+                    'duration': song.get('duration'),  # Song duration in seconds
                     'source': 'lrclib',
                     'lyrics': lyrics  # Pre-fetch lyrics from search result
                 })

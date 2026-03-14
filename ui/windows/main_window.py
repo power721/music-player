@@ -1181,8 +1181,18 @@ class MainWindow(QMainWindow):
         song_list = QListWidget()
         for result in results:
             item_text = f"{result['title']} - {result['artist']}"
-            if result.get('album'):
-                item_text += f" ({result['album']})"
+            # Only show album if it exists, is not empty, and is not "-"
+            album = result.get('album', '')
+            if album and album.strip() and album.strip() != '-':
+                item_text += f" ({album})"
+
+            # Add duration for LRCLIB and NetEase results (if available)
+            if result.get('duration') and result.get('duration') > 0:
+                duration = result['duration']
+                minutes = int(duration // 60)
+                seconds = int(duration % 60)
+                item_text += f" [{minutes}:{seconds:02d}]"
+
             item_text += f" [{result['source']}]"
 
             item = QListWidgetItem(item_text)
