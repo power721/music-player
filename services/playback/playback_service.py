@@ -472,6 +472,12 @@ class PlaybackService(QObject):
         """
         self._downloaded_files[cloud_file_id] = local_path
 
+        # Update cloud_files table with local_path
+        if self._cloud_account:
+            self._db.update_cloud_file_local_path(
+                cloud_file_id, self._cloud_account.id, local_path
+            )
+
         # Extract metadata and save to library
         cover_path = self._save_cloud_track_to_library(cloud_file_id, local_path)
 
@@ -498,6 +504,9 @@ class PlaybackService(QObject):
                 if i == self._engine.current_index:
                     self._engine.play_after_download(i, local_path)
                 break
+
+        # Save queue to persist the updated local_path
+        self.save_queue()
 
     # ===== Favorites Management =====
 

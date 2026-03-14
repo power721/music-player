@@ -253,17 +253,27 @@ class PlaylistItem:
             except Exception:
                 pass  # Ignore errors, cover_path will remain None
 
+        # For cloud files, try to get local_path from cloud_files table if not in PlayQueueItem
+        local_path = item.local_path
+        if db and item.cloud_file_id and not local_path:
+            try:
+                cloud_file = db.get_cloud_file_by_file_id(item.cloud_file_id)
+                if cloud_file and cloud_file.local_path:
+                    local_path = cloud_file.local_path
+            except Exception:
+                pass  # Ignore errors, local_path will remain empty
+
         return cls(
             source_type=source_type,
             track_id=item.track_id,
             cloud_file_id=item.cloud_file_id,
             cloud_account_id=item.cloud_account_id,
-            local_path=item.local_path,
+            local_path=local_path,
             title=item.title,
             artist=item.artist,
             album=item.album,
             duration=item.duration,
             cover_path=cover_path,
-            needs_download=bool(item.cloud_file_id and not item.local_path),
+            needs_download=bool(item.cloud_file_id and not local_path),
             needs_metadata=bool(item.cloud_file_id),  # Cloud files need metadata
         )
