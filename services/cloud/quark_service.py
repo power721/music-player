@@ -10,12 +10,6 @@ from domain import CloudFile
 
 # Configure logging
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
 import time
 from typing import Optional, Dict, List, Any
 

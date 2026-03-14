@@ -9,12 +9,6 @@ from services.ai import AcoustIDService, AIMetadataService
 
 # Configure logging
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
 
 from PySide6.QtWidgets import (
     QWidget,
