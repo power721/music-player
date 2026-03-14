@@ -947,7 +947,7 @@ class MainWindow(QMainWindow):
         self._current_cloud_account = account
 
         # Use PlaybackService for cloud playback
-        self._playback.play_cloud_playlist(cloud_files, index, account, start_position)
+        self._playback.play_cloud_playlist(cloud_files, index, account, temp_path, start_position)
 
         # If first file is already downloaded, update it
         if temp_path and index < len(cloud_files):

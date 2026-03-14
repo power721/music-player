@@ -836,8 +836,15 @@ class CloudDriveView(QWidget):
             file: CloudFile to play
             start_position: Optional position to start from (in seconds). If None, uses saved position.
         """
+        # Clear the old playing indicator before setting new one
+        if self._current_playing_file_id and self._current_playing_file_id != file.file_id:
+            self._set_file_playing_status(self._current_playing_file_id, False)
+
         # Track the currently playing file
         self._current_playing_file_id = file.file_id
+
+        # Set the new playing indicator
+        self._set_file_playing_status(file.file_id, True)
 
         # Save current path and playing state to database when starting playback
         if self._current_account:

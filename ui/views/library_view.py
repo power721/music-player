@@ -894,6 +894,21 @@ class LibraryView(QWidget):
         if track_dict:
             new_track_id = track_dict.get("id")
             old_track_id = self._current_playing_track_id
+
+            # For cloud files, try to find the track_id from database
+            if new_track_id is None:
+                cloud_file_id = track_dict.get("cloud_file_id")
+                local_path = track_dict.get("path")
+
+                if cloud_file_id:
+                    track = self._db.get_track_by_cloud_file_id(cloud_file_id)
+                    if track:
+                        new_track_id = track.id
+                elif local_path:
+                    track = self._db.get_track_by_path(local_path)
+                    if track:
+                        new_track_id = track.id
+
             self._current_playing_track_id = new_track_id
 
             # Update the playing indicator in the table without reloading
