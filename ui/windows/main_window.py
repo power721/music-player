@@ -254,7 +254,10 @@ class MainWindow(QMainWindow):
         # Library/playlist view
         self._stacked_widget = QStackedWidget()
 
-        self._library_view = LibraryView(self._db, self._player, self._config)
+        from app.bootstrap import Bootstrap
+        bootstrap = Bootstrap.instance()
+
+        self._library_view = LibraryView(self._db, self._player, self._config, bootstrap.cover_service)
         self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config)
         self._playlist_view = PlaylistView(self._db, self._player)
         self._queue_view = QueueView(self._player, self._db)
@@ -977,6 +980,14 @@ class MainWindow(QMainWindow):
             artist = track_item.artist
             path = track_item.local_path
             is_cloud = track_item.is_cloud
+        elif isinstance(track_item, int):
+            # Handle case where track_item is just an ID
+            track_id = track_item
+            track_dict = None
+            title = ""
+            artist = ""
+            path = ""
+            is_cloud = False
         else:
             track_dict = track_item
             track_id = track_dict.get("id") if track_dict else None

@@ -86,11 +86,35 @@ class EqualizerWidget(QWidget):
                 padding: 5px 10px;
                 border-radius: 4px;
             }
+            QComboBox:hover {
+                background-color: #383838;
+            }
             QComboBox::drop-down {
                 border: none;
             }
             QComboBox::down-arrow {
                 color: #b3b3b3;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1e1e1e;
+                color: #ffffff;
+                border: 1px solid #404040;
+                selection-background-color: #1db954;
+                selection-color: #ffffff;
+                padding: 4px;
+            }
+            QComboBox QAbstractItemView::item {
+                color: #ffffff;
+                padding: 6px 12px;
+                min-height: 24px;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #383838;
+                color: #ffffff;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #1db954;
+                color: #ffffff;
             }
         """)
         preset_layout.addWidget(self._preset_combo)

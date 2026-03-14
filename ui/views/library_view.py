@@ -32,6 +32,7 @@ from infrastructure.database import DatabaseManager
 from domain.track import Track
 from services.playback import PlaybackService
 from domain.playback import PlaybackState
+from services.metadata import CoverService
 from utils import format_duration, format_count_message
 from system.i18n import t
 from system.config import ConfigManager
@@ -49,7 +50,7 @@ class LibraryView(QWidget):
     )  # Signal when tracks should be added to a playlist
 
     def __init__(
-        self, db_manager: DatabaseManager, player: PlaybackService, config_manager: ConfigManager = None, parent=None
+        self, db_manager: DatabaseManager, player: PlaybackService, config_manager: ConfigManager = None, cover_service: CoverService = None, parent=None
     ):
         """
         Initialize library view.
@@ -58,12 +59,14 @@ class LibraryView(QWidget):
             db_manager: Database manager
             player: Player controller
             config_manager: Configuration manager for AI settings
+            cover_service: Cover service for downloading album art
             parent: Parent widget
         """
         super().__init__(parent)
         self._db = db_manager
         self._player = player
         self._config = config_manager
+        self._cover_service = cover_service
         self._current_view = "all"  # all, favorites, history
         self._current_sub_view = "all"  # all, artists, albums (for library view)
         self._current_playing_track_id = None  # Track currently playing
@@ -1113,6 +1116,11 @@ class LibraryView(QWidget):
         # Edit media info action
         edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
+
+        # Download cover action (only for local tracks)
+        if not is_cloud and self._cover_service:
+            download_cover_action = menu.addAction(t("download_cover_manual"))
+            download_cover_action.triggered.connect(lambda: self._download_cover())
 
         # AI enhance metadata action (only for local tracks)
         if not is_cloud and self._config:
@@ -2275,4 +2283,43 @@ class LibraryView(QWidget):
 
         progress_dialog.show()
         worker.start()
+
+
+    def _download_cover(self):
+        """Download cover art for selected tracks."""
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        # Get selected tracks
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
+
+        if not track_ids:
+            return
+
+        # Get track objects
+        tracks = []
+        for track_id in track_ids:
+            track = self._db.get_track(track_id)
+            if track:
+                tracks.append(track)
+
+        if not tracks:
+            return
+
+        # Show cover download dialog
+        from ui.widgets import CoverDownloadDialog
+        dialog = CoverDownloadDialog(tracks, self._cover_service, self)
+        dialog.exec()
 

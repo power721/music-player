@@ -370,6 +370,12 @@ so future AI agents understand the project.
 
 ---
 
+### Rule 4 - Save documentation
+
+Save new documentation Markdown files to folder docs/
+
+---
+
 # Goals For AI Agents
 
 When modifying the project:
