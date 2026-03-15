@@ -261,5 +261,21 @@
     "loading_album": "正在加载专辑...",
     "rebuild_db": "重建数据库",
     "rebuild_db_confirm": "从歌曲表重建专辑和歌手表？\n这将修复数据不一致问题。",
-    "rebuild_db_success": "重建完成！\n专辑：{albums}\n歌手：{artists}"
+    "rebuild_db_success": "重建完成！\n专辑：{albums}\n歌手：{artists}",
+    "rebuild_db_desc": "从歌曲表重建专辑和歌手表。用于修复数据不一致问题。",
+    "help": "帮助",
+    "about": "关于",
+    "app_description": "一款现代化音乐播放器，支持网盘播放、歌词同步和AI元数据增强。",
+    "keyboard_shortcuts": "快捷键",
+    "tools": "工具",
+    "shortcut_play_pause": "播放 / 暂停",
+    "shortcut_prev": "上一首",
+    "shortcut_next": "下一首",
+    "shortcut_vol_up": "音量增加",
+    "shortcut_vol_down": "音量减少",
+    "shortcut_favorite": "收藏 / 取消收藏",
+    "shortcut_mini": "迷你播放器",
+    "shortcut_new_playlist": "新建播放列表",
+    "shortcut_quit": "退出应用",
+    "shortcut_help": "显示帮助"
 }

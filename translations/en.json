@@ -261,5 +261,21 @@
     "loading_album": "Loading album...",
     "rebuild_db": "Rebuild DB",
     "rebuild_db_confirm": "Rebuild albums and artists tables from tracks?\nThis will fix data inconsistency issues.",
-    "rebuild_db_success": "Rebuild complete!\nAlbums: {albums}\nArtists: {artists}"
+    "rebuild_db_success": "Rebuild complete!\nAlbums: {albums}\nArtists: {artists}",
+    "rebuild_db_desc": "Rebuild albums and artists tables from tracks table. Useful for fixing data inconsistency issues.",
+    "help": "Help",
+    "about": "About",
+    "app_description": "A modern music player with cloud drive support, lyrics sync, and AI-powered metadata enhancement.",
+    "keyboard_shortcuts": "Keyboard Shortcuts",
+    "tools": "Tools",
+    "shortcut_play_pause": "Play / Pause",
+    "shortcut_prev": "Previous track",
+    "shortcut_next": "Next track",
+    "shortcut_vol_up": "Volume up",
+    "shortcut_vol_down": "Volume down",
+    "shortcut_favorite": "Toggle favorite",
+    "shortcut_mini": "Toggle mini player",
+    "shortcut_new_playlist": "New playlist",
+    "shortcut_quit": "Quit application",
+    "shortcut_help": "Show help"
 }

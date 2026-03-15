@@ -113,6 +113,13 @@ class GlobalHotkeys(QObject):
             self._new_playlist
         )
 
+        # F1 - Help
+        QShortcut(
+            QKeySequence(Qt.Key_F1),
+            self._window,
+            self._show_help
+        )
+
     def _toggle_play_pause(self):
         """Toggle play/pause."""
         if self._player.engine.state == PlaybackState.PLAYING:
@@ -147,6 +154,11 @@ class GlobalHotkeys(QObject):
         """Create new playlist."""
         if hasattr(self._window, '_playlist_view'):
             self._window._playlist_view._create_playlist()
+
+    def _show_help(self):
+        """Show help dialog."""
+        if hasattr(self._window, 'show_help'):
+            self._window.show_help()
 
 
 def setup_media_key_handler(player: "PlaybackService"):
