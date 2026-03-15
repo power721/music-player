@@ -36,6 +36,8 @@ class SettingKey:
     UI_LANGUAGE = "ui.language"
     UI_GEOMETRY = "ui.geometry"
     UI_SPLITTER = "ui.splitter"
+    UI_VIEW_TYPE = "ui.view_type"  # "library", "album", "artist", etc.
+    UI_VIEW_DATA = "ui.view_data"  # JSON data for view-specific state
 
     # AI settings
     AI_ENABLED = "ai.enabled"
@@ -334,6 +336,42 @@ class ConfigManager:
         """
         import base64
         self.set(SettingKey.UI_SPLITTER, base64.b64encode(state).decode('utf-8'))
+
+    def get_view_type(self) -> str:
+        """
+        Get the saved view type.
+
+        Returns:
+            View type string ("library", "album", "artist", etc.)
+        """
+        return self.get(SettingKey.UI_VIEW_TYPE, "library")
+
+    def set_view_type(self, view_type: str):
+        """
+        Set the view type.
+
+        Args:
+            view_type: View type string
+        """
+        self.set(SettingKey.UI_VIEW_TYPE, view_type)
+
+    def get_view_data(self) -> str:
+        """
+        Get the saved view data (JSON string).
+
+        Returns:
+            JSON string with view-specific data
+        """
+        return self.get(SettingKey.UI_VIEW_DATA, "")
+
+    def set_view_data(self, data: str):
+        """
+        Set the view data.
+
+        Args:
+            data: JSON string with view-specific data
+        """
+        self.set(SettingKey.UI_VIEW_DATA, data)
 
     # ===== AI settings =====
 

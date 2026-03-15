@@ -199,6 +199,7 @@ class PlaylistView(QWidget):
         self._playlist_list = QListWidget()
         self._playlist_list.setObjectName("playlistList")
         self._playlist_list.setFocusPolicy(Qt.NoFocus)
+        self._playlist_list.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self._playlist_list)
 
         return widget

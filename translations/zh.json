@@ -42,6 +42,7 @@
     "results_for": "条结果",
     "add_to_queue": "➕ 添加到队列",
     "play": "▶️ 播放",
+    "view_details": "查看详情",
     "add_to_playlist": "📋 添加到播放列表",
     "remove_from_favorites": "❌ 取消收藏",
     "add_to_favorites": "⭐ 添加收藏",
@@ -250,6 +251,14 @@
     "no_results": "未找到结果",
     "found": "找到",
     "results": "个结果",
-    "match_score": "匹配度"
+    "match_score": "匹配度",
+    "artist_type": "歌手",
+    "play_all": "播放全部",
+    "shuffle": "随机播放",
+    "loading_artist": "正在加载歌手...",
+    "songs_albums": "{songs} 首歌曲 • {albums} 张专辑",
+    "album_type": "专辑",
+    "album_stats": "{songs} 首歌曲 • {duration}",
+    "loading_album": "正在加载专辑..."
 }
 

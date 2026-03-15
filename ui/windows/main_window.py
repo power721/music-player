@@ -47,6 +47,10 @@ from ui.views.library_view import LibraryView
 from ui.views.playlist_view import PlaylistView
 from ui.views.queue_view import QueueView
 from ui.views.cloud_view import CloudDriveView
+from ui.views.albums_view import AlbumsView
+from ui.views.artists_view import ArtistsView
+from ui.views.artist_view import ArtistView
+from ui.views.album_view import AlbumView
 from ui.widgets.player_controls import PlayerControls
 from ui.widgets.lyrics_widget_pro import LyricsWidget
 from ui.widgets.ai_settings_dialog import AISettingsDialog
@@ -263,11 +267,19 @@ class MainWindow(QMainWindow):
         self._cloud_drive_view = CloudDriveView(self._db, self._player, self._config, bootstrap.cover_service)
         self._playlist_view = PlaylistView(self._db, self._player)
         self._queue_view = QueueView(self._player, self._db)
+        self._albums_view = AlbumsView(bootstrap.library_service, bootstrap.cover_service)
+        self._artists_view = ArtistsView(bootstrap.library_service, bootstrap.cover_service)
+        self._artist_view = ArtistView(bootstrap.library_service, self._playback, bootstrap.cover_service)
+        self._album_view = AlbumView(bootstrap.library_service, self._playback, bootstrap.cover_service)
 
-        self._stacked_widget.addWidget(self._library_view)
-        self._stacked_widget.addWidget(self._cloud_drive_view)
-        self._stacked_widget.addWidget(self._playlist_view)
-        self._stacked_widget.addWidget(self._queue_view)
+        self._stacked_widget.addWidget(self._library_view)       # 0
+        self._stacked_widget.addWidget(self._cloud_drive_view)   # 1
+        self._stacked_widget.addWidget(self._playlist_view)      # 2
+        self._stacked_widget.addWidget(self._queue_view)         # 3
+        self._stacked_widget.addWidget(self._albums_view)        # 4
+        self._stacked_widget.addWidget(self._artists_view)       # 5
+        self._stacked_widget.addWidget(self._artist_view)        # 6
+        self._stacked_widget.addWidget(self._album_view)         # 7
 
         self._splitter.addWidget(self._stacked_widget)
 
@@ -367,6 +379,8 @@ class MainWindow(QMainWindow):
         # Create navigation buttons with emoji font
         nav_buttons = [
             ("_nav_library", "🎼 " + t("library")),
+            ("_nav_albums", t("albums")),
+            ("_nav_artists", t("artists")),
             ("_nav_cloud", "☁️ " + t("cloud_drive")),
             ("_nav_playlists", "📋 " + t("playlists")),
             ("_nav_queue", "🎶 " + t("queue")),
@@ -377,6 +391,7 @@ class MainWindow(QMainWindow):
         for attr_name, text in nav_buttons:
             btn = QPushButton(text)
             btn.setCheckable(True)
+            btn.setCursor(Qt.PointingHandCursor)
 
             # Set emoji font
             if emoji_font:
@@ -450,6 +465,7 @@ class MainWindow(QMainWindow):
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))
         self._add_music_btn.setObjectName("addMusicBtn")
+        self._add_music_btn.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self._add_music_btn)
 
         return sidebar
@@ -501,6 +517,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.clicked.connect(lambda: self._show_page(1))
         self._nav_playlists.clicked.connect(lambda: self._show_page(2))
         self._nav_queue.clicked.connect(lambda: self._show_page(3))
+        self._nav_albums.clicked.connect(lambda: self._show_page(4))
+        self._nav_artists.clicked.connect(lambda: self._show_page(5))
         self._nav_favorites.clicked.connect(self._show_favorites)
         self._nav_history.clicked.connect(self._show_history)
         self._lyrics_view.seekRequested.connect(self._playback.seek)
@@ -525,6 +543,28 @@ class MainWindow(QMainWindow):
         self._queue_view.queue_reordered.connect(self._on_queue_reordered)
         self._cloud_drive_view.track_double_clicked.connect(self._play_cloud_track)
         self._cloud_drive_view.play_cloud_files.connect(self._play_cloud_playlist)
+
+        # Albums view connections
+        self._albums_view.album_clicked.connect(self._on_album_clicked)
+        self._albums_view.play_album.connect(self._play_tracks)
+        self._albums_view.download_cover_requested.connect(self._on_download_album_cover)
+
+        # Artists view connections
+        self._artists_view.artist_clicked.connect(self._on_artist_clicked)
+        self._artists_view.download_cover_requested.connect(self._on_download_artist_cover)
+
+        # Artist view connections
+        self._artist_view.play_tracks.connect(self._play_tracks)
+        self._artist_view.track_double_clicked.connect(self._play_track)
+        self._artist_view.add_to_queue.connect(self._add_tracks_to_queue)
+        self._artist_view.add_to_playlist.connect(self._add_tracks_to_playlist)
+        self._artist_view.download_cover_requested.connect(self._on_download_album_cover)
+
+        # Album view connections
+        self._album_view.play_tracks.connect(self._play_tracks)
+        self._album_view.track_double_clicked.connect(self._play_track)
+        self._album_view.add_to_queue.connect(self._add_tracks_to_queue)
+        self._album_view.add_to_playlist.connect(self._add_tracks_to_playlist)
 
     def _setup_system_tray(self):
         """Setup system tray icon."""
@@ -638,6 +678,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(index == 1)
         self._nav_playlists.setChecked(index == 2)
         self._nav_queue.setChecked(index == 3)
+        self._nav_albums.setChecked(index == 4)
+        self._nav_artists.setChecked(index == 5)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(False)
 
@@ -670,6 +712,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(True)
         self._nav_history.setChecked(False)
 
@@ -688,6 +732,8 @@ class MainWindow(QMainWindow):
         self._nav_cloud.setChecked(False)
         self._nav_playlists.setChecked(False)
         self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(True)
 
@@ -695,6 +741,100 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import QTimer
 
         QTimer.singleShot(50, self._library_view.show_history)
+
+    def _on_album_clicked(self, album):
+        """Handle album card click."""
+        # Show album detail view
+        self._album_view.set_album(album)
+        self._stacked_widget.setCurrentIndex(7)
+
+        # Update nav button states
+        self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
+        self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
+        self._nav_favorites.setChecked(False)
+        self._nav_history.setChecked(False)
+
+    def _on_download_album_cover(self, album):
+        """Handle download album cover request."""
+        from ui.widgets.album_cover_download_dialog import AlbumCoverDownloadDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = AlbumCoverDownloadDialog(
+            album,
+            bootstrap.cover_service,
+            self
+        )
+
+        def on_cover_saved(cover_path):
+            # Clear the delegate's cover cache and refresh the view
+            self._albums_view._delegate.clear_cache()
+            self._albums_view._list_view.viewport().update()
+            # Update album cards in artist view if visible
+            for card in self._artist_view._album_cards:
+                if card.get_album().name == album.name and card.get_album().artist == album.artist:
+                    card.update_cover(cover_path)
+                    break
+
+        dialog.cover_saved.connect(on_cover_saved)
+        dialog.exec()
+
+    def _on_artist_clicked(self, artist):
+        """Handle artist card click."""
+        # Show artist detail view
+        self._artist_view.set_artist(artist)
+        self._stacked_widget.setCurrentIndex(6)
+
+        # Update nav button states
+        self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
+        self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
+        self._nav_favorites.setChecked(False)
+        self._nav_history.setChecked(False)
+
+    def _on_download_artist_cover(self, artist):
+        """Handle download artist cover request."""
+        from ui.widgets.artist_cover_download_dialog import ArtistCoverDownloadDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = ArtistCoverDownloadDialog(
+            artist,
+            bootstrap.cover_service,
+            self
+        )
+
+        def on_cover_saved(cover_path):
+            # Clear the delegate's cover cache and refresh the view
+            self._artists_view._delegate.clear_cache()
+            self._artists_view._list_view.viewport().update()
+
+        dialog.cover_saved.connect(on_cover_saved)
+        dialog.exec()
+
+    def _play_tracks(self, tracks):
+        """Play a list of tracks."""
+        if tracks:
+            from domain.playlist_item import PlaylistItem
+            from pathlib import Path
+
+            # Create PlaylistItems with full track info (including local_path)
+            items = []
+            for track in tracks:
+                if track.id and track.id > 0 and Path(track.path).exists():
+                    items.append(PlaylistItem.from_track(track))
+
+            if items:
+                self._playback.engine.clear_playlist()
+                self._playback.engine.load_playlist_items(items)
+                self._playback.engine.play_at(0)
 
     def _add_music(self):
         """Add music to the library."""
@@ -1622,6 +1762,22 @@ class MainWindow(QMainWindow):
         msg = t("added_to_queue").replace("{count}", str(count)).replace("{s}", s)
         self._status_bar.showMessage(msg, 3000)
 
+    def _add_tracks_to_queue(self, tracks: list):
+        """Add Track objects to the play queue."""
+        track_ids = [t.id for t in tracks if t.id]
+        if track_ids:
+            self._add_to_queue(track_ids)
+
+    def _add_tracks_to_playlist(self, tracks: list):
+        """Add Track objects to a playlist."""
+        from ui.widgets.add_to_playlist_dialog import AddToPlaylistDialog
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        dialog = AddToPlaylistDialog(bootstrap.library_service, self)
+        dialog.set_tracks(tracks)
+        dialog.exec()
+
     def _on_position_changed(self, position_ms):
         """Handle playback position change."""
         seconds = position_ms / 1000
@@ -1681,8 +1837,131 @@ class MainWindow(QMainWindow):
         volume = self._config.get_volume()
         self._player_controls.set_volume(volume)
 
+        # Restore view state (album/artist detail view)
+        self._restore_view_state()
+
         # Restore playback state
         self._restore_playback_state()
+
+    def _save_view_state(self):
+        """Save current view state to config."""
+        import json
+
+        current_index = self._stacked_widget.currentIndex()
+        view_type = "library"
+        view_data = {}
+
+        # Map index to view type
+        index_to_type = {
+            0: "library",
+            1: "cloud",
+            2: "playlists",
+            3: "queue",
+            4: "albums",
+            5: "artists",
+            6: "artist",
+            7: "album",
+        }
+
+        view_type = index_to_type.get(current_index, "library")
+
+        # Save view-specific data
+        if view_type == "album":
+            album = self._album_view.get_album()
+            if album:
+                view_data = {
+                    "name": album.name,
+                    "artist": album.artist,
+                }
+        elif view_type == "artist":
+            artist = self._artist_view.get_artist()
+            if artist:
+                view_data = {
+                    "name": artist.name,
+                }
+
+        self._config.set_view_type(view_type)
+        self._config.set_view_data(json.dumps(view_data))
+
+    def _restore_view_state(self):
+        """Restore view state from config."""
+        from PySide6.QtCore import QTimer
+        import json
+
+        view_type = self._config.get_view_type()
+        view_data_raw = self._config.get_view_data()
+
+        if not view_type or view_type == "library":
+            return
+
+        # Handle both string and dict types from config
+        if isinstance(view_data_raw, dict):
+            view_data = view_data_raw
+        elif isinstance(view_data_raw, str) and view_data_raw:
+            try:
+                view_data = json.loads(view_data_raw)
+            except json.JSONDecodeError:
+                view_data = {}
+        else:
+            view_data = {}
+
+        def restore_view():
+            if view_type == "album":
+                name = view_data.get("name")
+                artist = view_data.get("artist")
+                if name and artist:
+                    # Find album from library
+                    from app.bootstrap import Bootstrap
+                    bootstrap = Bootstrap.instance()
+                    albums = bootstrap.library_service.get_albums()
+                    for album in albums:
+                        if album.name == name and album.artist == artist:
+                            self._album_view.set_album(album)
+                            self._stacked_widget.setCurrentIndex(7)
+                            self._update_nav_buttons_for_detail_view()
+                            break
+            elif view_type == "artist":
+                name = view_data.get("name")
+                if name:
+                    # Find artist from library
+                    from app.bootstrap import Bootstrap
+                    bootstrap = Bootstrap.instance()
+                    artists = bootstrap.library_service.get_artists()
+                    for artist in artists:
+                        if artist.name == name:
+                            self._artist_view.set_artist(artist)
+                            self._stacked_widget.setCurrentIndex(6)
+                            self._update_nav_buttons_for_detail_view()
+                            break
+            elif view_type == "cloud":
+                self._show_page(1)
+            elif view_type == "playlists":
+                self._show_page(2)
+            elif view_type == "queue":
+                self._show_page(3)
+            elif view_type == "albums":
+                self._show_page(4)
+            elif view_type == "artists":
+                self._show_page(5)
+            elif view_type == "favorites":
+                self._show_favorites()
+            elif view_type == "history":
+                self._show_history()
+
+
+        # Delay to ensure UI is ready
+        QTimer.singleShot(100, restore_view)
+
+    def _update_nav_buttons_for_detail_view(self):
+        """Update navigation buttons for detail view (album/artist)."""
+        self._nav_library.setChecked(False)
+        self._nav_cloud.setChecked(False)
+        self._nav_playlists.setChecked(False)
+        self._nav_queue.setChecked(False)
+        self._nav_albums.setChecked(False)
+        self._nav_artists.setChecked(False)
+        self._nav_favorites.setChecked(False)
+        self._nav_history.setChecked(False)
 
     def _restore_playback_state(self):
         """Restore previous playback state."""
@@ -1698,11 +1977,11 @@ class MainWindow(QMainWindow):
             source = self._config.get_playback_source()
 
             # Update navigation buttons immediately based on source
-            if source == "cloud":
-                if hasattr(self, '_nav_cloud'):
-                    self._nav_cloud.setChecked(True)
-                if hasattr(self, '_nav_library'):
-                    self._nav_library.setChecked(False)
+            # if source == "cloud":
+            #     if hasattr(self, '_nav_cloud'):
+            #         self._nav_cloud.setChecked(True)
+            #     if hasattr(self, '_nav_library'):
+            #         self._nav_library.setChecked(False)
 
             def restore_queue_state():
                 current_item = self._player.current_track
@@ -1811,6 +2090,9 @@ class MainWindow(QMainWindow):
         # Save window settings using QSettings (Qt native format)
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("splitter", self._splitter.saveState())
+
+        # Save current view state
+        self._save_view_state()
 
         # Check if playing cloud files BEFORE stopping
         is_playing_cloud = self._player.current_source == "cloud"
