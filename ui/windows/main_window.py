@@ -533,6 +533,9 @@ class MainWindow(QMainWindow):
         self._album_view.add_to_queue.connect(self._add_tracks_to_queue)
         self._album_view.add_to_playlist.connect(self._add_tracks_to_playlist)
 
+        # Player controls connections
+        self._player_controls.artist_clicked.connect(self._on_player_artist_clicked)
+
     def _setup_system_tray(self):
         """Setup system tray icon."""
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -765,6 +768,17 @@ class MainWindow(QMainWindow):
         self._nav_artists.setChecked(False)
         self._nav_favorites.setChecked(False)
         self._nav_history.setChecked(False)
+
+    def _on_player_artist_clicked(self, artist_name: str):
+        """Handle artist label click from player controls."""
+        if not artist_name:
+            return
+        # Get Artist object by name
+        from app.bootstrap import Bootstrap
+        bootstrap = Bootstrap.instance()
+        artist = bootstrap.library_service.get_artist_by_name(artist_name)
+        if artist:
+            self._on_artist_clicked(artist)
 
     def _on_download_artist_cover(self, artist):
         """Handle download artist cover request."""

@@ -31,6 +31,8 @@ class PlayerControls(QWidget):
 
     # Signal for cover loaded in background thread
     _cover_loaded = Signal(str)
+    # Signal for artist link clicked
+    artist_clicked = Signal(str)  # Emits artist name
 
     def __init__(self, player: PlaybackService, parent=None):
         """
@@ -122,9 +124,19 @@ class PlayerControls(QWidget):
         self._title_label.setObjectName("trackTitle")
         self._title_label.setStyleSheet("color: #ffffff; font-weight: bold;")
 
-        self._artist_label = QLabel("")
+        self._artist_label = ClickableLabel()
         self._artist_label.setObjectName("trackArtist")
-        self._artist_label.setStyleSheet("color: #b3b3b3;")
+        self._artist_label.setStyleSheet("""
+            QLabel#trackArtist {
+                color: #b3b3b3;
+            }
+            QLabel#trackArtist:hover {
+                color: #1db954;
+                text-decoration: underline;
+            }
+        """)
+        self._artist_label.setCursor(QCursor(Qt.PointingHandCursor))
+        self._artist_label.clicked.connect(self._on_artist_label_clicked)
 
         info_layout.addWidget(self._title_label)
         info_layout.addWidget(self._artist_label)
@@ -940,6 +952,12 @@ class PlayerControls(QWidget):
                 dialog.exec_()
             except Exception as e:
                 logger.error(f"Error showing cover dialog: {e}")
+
+    def _on_artist_label_clicked(self):
+        """Handle artist label click - emit signal to navigate to artist view."""
+        artist = self._artist_label.text()
+        if artist:
+            self.artist_clicked.emit(artist)
 
     def _update_position_display(self):
         """Update position display continuously."""
