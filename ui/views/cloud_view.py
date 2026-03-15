@@ -1039,7 +1039,10 @@ class CloudDriveView(QWidget):
                 size_mb = file_size / (1024 * 1024)
 
                 if start_position == 0:
-                    self._status_label.setText(f"{t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
+                    self._status_label.setText(f"✅ {t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
+                    # Clear status after 5 seconds
+                    from PySide6.QtCore import QTimer
+                    QTimer.singleShot(5000, lambda: self._status_label.setText(""))
 
                 # Save local path to database
                 if file_index < len(audio_files):
@@ -1156,7 +1159,10 @@ class CloudDriveView(QWidget):
         if file_name and local_path and os.path.exists(local_path):
             file_size = os.path.getsize(local_path)
             size_mb = file_size / (1024 * 1024)
-            self._status_label.setText(f"{t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
+            self._status_label.setText(f"✅ {t('download_complete')}: {file_name} ({size_mb:.1f} MB)")
+            # Clear status after 5 seconds
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(5000, lambda: self._status_label.setText(""))
 
     def _show_context_menu(self, pos):
         """Show context menu for file."""
@@ -1366,7 +1372,10 @@ class CloudDriveView(QWidget):
             except:
                 pass
 
-            self._status_label.setText(f"✓ {t('download_complete')}: {file.name} ({size_mb:.1f} MB)")
+            self._status_label.setText(f"✅ {t('download_complete')}: {file.name} ({size_mb:.1f} MB)")
+            # Clear status after 5 seconds
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(5000, lambda: self._status_label.setText(""))
 
             # Update database
             if self._current_account:

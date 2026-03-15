@@ -785,6 +785,10 @@ class PlaybackService(QObject):
                     if track_id:
                         self._db.add_play_history(track_id)
 
+            # Preload next cloud track if current track is ready
+            if item.is_local or (item.is_cloud and item.local_path):
+                self._preload_next_cloud_track()
+
     def _on_state_changed(self, state: PlaybackState):
         """Handle state change."""
         state_str = {
