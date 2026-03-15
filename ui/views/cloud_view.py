@@ -2294,14 +2294,19 @@ class CloudDriveView(QWidget):
 
     def _on_playback_state_changed(self, state: str):
         """Handle playback state change from EventBus."""
-        # Update the icon for the currently playing file
+        # Update the icon for the currently playing file (play/pause icon switch)
         if self._current_playing_file_id:
-            # Determine if playing or paused
-            is_playing = state == "playing"
-            self._set_file_playing_status(self._current_playing_file_id, is_playing, update_icon_only=True)
+            # File is still the current track, just update the icon
+            self._set_file_playing_status(self._current_playing_file_id, True, update_icon_only=True)
 
     def _set_file_playing_status(self, file_id: str, is_playing: bool, update_icon_only: bool = False):
-        """Set the playing status for a specific file in the table."""
+        """Set the playing status for a specific file in the table.
+
+        Args:
+            file_id: The cloud file ID
+            is_playing: True if this file is the current track, False to remove indicator
+            update_icon_only: True to only update icon (for state changes), False to also update style
+        """
         from PySide6.QtGui import QBrush, QColor
         from domain.playback import PlaybackState
 
@@ -2324,6 +2329,7 @@ class CloudDriveView(QWidget):
                         original_name = "📁 " + original_name
 
                     if is_playing:
+                        # This file is the current track - show play/pause icon
                         # Determine which icon to show based on playback state
                         if self._player and hasattr(self._player, 'engine'):
                             if self._player.engine.state == PlaybackState.PLAYING:
@@ -2334,8 +2340,6 @@ class CloudDriveView(QWidget):
                             icon = "▶ "
 
                         new_text = f"{icon}{original_name}"
-
-                        # Update text
                         name_item.setText(new_text)
 
                         # Update font and color
@@ -2345,7 +2349,7 @@ class CloudDriveView(QWidget):
                             name_item.setFont(font)
                             name_item.setForeground(QBrush(QColor("#1db954")))
                     else:
-                        # Remove playing indicator
+                        # Remove playing indicator - this file is no longer the current track
                         name_item.setText(original_name)
 
                         # Reset font and color

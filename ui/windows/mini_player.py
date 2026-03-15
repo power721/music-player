@@ -12,12 +12,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QLabel,
-    QSlider,
 )
 
 from domain.playback import PlaybackState, PlayMode
 from services.playback import PlaybackService
 from system.i18n import t
+from ui.widgets.player_controls import ClickableSlider
 from utils import format_time
 
 
@@ -139,7 +139,7 @@ class MiniPlayer(QWidget):
         layout.addLayout(top_layout)
 
         # Progress bar
-        self._progress_slider = QSlider(Qt.Horizontal)
+        self._progress_slider = ClickableSlider(Qt.Horizontal)
         self._progress_slider.setRange(0, 1000)
         self._progress_slider.setValue(0)
         self._progress_slider.setStyleSheet("""
@@ -205,12 +205,13 @@ class MiniPlayer(QWidget):
         """Create a control button."""
         btn = QPushButton(text)
         btn.setFixedSize(size, size)
+        btn.setCursor(Qt.PointingHandCursor)
         btn.setStyleSheet("""
             QPushButton {
                 background: transparent;
                 border: none;
                 color: #b3b3b3;
-                font-size: 14px;
+                font-size: 16px;
             }
             QPushButton:hover {
                 color: #ffffff;
@@ -229,6 +230,7 @@ class MiniPlayer(QWidget):
         # Progress slider signals
         self._progress_slider.sliderPressed.connect(self._on_seek_start)
         self._progress_slider.sliderReleased.connect(self._on_seek_end)
+        self._progress_slider.clicked_value.connect(self._on_slider_clicked)
 
         # Engine connections
         self._player.engine.state_changed.connect(self._on_state_changed)
@@ -319,6 +321,13 @@ class MiniPlayer(QWidget):
             )
             self._player.engine.seek(position_ms)
         self._is_seeking = False
+
+    def _on_slider_clicked(self, value: int):
+        """Handle click on progress slider - jump to position."""
+        if hasattr(self, "_current_duration") and self._current_duration > 0:
+            # Calculate position in milliseconds
+            position_ms = int((value / 1000) * self._current_duration * 1000)
+            self._player.engine.seek(position_ms)
 
     def _initialize_current_track(self):
         """Initialize with current track info if playing."""

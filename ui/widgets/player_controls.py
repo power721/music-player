@@ -5,7 +5,7 @@ import logging
 import threading
 
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QPixmap, QCursor, QMouseEvent, QScreen
+from PySide6.QtGui import QPixmap, QCursor, QMouseEvent, QScreen, QFont
 from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -258,6 +258,9 @@ class PlayerControls(QWidget):
         btn = QPushButton(text)
         btn.setObjectName("controlBtn")
         btn.setCursor(Qt.PointingHandCursor)
+        font = QFont()
+        font.setPointSize(20)
+        btn.setFont(font)
         return btn
 
     def _apply_styles(self):

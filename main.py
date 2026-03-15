@@ -88,7 +88,6 @@ def main():
     ])
 
     qt_app.setFont(font)
-    qt_app.setFont(font)
 
     # Create application with dependency injection
     app = Application.create(qt_app)
