@@ -391,6 +391,7 @@ class MainWindow(QMainWindow):
         for attr_name, text in nav_buttons:
             btn = QPushButton(text)
             btn.setCheckable(True)
+            btn.setCursor(Qt.PointingHandCursor)
 
             # Set emoji font
             if emoji_font:
@@ -464,6 +465,7 @@ class MainWindow(QMainWindow):
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))
         self._add_music_btn.setObjectName("addMusicBtn")
+        self._add_music_btn.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self._add_music_btn)
 
         return sidebar

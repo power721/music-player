@@ -91,7 +91,7 @@ class ArtistCoverDownloadDialog(QDialog):
 
     def _setup_ui(self):
         """Setup the dialog UI."""
-        self.setWindowTitle(t("download_cover"))
+        self.setWindowTitle(t("download_cover_manual"))
         self.setMinimumSize(800, 600)
         self.resize(900, 650)
 
