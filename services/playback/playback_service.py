@@ -911,6 +911,14 @@ class PlaybackService(QObject):
         )
 
         self._db.add_track(track)
+
+        # Update albums and artists tables
+        self._db.update_albums_on_track_added(album, artist, cover_path, duration)
+        self._db.update_artists_on_track_added(artist, album, cover_path)
+
+        # Notify UI to refresh
+        self._event_bus.tracks_added.emit(1)
+
         return cover_path
 
     def get_track_cover(self, track_path: str, title: str, artist: str, album: str = "", skip_online: bool = False) -> \

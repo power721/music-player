@@ -2277,6 +2277,58 @@ class DatabaseManager:
         conn.commit()
         return True
 
+    def rebuild_albums_artists(self) -> dict:
+        """
+        Rebuild albums and artists tables from tracks table.
+
+        This is useful for fixing data inconsistency issues.
+
+        Returns:
+            Dict with 'albums' and 'artists' counts
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Rebuild albums
+        cursor.execute("DELETE FROM albums")
+        cursor.execute("""
+            INSERT INTO albums (name, artist, cover_path, song_count, total_duration)
+            SELECT
+                album as name,
+                artist,
+                cover_path,
+                COUNT(*) as song_count,
+                SUM(duration) as total_duration
+            FROM tracks
+            WHERE album IS NOT NULL AND album != ''
+            GROUP BY album, artist
+        """)
+        albums_count = cursor.rowcount
+
+        # Rebuild artists
+        cursor.execute("DELETE FROM artists")
+        cursor.execute("""
+            INSERT INTO artists (name, cover_path, song_count, album_count)
+            SELECT
+                artist as name,
+                (SELECT cover_path FROM tracks t2
+                 WHERE t2.artist = tracks.artist AND cover_path IS NOT NULL
+                 LIMIT 1) as cover_path,
+                COUNT(*) as song_count,
+                COUNT(DISTINCT album) as album_count
+            FROM tracks
+            WHERE artist IS NOT NULL AND artist != ''
+            GROUP BY artist
+        """)
+        artists_count = cursor.rowcount
+
+        conn.commit()
+
+        return {
+            'albums': albums_count,
+            'artists': artists_count
+        }
+
     def get_artists_from_db(self) -> List[dict]:
         """
         Get all artists from database.

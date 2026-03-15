@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
+from shiboken6 import isValid
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -476,6 +477,16 @@ class AlbumsView(QWidget):
 
     def _do_load_albums(self):
         """Actually load albums in background."""
+        # Wait for existing worker to finish
+        if self._load_worker and isValid(self._load_worker):
+            if self._load_worker.isRunning():
+                self._load_worker.wait(1000)
+                if self._load_worker.isRunning():
+                    self._load_worker.terminate()
+                    self._load_worker.wait()
+            self._load_worker.deleteLater()
+            self._load_worker = None
+
         self._load_worker = LoadAlbumsWorker(self._library)
         self._load_worker.finished.connect(self._on_albums_loaded)
         self._load_worker.start()

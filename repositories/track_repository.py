@@ -406,33 +406,29 @@ class SqliteTrackRepository:
             artist_name: Artist name
 
         Returns:
-            List of Album objects by the artist
+            List of Album objects by the artist, sorted by song count descending
         """
         from domain.album import Album
 
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Query from albums table for better performance
         cursor.execute("""
-            SELECT
-                album as name,
-                artist,
-                cover_path,
-                COUNT(*) as song_count,
-                SUM(duration) as total_duration
-            FROM tracks
-            WHERE artist = ? AND album IS NOT NULL AND album != ''
-            GROUP BY album
-            ORDER BY album
+            SELECT name, artist, cover_path, song_count, total_duration
+            FROM albums
+            WHERE artist = ?
+            ORDER BY song_count DESC
         """, (artist_name,))
         rows = cursor.fetchall()
 
-        albums = []
-        for row in rows:
-            albums.append(Album(
+        return [
+            Album(
                 name=row["name"] or "",
                 artist=row["artist"] or "",
                 cover_path=row["cover_path"],
                 song_count=row["song_count"] or 0,
                 duration=row["total_duration"] or 0.0,
-            ))
-        return albums
+            )
+            for row in rows
+        ]

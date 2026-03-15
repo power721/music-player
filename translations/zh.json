@@ -251,9 +251,15 @@
     "artist_type": "歌手",
     "play_all": "播放全部",
     "shuffle": "随机播放",
+    "repeat": "循环播放",
+    "volume": "音量",
+    "favorite": "收藏",
     "loading_artist": "正在加载歌手...",
     "songs_albums": "{songs} 首歌曲 • {albums} 张专辑",
     "album_type": "专辑",
     "album_stats": "{songs} 首歌曲 • {duration}",
-    "loading_album": "正在加载专辑..."
+    "loading_album": "正在加载专辑...",
+    "rebuild_db": "重建数据库",
+    "rebuild_db_confirm": "从歌曲表重建专辑和歌手表？\n这将修复数据不一致问题。",
+    "rebuild_db_success": "重建完成！\n专辑：{albums}\n歌手：{artists}"
 }

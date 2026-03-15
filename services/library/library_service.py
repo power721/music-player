@@ -54,6 +54,22 @@ class LibraryService:
             self._db.refresh_albums()
             self._db.refresh_artists()
 
+    def rebuild_albums_artists(self) -> dict:
+        """
+        Rebuild albums and artists tables from tracks.
+
+        This is useful for fixing data inconsistency issues.
+
+        Returns:
+            Dict with 'albums' and 'artists' counts
+        """
+        if self._db:
+            result = self._db.rebuild_albums_artists()
+            # Notify UI to refresh
+            self._event_bus.tracks_added.emit(0)
+            return result
+        return {'albums': 0, 'artists': 0}
+
     # ===== Track Operations =====
 
     def get_track(self, track_id: int) -> Optional[Track]:

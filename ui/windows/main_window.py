@@ -447,6 +447,32 @@ class MainWindow(QMainWindow):
         if emoji_font:
             self._ai_settings_btn.setFont(bootstrap.get_emoji_font(13))
 
+        # Rebuild database button
+        self._rebuild_btn = QPushButton("🔧 " + t("rebuild_db"))
+        self._rebuild_btn.setObjectName("rebuildBtn")
+        self._rebuild_btn.setCursor(Qt.PointingHandCursor)
+        self._rebuild_btn.setFixedHeight(32)
+        self._rebuild_btn.setStyleSheet("""
+            QPushButton#rebuildBtn {
+                background-color: #2a2a2a;
+                color: #c0c0c0;
+                border: 2px solid #3a3a3a;
+                border-radius: 16px;
+                padding: 6px 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+            QPushButton#rebuildBtn:hover {
+                background-color: #3a3a3a;
+                border: 2px solid #1db954;
+                color: #1db954;
+            }
+        """)
+        self._rebuild_btn.clicked.connect(self._rebuild_database)
+        layout.addWidget(self._rebuild_btn)
+        if emoji_font:
+            self._rebuild_btn.setFont(bootstrap.get_emoji_font(13))
+
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))
         self._add_music_btn.setObjectName("addMusicBtn")
@@ -1019,6 +1045,44 @@ class MainWindow(QMainWindow):
             # Update AI button status after settings change
             ai_status = "✅" if self._config.get_ai_enabled() else "❌"
             self._ai_settings_btn.setText(f"🤖 AI {ai_status}")
+
+    def _rebuild_database(self):
+        """Rebuild albums and artists tables from tracks."""
+        from app.bootstrap import Bootstrap
+        from PySide6.QtCore import QTimer
+
+        bootstrap = Bootstrap.instance()
+        if not bootstrap.library_service:
+            return
+
+        # Confirm with user
+        reply = QMessageBox.question(
+            self,
+            t("rebuild_db"),
+            t("rebuild_db_confirm"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply != QMessageBox.Yes:
+            return
+
+        # Rebuild
+        result = bootstrap.library_service.rebuild_albums_artists()
+
+        # Delay refresh to avoid threading issues
+        QTimer.singleShot(100, self._albums_view.refresh)
+        QTimer.singleShot(100, self._artists_view.refresh)
+
+        # Show result
+        QMessageBox.information(
+            self,
+            t("success"),
+            t("rebuild_db_success").format(
+                albums=result['albums'],
+                artists=result['artists']
+            )
+        )
 
     def _play_track(self, track_id: int):
         """Play a local track from library (loads entire library as playlist)."""

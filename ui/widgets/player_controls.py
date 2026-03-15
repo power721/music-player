@@ -138,6 +138,7 @@ class PlayerControls(QWidget):
         self._favorite_btn.setObjectName("favoriteBtn")
         self._favorite_btn.setFixedSize(40, 40)
         self._favorite_btn.setCursor(Qt.PointingHandCursor)
+        self._favorite_btn.setToolTip(t("favorite"))
         layout.addWidget(self._favorite_btn)
 
         return widget
@@ -183,6 +184,7 @@ class PlayerControls(QWidget):
         self._shuffle_btn = self._create_control_button("🔀")
         self._shuffle_btn.setCheckable(True)
         self._shuffle_btn.setFixedSize(40, 40)
+        self._shuffle_btn.setToolTip(t("shuffle"))
         controls_layout.addWidget(self._shuffle_btn)
 
         controls_layout.addStretch()
@@ -190,17 +192,20 @@ class PlayerControls(QWidget):
         # Previous button
         self._prev_btn = self._create_control_button("⏮")
         self._prev_btn.setFixedSize(40, 40)
+        self._prev_btn.setToolTip(t("previous"))
         controls_layout.addWidget(self._prev_btn)
 
         # Play/Pause button
         self._play_pause_btn = self._create_control_button("▶️")
         self._play_pause_btn.setFixedSize(45, 45)
         self._play_pause_btn.setObjectName("playPauseBtn")
+        self._play_pause_btn.setToolTip(t("play_pause"))
         controls_layout.addWidget(self._play_pause_btn)
 
         # Next button
         self._next_btn = self._create_control_button("⏭")
         self._next_btn.setFixedSize(40, 40)
+        self._next_btn.setToolTip(t("next"))
         controls_layout.addWidget(self._next_btn)
 
         controls_layout.addStretch()
@@ -209,6 +214,7 @@ class PlayerControls(QWidget):
         self._repeat_btn = self._create_control_button("🔁")
         self._repeat_btn.setCheckable(True)
         self._repeat_btn.setFixedSize(40, 40)
+        self._repeat_btn.setToolTip(t("repeat"))
         controls_layout.addWidget(self._repeat_btn)
 
         layout.addLayout(controls_layout)
@@ -227,6 +233,7 @@ class PlayerControls(QWidget):
         self._volume_btn.setObjectName("volumeBtn")
         self._volume_btn.setFixedSize(35, 35)
         self._volume_btn.setCursor(Qt.PointingHandCursor)
+        self._volume_btn.setToolTip(t("volume"))
         layout.addWidget(self._volume_btn)
 
         # Volume slider
@@ -854,6 +861,13 @@ class PlayerControls(QWidget):
                 logger.debug(f"[PlayerControls] get_track_cover returned: {cover_path}")
                 if cover_path:
                     return cover_path
+
+                # Fallback: try to get cover from another track in the same album
+                if album and artist:
+                    album_cover = self._get_album_cover(album, artist)
+                    if album_cover:
+                        logger.debug(f"[PlayerControls] Using album cover fallback: {album_cover}")
+                        return album_cover
             except Exception as e:
                 logger.error(f"Cover load error for track {track_dict.get('title', 'Unknown')}: {e}", exc_info=True)
             return None
@@ -868,6 +882,38 @@ class PlayerControls(QWidget):
         thread = threading.Thread(target=worker)
         thread.daemon = True
         thread.start()
+
+    def _get_album_cover(self, album: str, artist: str) -> str:
+        """
+        Get cover from albums table.
+
+        Args:
+            album: Album name
+            artist: Artist name
+
+        Returns:
+            Cover path or None
+        """
+        from pathlib import Path
+
+        try:
+            if hasattr(self._player, '_db') and self._player._db:
+                conn = self._player._db._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT cover_path FROM albums
+                    WHERE name = ? AND artist = ? AND cover_path IS NOT NULL AND cover_path != ''
+                    LIMIT 1
+                """, (album, artist))
+                row = cursor.fetchone()
+                if row and row[0]:
+                    cover_path = row[0]
+                    if Path(cover_path).exists():
+                        return cover_path
+        except Exception as e:
+            logger.debug(f"[PlayerControls] Error getting album cover: {e}")
+
+        return None
 
     def _show_cover(self, cover_path: str):
         """Show cover art (called via signal from background thread)."""

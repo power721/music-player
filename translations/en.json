@@ -251,9 +251,15 @@
     "artist_type": "ARTIST",
     "play_all": "Play All",
     "shuffle": "Shuffle",
+    "repeat": "Repeat",
+    "volume": "Volume",
+    "favorite": "Favorite",
     "loading_artist": "Loading artist...",
     "songs_albums": "{songs} songs • {albums} albums",
     "album_type": "ALBUM",
     "album_stats": "{songs} songs • {duration}",
-    "loading_album": "Loading album..."
+    "loading_album": "Loading album...",
+    "rebuild_db": "Rebuild DB",
+    "rebuild_db_confirm": "Rebuild albums and artists tables from tracks?\nThis will fix data inconsistency issues.",
+    "rebuild_db_success": "Rebuild complete!\nAlbums: {albums}\nArtists: {artists}"
 }
