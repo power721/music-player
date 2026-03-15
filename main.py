@@ -58,7 +58,7 @@ logging.basicConfig(
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont, QIcon, QFontDatabase
 
 from app import Application
 from ui import MainWindow
@@ -76,9 +76,18 @@ def main():
     qt_app.setApplicationName('Harmony')
     qt_app.setOrganizationName('HarmonyPlayer')
     qt_app.setWindowIcon(QIcon("icon.png"))
+    # QFontDatabase.addApplicationFont("fonts/Inter-Regular.ttf")
+    # QFontDatabase.addApplicationFont("fonts/SourceHanSansSC-Regular.otf")
 
     # Set default font
-    font = QFont('Segoe UI', 10)
+    font = QFont()
+    font.setFamilies([
+        "Inter",
+        "Source Han Sans SC",
+        "Noto Color Emoji"
+    ])
+
+    qt_app.setFont(font)
     qt_app.setFont(font)
 
     # Create application with dependency injection

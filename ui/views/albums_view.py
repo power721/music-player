@@ -28,7 +28,6 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QPen, QAction, QCursor
 
-from app import Bootstrap
 from domain.album import Album
 from services.library import LibraryService
 from services.metadata import CoverService
@@ -344,13 +343,6 @@ class AlbumsView(QWidget):
             }
         """)
         layout.addWidget(self._title_label)
-
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._title_label.setFont(font)
 
         # Album count
         self._count_label = QLabel("")

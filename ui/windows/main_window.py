@@ -316,20 +316,10 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 20, 10, 10)
         layout.setSpacing(5)
 
-        # Get emoji font from bootstrap
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
         # Logo
         logo_label = QLabel("🎵 Harmony")
         logo_label.setObjectName("logo")
         logo_label.setAlignment(Qt.AlignCenter)
-
-        # Set emoji font for logo
-        if emoji_font:
-            logo_font = bootstrap.get_emoji_font(16)
-            logo_font.setBold(True)
-            logo_label.setFont(logo_font)
 
         layout.addWidget(logo_label)
 
@@ -377,10 +367,6 @@ class MainWindow(QMainWindow):
             btn.setCheckable(True)
             btn.setCursor(Qt.PointingHandCursor)
 
-            # Set emoji font
-            if emoji_font:
-                btn.setFont(bootstrap.get_emoji_font(14))
-
             btn.setStyleSheet(nav_style)
             setattr(self, attr_name, btn)
             layout.addWidget(btn)
@@ -399,8 +385,6 @@ class MainWindow(QMainWindow):
         self._language_btn.setObjectName("languageBtn")
         self._language_btn.setCursor(Qt.PointingHandCursor)
         self._language_btn.setFixedHeight(32)
-        if emoji_font:
-            self._language_btn.setFont(bootstrap.get_emoji_font(13))
         self._language_btn.setStyleSheet("""
             QPushButton#languageBtn {
                 background-color: #2a2a2a;
@@ -444,8 +428,6 @@ class MainWindow(QMainWindow):
         """)
         self._ai_settings_btn.clicked.connect(self._show_ai_settings)
         layout.addWidget(self._ai_settings_btn)
-        if emoji_font:
-            self._ai_settings_btn.setFont(bootstrap.get_emoji_font(13))
 
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))

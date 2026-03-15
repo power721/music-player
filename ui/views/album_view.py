@@ -25,8 +25,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QPixmap, QColor, QPainter, QFont, QAction, QCursor, QMouseEvent, QScreen
 
-import app
-from app import Bootstrap
 from domain.album import Album
 from domain.track import Track
 from services.library import LibraryService
@@ -272,13 +270,6 @@ class AlbumView(QWidget):
             }
         """)
         layout.addWidget(self._tracks_title_label)
-
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._tracks_title_label.setFont(font)
 
         # Tracks table
         self._tracks_table = QTableWidget()

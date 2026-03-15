@@ -78,10 +78,6 @@ class HelpDialog(QDialog):
 
     def _setup_ui(self):
         """Set up the dialog UI."""
-        # Get emoji font from bootstrap
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
@@ -102,8 +98,6 @@ class HelpDialog(QDialog):
         app_name = QLabel("🎵 Harmony")
         app_name.setStyleSheet("font-size: 24px; font-weight: bold; color: #1db954;")
         app_name.setAlignment(Qt.AlignCenter)
-        if emoji_font:
-            app_name.setFont(bootstrap.get_emoji_font(24))
         info_layout.addWidget(app_name)
 
         version_label = QLabel("v1.0")
@@ -167,8 +161,6 @@ class HelpDialog(QDialog):
         rebuild_btn.setObjectName("rebuildBtn")
         rebuild_btn.setCursor(Qt.PointingHandCursor)
         rebuild_btn.clicked.connect(self._rebuild_database)
-        if emoji_font:
-            rebuild_btn.setFont(bootstrap.get_emoji_font(13))
         tools_layout.addWidget(rebuild_btn)
 
         rebuild_desc = QLabel(t("rebuild_db_desc"))

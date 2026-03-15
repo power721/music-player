@@ -75,14 +75,6 @@ class OrganizeFilesDialog(QDialog):
         self.setMinimumSize(900, 600)
         self.resize(1000, 700)
 
-        # Get emoji font for title
-        from app import Application
-        app = Application.instance()
-        if app and app.bootstrap:
-            self._title_font = app.bootstrap.get_emoji_font(18)
-        else:
-            self._title_font = None
-
         # Apply dark theme styling
         self.setStyleSheet("""
             QDialog {
@@ -156,8 +148,6 @@ class OrganizeFilesDialog(QDialog):
 
         # Title and info
         title_label = QLabel(t("organize_files"))
-        if self._title_font:
-            title_label.setFont(self._title_font)
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         layout.addWidget(title_label)
 

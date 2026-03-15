@@ -116,13 +116,6 @@ class CloudDriveView(QWidget):
         """)
         layout.addWidget(self._account_list_title)
 
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._account_list_title.setFont(font)
-
         # Add account button
         self._add_account_btn = QPushButton(t("add_account"))
         self._add_account_btn.setObjectName("addAccountBtn")
@@ -1465,20 +1458,11 @@ class CloudDriveView(QWidget):
         change_dir_action = menu.addAction("📁 " + t("change_download_dir"))
         change_dir_action.triggered.connect(lambda: self._change_download_dir())
 
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
         menu.addSeparator()
 
         # Add delete action
         delete_action = menu.addAction("🗑️ " + t("delete_account"))
         delete_action.triggered.connect(lambda: self._delete_account(account))
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(9)
-            info_action.setFont(font)
-            change_dir_action.setFont(font)
-            delete_action.setFont(font)
 
         menu.exec_(QCursor.pos())
 

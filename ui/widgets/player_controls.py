@@ -258,12 +258,6 @@ class PlayerControls(QWidget):
         btn = QPushButton(text)
         btn.setObjectName("controlBtn")
         btn.setCursor(Qt.PointingHandCursor)
-        # Use emoji font from bootstrap
-        from app.bootstrap import Bootstrap
-
-        bootstrap = Bootstrap.instance()
-        font = bootstrap.get_emoji_font(18)
-        btn.setFont(font)
         return btn
 
     def _apply_styles(self):

@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
     QMenu,
 )
 
-from app import Bootstrap
 from domain.track import Track
 from infrastructure.database import DatabaseManager
 from services.playback import PlaybackService
@@ -189,13 +188,6 @@ class PlaylistView(QWidget):
             margin-bottom: 10px;
         """)
         layout.addWidget(self._playlist_list_title)
-
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._playlist_list_title.setFont(font)
 
         # New playlist button
         self._new_playlist_btn = QPushButton(t("new_playlist"))

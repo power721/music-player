@@ -104,13 +104,6 @@ class LibraryView(QWidget):
         """)
         header_layout.addWidget(self._title_label)
 
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._title_label.setFont(font)
-
         header_layout.addStretch()
 
         # Search box
@@ -391,13 +384,6 @@ class LibraryView(QWidget):
         self._current_view = "favorites"
         self._title_label.setText("⭐" + t("favorites"))
 
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._title_label.setFont(font)
-
         # 恢复 Favorites 视图的搜索文本
         saved_text = self._view_search_texts.get("favorites", "")
         self._search_input.setText(saved_text)
@@ -416,13 +402,6 @@ class LibraryView(QWidget):
 
         self._current_view = "history"
         self._title_label.setText("🕐" + t("history"))
-
-        bootstrap = Bootstrap.instance()
-        emoji_font = bootstrap.emoji_font_family
-
-        if emoji_font:
-            font = bootstrap.get_emoji_font(16)
-            self._title_label.setFont(font)
 
         # 恢复 History 视图的搜索文本
         saved_text = self._view_search_texts.get("history", "")
