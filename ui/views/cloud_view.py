@@ -107,7 +107,7 @@ class CloudDriveView(QWidget):
         layout.setSpacing(10)
 
         # Title
-        self._account_list_title = QLabel("☁️ " + t("accounts"))
+        self._account_list_title = QLabel("🛜" + t("cloud_drive"))
         self._account_list_title.setStyleSheet("""
             color: #1db954;
             font-size: 20px;
@@ -115,6 +115,13 @@ class CloudDriveView(QWidget):
             margin-bottom: 10px;
         """)
         layout.addWidget(self._account_list_title)
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._account_list_title.setFont(font)
 
         # Add account button
         self._add_account_btn = QPushButton(t("add_account"))
@@ -2028,7 +2035,7 @@ class CloudDriveView(QWidget):
     def refresh_ui(self):
         """Refresh UI texts after language change."""
         # Update account list title
-        self._account_list_title.setText("☁️ " + t("accounts"))
+        self._account_list_title.setText("🛜" + t("cloud_drive"))
 
         # Update button texts
         self._add_account_btn.setText(t("add_account"))

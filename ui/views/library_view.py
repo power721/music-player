@@ -4,6 +4,7 @@ Library view widget for browsing the music library.
 import logging
 import shutil
 
+from app import Bootstrap
 from services.ai import AcoustIDService, AIMetadataService
 
 # Configure logging
@@ -90,7 +91,7 @@ class LibraryView(QWidget):
         # Header with title and search
         header_layout = QHBoxLayout()
 
-        self._title_label = QLabel(t("library"))
+        self._title_label = QLabel("🎼" + t("library"))
         self._title_label.setObjectName("libraryTitle")
         self._title_label.setStyleSheet("""
             QLabel#libraryTitle {
@@ -101,6 +102,13 @@ class LibraryView(QWidget):
             }
         """)
         header_layout.addWidget(self._title_label)
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._title_label.setFont(font)
 
         header_layout.addStretch()
 
@@ -440,7 +448,7 @@ class LibraryView(QWidget):
 
         # Update title based on current view
         if self._current_view == "all":
-            self._title_label.setText(t("library"))
+            self._title_label.setText("🎼" + t("library"))
         elif self._current_view == "favorites":
             self._title_label.setText("⭐ " + t("favorites"))
         elif self._current_view == "history":
@@ -465,7 +473,7 @@ class LibraryView(QWidget):
         self._view_search_texts[self._current_view] = self._search_input.text()
 
         self._current_view = "all"
-        self._title_label.setText(t("library"))
+        self._title_label.setText("🎼" + t("library"))
 
         # 恢复 Library 视图的搜索文本
         saved_text = self._view_search_texts.get("all", "")
@@ -502,7 +510,14 @@ class LibraryView(QWidget):
         self._view_search_texts[self._current_view] = self._search_input.text()
 
         self._current_view = "favorites"
-        self._title_label.setText("⭐ " + t("favorites"))
+        self._title_label.setText("⭐" + t("favorites"))
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._title_label.setFont(font)
 
         # 恢复 Favorites 视图的搜索文本
         saved_text = self._view_search_texts.get("favorites", "")
@@ -526,7 +541,14 @@ class LibraryView(QWidget):
         self._view_search_texts[self._current_view] = self._search_input.text()
 
         self._current_view = "history"
-        self._title_label.setText("🕐 " + t("history"))
+        self._title_label.setText("🕐" + t("history"))
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._title_label.setFont(font)
 
         # 恢复 History 视图的搜索文本
         saved_text = self._view_search_texts.get("history", "")

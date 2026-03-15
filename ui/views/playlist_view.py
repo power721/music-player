@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QMenu,
 )
 
+from app import Bootstrap
 from domain.track import Track
 from infrastructure.database import DatabaseManager
 from services.playback import PlaybackService
@@ -180,7 +181,7 @@ class PlaylistView(QWidget):
         layout.setSpacing(10)
 
         # Title
-        self._playlist_list_title = QLabel("📋 " + t("playlists"))
+        self._playlist_list_title = QLabel("📋" + t("playlists"))
         self._playlist_list_title.setStyleSheet("""
             color: #1db954;
             font-size: 20px;
@@ -188,6 +189,13 @@ class PlaylistView(QWidget):
             margin-bottom: 10px;
         """)
         layout.addWidget(self._playlist_list_title)
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._playlist_list_title.setFont(font)
 
         # New playlist button
         self._new_playlist_btn = QPushButton(t("new_playlist"))
@@ -435,7 +443,7 @@ class PlaylistView(QWidget):
     def _update_ui_texts(self):
         """Update UI texts after language change."""
         # Update playlist list title
-        self._playlist_list_title.setText("📋 " + t("playlists"))
+        self._playlist_list_title.setText("📋" + t("playlists"))
 
         # Update playlist title label in content panel
         if not self._current_playlist_id:

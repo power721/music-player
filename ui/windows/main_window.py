@@ -365,7 +365,7 @@ class MainWindow(QMainWindow):
             ("_nav_library", "🎼 " + t("library")),
             ("_nav_albums", "💿 " + t("albums")),
             ("_nav_artists", "🎤 " + t("artists")),
-            ("_nav_cloud", "☁️ " + t("cloud_drive")),
+            ("_nav_cloud", "🛜 " + t("cloud_drive")),
             ("_nav_playlists", "📋 " + t("playlists")),
             ("_nav_queue", "🎶 " + t("queue")),
             ("_nav_favorites", "⭐ " + t("favorites")),

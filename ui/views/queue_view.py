@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from app import Bootstrap
 from domain.playback import PlaybackState
 from services.playback import PlaybackService
 from system.i18n import t
@@ -64,7 +65,7 @@ class QueueView(QWidget):
         header_layout.setContentsMargins(0, 10, 0, 10)
         header_layout.setSpacing(10)
 
-        self._title_label = QLabel(t("play_queue"))
+        self._title_label = QLabel("🎶" + t("play_queue"))
         self._title_label.setObjectName("queueTitle")
         self._title_label.setStyleSheet("""
             QLabel#queueTitle {
@@ -75,6 +76,13 @@ class QueueView(QWidget):
             }
         """)
         header_layout.addWidget(self._title_label)
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._title_label.setFont(font)
 
         header_layout.addStretch()
 
@@ -329,7 +337,7 @@ class QueueView(QWidget):
     def _update_ui_texts(self):
         """Update UI texts after language change."""
         # Update title
-        self._title_label.setText(t("play_queue"))
+        self._title_label.setText("🎶" + t("play_queue"))
 
         # Update clear button
         self._clear_btn.setText(t("clear_queue"))

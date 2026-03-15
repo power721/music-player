@@ -267,7 +267,7 @@ class ArtistView(QWidget):
         layout.setSpacing(16)
 
         # Section title - same style as library view
-        self._albums_title_label = QLabel(t("albums"))
+        self._albums_title_label = QLabel("💿" + t("albums"))
         self._albums_title_label.setStyleSheet("""
             QLabel {
                 color: #1db954;
@@ -277,6 +277,13 @@ class ArtistView(QWidget):
             }
         """)
         layout.addWidget(self._albums_title_label)
+
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
+
+        if emoji_font:
+            font = bootstrap.get_emoji_font(16)
+            self._albums_title_label.setFont(font)
 
         # Albums grid container
         self._albums_container = QWidget()
@@ -765,7 +772,7 @@ class ArtistView(QWidget):
         self._shuffle_btn.setText(t("shuffle"))
 
         # Update albums section title
-        self._albums_title_label.setText(t("albums"))
+        self._albums_title_label.setText("💿 " + t("albums"))
 
         # Update tracks section title
         self._tracks_title_label.setText(t("all_tracks"))
