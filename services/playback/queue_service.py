@@ -21,11 +21,13 @@ class QueueService:
             self,
             queue_repo: SqliteQueueRepository,
             config_manager,
-            engine: PlayerEngine
+            engine: PlayerEngine,
+            db_manager=None
     ):
         self._queue_repo = queue_repo
         self._config = config_manager
         self._engine = engine
+        self._db = db_manager
 
     def save(self):
         """Save the current play queue to database."""
@@ -60,8 +62,8 @@ class QueueService:
         if not queue_items:
             return False
 
-        # Convert to PlaylistItem list
-        items = [PlaylistItem.from_play_queue_item(item) for item in queue_items]
+        # Convert to PlaylistItem list, passing db to get latest track paths
+        items = [PlaylistItem.from_play_queue_item(item, db=self._db) for item in queue_items]
 
         # Get saved index and play mode
         saved_index = self._config.get("queue_current_index", 0)

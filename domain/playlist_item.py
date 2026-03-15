@@ -260,10 +260,21 @@ class PlaylistItem:
             except Exception:
                 pass  # Ignore errors, cover_path will remain None
 
-        # For cloud files, try to get local_path from cloud_files table if not in PlayQueueItem
+        # Determine the correct local_path to use
+        # Always prioritize the latest path from database if track_id exists
+        # This ensures that after file organization, the queue uses the new paths
         local_path = item.local_path
-        if db and item.cloud_file_id and not local_path:
+        if db and item.track_id:
             try:
+                # For tracks with track_id (local or downloaded cloud files), get the latest path
+                track = db.get_track(item.track_id)
+                if track and track.path:
+                    local_path = track.path
+            except Exception:
+                pass  # Fallback to item.local_path
+        elif db and item.cloud_file_id and not local_path:
+            try:
+                # For cloud files without local_path, try to get from cloud_files table
                 cloud_file = db.get_cloud_file_by_file_id(item.cloud_file_id)
                 if cloud_file and cloud_file.local_path:
                     local_path = cloud_file.local_path

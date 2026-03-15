@@ -107,7 +107,8 @@ class SqliteTrackRepository:
         cursor = conn.cursor()
         cursor.execute("""
                        UPDATE tracks
-                       SET title         = ?,
+                       SET path          = ?,
+                           title         = ?,
                            artist        = ?,
                            album         = ?,
                            duration      = ?,
@@ -115,8 +116,8 @@ class SqliteTrackRepository:
                            cloud_file_id = ?
                        WHERE id = ?
                        """, (
-                           track.title, track.artist, track.album, track.duration,
-                           track.cover_path, track.cloud_file_id, track.id
+                           track.path, track.title, track.artist, track.album,
+                           track.duration, track.cover_path, track.cloud_file_id, track.id
                        ))
         conn.commit()
         return cursor.rowcount > 0

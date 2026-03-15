@@ -14,6 +14,7 @@ from repositories.playlist_repository import SqlitePlaylistRepository
 from repositories.queue_repository import SqliteQueueRepository
 from repositories.track_repository import SqliteTrackRepository
 from services.library import LibraryService
+from services.library.file_organization_service import FileOrganizationService
 from services.metadata import CoverService
 from services.playback import PlaybackService, QueueService
 from system.config import ConfigManager
@@ -105,6 +106,7 @@ class Bootstrap:
         self._queue_service: Optional[QueueService] = None
         self._library_service: Optional[LibraryService] = None
         self._cover_service: Optional[CoverService] = None
+        self._file_org_service: Optional["FileOrganizationService"] = None
 
         # Cached emoji font family
         self._emoji_font_family: Optional[str] = None
@@ -129,7 +131,7 @@ class Bootstrap:
     def config(self) -> ConfigManager:
         """Get config manager."""
         if self._config is None:
-            self._config = ConfigManager()
+            self._config = ConfigManager(db_manager=self.db)
         return self._config
 
     @property
@@ -197,6 +199,7 @@ class Bootstrap:
                 queue_repo=self.queue_repo,
                 config_manager=self.config,
                 engine=self.playback_service.engine,
+                db_manager=self.db,
             )
         return self._queue_service
 
@@ -221,6 +224,17 @@ class Bootstrap:
         if self._cover_service is None:
             self._cover_service = CoverService(http_client=self.http_client)
         return self._cover_service
+
+    @property
+    def file_org_service(self) -> FileOrganizationService:
+        """Get file organization service."""
+        if self._file_org_service is None:
+            self._file_org_service = FileOrganizationService(
+                track_repo=self.track_repo,
+                event_bus=self.event_bus,
+                db_manager=self.db,
+            )
+        return self._file_org_service
 
     # ===== UI Helpers =====
 

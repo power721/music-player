@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMenu,
     QMessageBox,
+    QDialog,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QBrush
@@ -431,6 +432,10 @@ class LibraryView(QWidget):
             self._on_current_track_changed
         )
         self._player.engine.state_changed.connect(self._on_player_state_changed)
+
+        # Connect to file organization events
+        event_bus = EventBus.instance()
+        event_bus.tracks_organized.connect(self._on_tracks_organized)
 
     def refresh(self):
         """Refresh the library view."""
@@ -1132,13 +1137,13 @@ class LibraryView(QWidget):
             }
         """)
 
-        # Add to queue action
-        add_action = menu.addAction(t("add_to_queue"))
-        add_action.triggered.connect(lambda: self._add_selected_to_queue())
-
         # Play action
         play_action = menu.addAction(t("play"))
         play_action.triggered.connect(lambda: self._play_selected_track())
+
+        # Add to queue action
+        add_action = menu.addAction(t("add_to_queue"))
+        add_action.triggered.connect(lambda: self._add_selected_to_queue())
 
         menu.addSeparator()
 
@@ -1159,11 +1164,6 @@ class LibraryView(QWidget):
         edit_action = menu.addAction(t("edit_media_info"))
         edit_action.triggered.connect(lambda: self._edit_media_info())
 
-        # Download cover action (only for local tracks)
-        if not is_cloud and self._cover_service:
-            download_cover_action = menu.addAction(t("download_cover_manual"))
-            download_cover_action.triggered.connect(lambda: self._download_cover())
-
         # AI enhance metadata action (only for local tracks)
         if not is_cloud and self._config:
             ai_enabled = self._config.get_ai_enabled()
@@ -1182,6 +1182,18 @@ class LibraryView(QWidget):
                 acoustid_action.triggered.connect(lambda: self._acoustid_identify_selected())
             else:
                 acoustid_action.setToolTip(t("acoustid_enable_first"))
+
+        # Download cover action (only for local tracks)
+        if not is_cloud and self._cover_service:
+            download_cover_action = menu.addAction(t("download_cover_manual"))
+            download_cover_action.triggered.connect(lambda: self._download_cover())
+
+        menu.addSeparator()
+
+        # Organize files action (only for local tracks)
+        if not is_cloud:
+            organize_action = menu.addAction(t("organize_files"))
+            organize_action.triggered.connect(lambda: self._organize_selected_files())
 
         # Open file location action
         open_location_action = menu.addAction(t("open_file_location"))
@@ -2507,3 +2519,62 @@ class LibraryView(QWidget):
         from ui.widgets import CoverDownloadDialog
         dialog = CoverDownloadDialog(tracks, self._cover_service, self)
         dialog.exec()
+
+    def _organize_selected_files(self):
+        """Organize selected files into structured directories."""
+        selected_items = self._tracks_table.selectedItems()
+        if not selected_items:
+            return
+
+        # Get selected tracks (only local tracks)
+        track_ids = []
+        for item in selected_items:
+            if item.column() == 0:
+                track_data = item.data(Qt.UserRole)
+                if track_data:
+                    if isinstance(track_data, dict):
+                        if track_data.get("type") != "cloud":
+                            tid = track_data.get("id")
+                            if tid:
+                                track_ids.append(tid)
+                    else:
+                        track_ids.append(track_data)
+
+        if not track_ids:
+            return
+
+        # Get track objects
+        tracks = []
+        for track_id in track_ids:
+            track = self._db.get_track(track_id)
+            if track:
+                tracks.append(track)
+
+        if not tracks:
+            return
+
+        # Get file organization service from Bootstrap
+        from app import Application
+        app = Application.instance()
+        if not app or not app.bootstrap or not hasattr(app.bootstrap, 'file_org_service'):
+            QMessageBox.warning(
+                self,
+                t("error"),
+                t("file_org_service_not_available")
+            )
+            return
+
+        # Show organize files dialog
+        from ui.widgets.organize_files_dialog import OrganizeFilesDialog
+        dialog = OrganizeFilesDialog(tracks, app.bootstrap.file_org_service, self._config, self)
+        if dialog.exec() == QDialog.Accepted:
+            # Refresh the view after organization
+            self.refresh()
+
+    def _on_tracks_organized(self, result: dict):
+        """Handle file organization completion event."""
+        success = result.get('success', 0)
+        failed = result.get('failed', 0)
+        if success > 0:
+            # Refresh the view to show updated paths
+            self.refresh()

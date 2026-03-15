@@ -1,0 +1,452 @@
+"""
+Dialog for organizing music files into structured directories.
+"""
+import logging
+from pathlib import Path
+from typing import List, Dict
+
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QMessageBox, QTableWidget, QTableWidgetItem,
+    QHeaderView, QFileDialog, QProgressBar
+)
+
+from domain.track import Track
+from system.i18n import t
+
+logger = logging.getLogger(__name__)
+
+
+class OrganizeFilesThread(QThread):
+    """Thread for organizing files in background."""
+    progress = Signal(str)  # Emits status message
+    finished = Signal(dict)  # Emits result dict
+
+    def __init__(self, file_org_service, track_ids: List[int], target_dir: str):
+        super().__init__()
+        self._file_org_service = file_org_service
+        self._track_ids = track_ids
+        self._target_dir = target_dir
+
+    def run(self):
+        """Execute file organization."""
+        try:
+            self.progress.emit(t("organizing"))
+            result = self._file_org_service.organize_tracks(
+                self._track_ids,
+                self._target_dir
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            logger.error(f"Error organizing files: {e}", exc_info=True)
+            self.finished.emit({
+                'success': 0,
+                'failed': len(self._track_ids),
+                'errors': [str(e)]
+            })
+
+
+class OrganizeFilesDialog(QDialog):
+    """Dialog for organizing music files into structured directories."""
+
+    def __init__(self, tracks: List[Track], file_org_service, config_manager, parent=None):
+        super().__init__(parent)
+        self.tracks = tracks
+        self._file_org_service = file_org_service
+        self._config = config_manager
+        # Load last used directory from settings
+        self.target_dir = self._config.get("organize_files_target_dir", "") if self._config else ""
+        self.previews = []
+        self.organize_thread = None
+        self._title_font = None  # Will be set in _setup_ui
+        self._setup_ui()
+        self._load_tracks()
+
+        # If we have a saved directory, update the preview
+        if self.target_dir:
+            self.dir_edit.setText(self.target_dir)
+            self._update_preview()
+            self.organize_btn.setEnabled(True)
+
+    def _setup_ui(self):
+        """Setup the dialog UI."""
+        self.setWindowTitle("📁" + t("organize_files"))
+        self.setMinimumSize(900, 600)
+        self.resize(1000, 700)
+
+        # Get emoji font for title
+        from app import Application
+        app = Application.instance()
+        if app and app.bootstrap:
+            self._title_font = app.bootstrap.get_emoji_font(18)
+        else:
+            self._title_font = None
+
+        # Apply dark theme styling
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #282828;
+                color: #ffffff;
+            }
+            QLabel {
+                color: #ffffff;
+            }
+            QPushButton {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 1px solid #4a4a4a;
+                border-radius: 4px;
+                padding: 8px 16px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+            QPushButton:pressed {
+                background-color: #2a2a2a;
+            }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #606060;
+                border-color: #3a3a3a;
+            }
+            QTableWidget {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #4a4a4a;
+                border-radius: 4px;
+                gridline-color: #3a3a3a;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #3a3a3a;
+            }
+            QTableWidget::item:hover {
+                background-color: #3a3a3a;
+            }
+            QTableWidget::item:selected {
+                background-color: #1db954;
+                color: #ffffff;
+            }
+            QHeaderView::section {
+                background-color: #383838;
+                color: #ffffff;
+                padding: 10px;
+                border: none;
+                border-bottom: 2px solid #4a4a4a;
+                font-weight: bold;
+            }
+            QProgressBar {
+                background-color: #3a3a3a;
+                border: 1px solid #4a4a4a;
+                border-radius: 4px;
+                text-align: center;
+                color: #ffffff;
+            }
+            QProgressBar::chunk {
+                background-color: #1db954;
+                border-radius: 3px;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(30, 30, 30, 30)
+
+        # Title and info
+        title_label = QLabel(t("organize_files"))
+        if self._title_font:
+            title_label.setFont(self._title_font)
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(title_label)
+
+        info_label = QLabel(
+            f"{t('selected_tracks')}: {len(self.tracks)}"
+        )
+        info_label.setStyleSheet("color: #a0a0a0;")
+        layout.addWidget(info_label)
+
+        # Directory selection
+        dir_layout = QHBoxLayout()
+        dir_label = QLabel(t("target_directory") + ":")
+        dir_label.setStyleSheet("font-weight: bold;")
+        dir_layout.addWidget(dir_label)
+
+        self.dir_edit = QLabel()
+        self.dir_edit.setStyleSheet("""
+            QLabel {
+                background-color: #2a2a2a;
+                border: 1px solid #4a4a4a;
+                border-radius: 4px;
+                padding: 6px 12px;
+            }
+        """)
+        self.dir_edit.setText(t("select_directory"))
+        dir_layout.addWidget(self.dir_edit, 1)
+
+        self.browse_btn = QPushButton(t("browse"))
+        self.browse_btn.clicked.connect(self._select_directory)
+        dir_layout.addWidget(self.browse_btn)
+
+        layout.addLayout(dir_layout)
+
+        # Preview table
+        preview_label = QLabel(t("organize_preview") + ":")
+        preview_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(preview_label)
+
+        self.preview_table = QTableWidget()
+        self.preview_table.setColumnCount(4)
+        self.preview_table.setHorizontalHeaderLabels([
+            t("track"), t("old_path"), t("new_path"), t("lyrics")
+        ])
+        self.preview_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeToContents
+        )
+        self.preview_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Stretch
+        )
+        self.preview_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Stretch
+        )
+        self.preview_table.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.ResizeToContents
+        )
+        self.preview_table.setMinimumHeight(300)
+        self.preview_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.preview_table.setFocusPolicy(Qt.NoFocus)
+        layout.addWidget(self.preview_table)
+
+        # Progress bar
+        self.progress = QProgressBar()
+        self.progress.setVisible(False)
+        layout.addWidget(self.progress)
+
+        # Status label
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("color: #a0a0a0;")
+        layout.addWidget(self.status_label)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+
+        self.organize_btn = QPushButton(t("organize"))
+        self.organize_btn.setEnabled(False)
+        self.organize_btn.clicked.connect(self._organize_files)
+        button_layout.addWidget(self.organize_btn)
+
+        close_btn = QPushButton(t("cancel"))
+        close_btn.clicked.connect(self.reject)
+        button_layout.addWidget(close_btn)
+
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+    def _load_tracks(self):
+        """Load tracks into preview table."""
+        self.preview_table.setRowCount(len(self.tracks))
+
+        for row, track in enumerate(self.tracks):
+            # Track name
+            name_text = track.title
+            if track.artist:
+                name_text += f" - {track.artist}"
+            name_item = QTableWidgetItem(name_text)
+            name_item.setData(Qt.UserRole, track.id)
+            self.preview_table.setItem(row, 0, name_item)
+
+            # Old path
+            old_path_item = QTableWidgetItem(track.path)
+            old_path_item.setFlags(old_path_item.flags() & ~Qt.ItemIsEditable)
+            self.preview_table.setItem(row, 1, old_path_item)
+
+            # New path (will be updated after directory selection)
+            new_path_item = QTableWidgetItem("-")
+            new_path_item.setFlags(new_path_item.flags() & ~Qt.ItemIsEditable)
+            self.preview_table.setItem(row, 2, new_path_item)
+
+            # Lyrics
+            lyrics_item = QTableWidgetItem("-")
+            lyrics_item.setFlags(lyrics_item.flags() & ~Qt.ItemIsEditable)
+            self.preview_table.setItem(row, 3, lyrics_item)
+
+    def _select_directory(self):
+        """Open directory selection dialog."""
+        # Start from last used directory or home directory
+        start_dir = self.target_dir if self.target_dir else ""
+
+        dir_path = QFileDialog.getExistingDirectory(
+            self,
+            t("select_target_directory"),
+            start_dir
+        )
+
+        if dir_path:
+            self.target_dir = dir_path
+            self.dir_edit.setText(dir_path)
+
+            # Save to settings
+            if self._config:
+                self._config.set("organize_files_target_dir", dir_path)
+
+            self._update_preview()
+            self.organize_btn.setEnabled(True)
+
+    def _update_preview(self):
+        """Update preview with calculated paths."""
+        if not self.target_dir:
+            return
+
+        track_ids = [t.id for t in self.tracks if t.id]
+        self.previews = self._file_org_service.preview_organization(
+            track_ids,
+            self.target_dir
+        )
+
+        # Update table
+        for row, preview in enumerate(self.previews):
+            track = preview['track']
+
+            # Update new path
+            new_path_item = self.preview_table.item(row, 2)
+            new_path_item.setText(preview['new_audio_path'])
+
+            # Update lyrics
+            lyrics_item = self.preview_table.item(row, 3)
+            if preview['has_lyrics']:
+                lyrics_item.setText(t("yes"))
+            else:
+                lyrics_item.setText(t("no"))
+
+        self.status_label.setText(
+            f"{len(self.previews)} {t('files_to_organize')}"
+        )
+
+    def _organize_files(self):
+        """Start file organization."""
+        if not self.target_dir:
+            QMessageBox.warning(
+                self,
+                t("error"),
+                t("select_directory_first")
+            )
+            return
+
+        # Disable UI
+        self.browse_btn.setEnabled(False)
+        self.organize_btn.setEnabled(False)
+        self.progress.setVisible(True)
+        self.progress.setRange(0, 0)  # Indeterminate progress
+
+        # Get track IDs
+        track_ids = [t.id for t in self.tracks if t.id]
+
+        # Start organization thread
+        self.organize_thread = OrganizeFilesThread(
+            self._file_org_service,
+            track_ids,
+            self.target_dir
+        )
+        self.organize_thread.progress.connect(self._on_progress)
+        self.organize_thread.finished.connect(self._on_finished)
+        self.organize_thread.start()
+
+    def _on_progress(self, message: str):
+        """Handle progress update."""
+        self.status_label.setText(message)
+
+    def _on_finished(self, result: dict):
+        """Handle organization completion."""
+        self.progress.setVisible(False)
+        self.browse_btn.setEnabled(True)
+
+        success = result.get('success', 0)
+        failed = result.get('failed', 0)
+        errors = result.get('errors', [])
+
+        # If any files were successfully organized, refresh the playback engine's queue
+        if success > 0:
+            self._refresh_playback_queue()
+
+        # Show result
+        if failed == 0:
+            QMessageBox.information(
+                self,
+                t("organize_complete"),
+                f"{success} {t('files_organized')}"
+            )
+            self.accept()
+        else:
+            error_text = f"{success} {t('files_organized')}\n"
+            error_text += f"{failed} {t('files_failed')}\n"
+            if errors:
+                error_text += "\n" + "\n".join(errors[:5])  # Show first 5 errors
+                if len(errors) > 5:
+                    error_text += f"\n... {len(errors) - 5} {t('more')}"
+
+            QMessageBox.warning(
+                self,
+                t("organize_failed"),
+                error_text
+            )
+            # Keep dialog open if there were failures
+            self.organize_btn.setEnabled(True)
+
+    def _refresh_playback_queue(self):
+        """Refresh the playback engine's queue to use updated paths."""
+        try:
+            from app import Application
+            app = Application.instance()
+            if not app or not app.bootstrap:
+                logger.warning("无法获取 app 或 bootstrap")
+                return
+
+            engine = app.bootstrap.playback_service.engine
+            if not engine:
+                logger.warning("无法获取播放引擎")
+                return
+
+            # Get current playlist items
+            current_items = engine.playlist_items
+            if not current_items:
+                logger.info("播放队列为空，无需刷新")
+                return
+
+            # Get track IDs that were organized
+            organized_track_ids = [t.id for t in self.tracks if t.id]
+            logger.info(f"整理的歌曲 IDs: {organized_track_ids}")
+
+            # Update items in the queue that match organized track IDs
+            updated_count = 0
+            for i, item in enumerate(current_items):
+                if item.track_id in organized_track_ids:
+                    # Re-create the item from database to get the latest path
+                    # (includes both local tracks and downloaded cloud files)
+                    track = app.bootstrap.track_repo.get_by_id(item.track_id)
+                    if track:
+                        logger.info(f"更新播放队列项目 {i}: track_id={item.track_id}, 旧路径={item.local_path}, 新路径={track.path}")
+                        updated_item = PlaylistItem.from_track(track)
+                        current_items[i] = updated_item
+                        updated_count += 1
+                    else:
+                        logger.warning(f"无法从数据库获取 track_id={item.track_id}")
+
+            # Reload the playlist
+            engine.load_playlist_items(current_items)
+            logger.info(f"刷新播放引擎队列: 更新了 {updated_count} 个项目")
+
+            # If a track is currently playing, reload it
+            if engine.current_index >= 0:
+                logger.info(f"重新加载当前播放的歌曲，索引: {engine.current_index}")
+                engine._load_track(engine.current_index)
+        except Exception as e:
+            logger.error(f"刷新播放引擎队列失败: {e}", exc_info=True)
+
+    def closeEvent(self, event):
+        """Clean up on close."""
+        if self.organize_thread and self.organize_thread.isRunning():
+            self.organize_thread.terminate()
+            self.organize_thread.wait()
+        super().closeEvent(event)

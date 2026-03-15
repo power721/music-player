@@ -110,6 +110,9 @@ class EventBus(QObject):
     # id: track_id (int) for local tracks, cloud_file_id (str) for cloud files
     favorite_changed = Signal(object, bool, bool)
 
+    # Emitted when files are organized (result dict with 'success', 'failed', 'errors')
+    tracks_organized = Signal(dict)
+
     # ===== Cloud Account Events =====
 
     # Emitted when a cloud account is added (account_id)
