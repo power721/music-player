@@ -379,8 +379,8 @@ class MainWindow(QMainWindow):
         # Create navigation buttons with emoji font
         nav_buttons = [
             ("_nav_library", "🎼 " + t("library")),
-            ("_nav_albums", t("albums")),
-            ("_nav_artists", t("artists")),
+            ("_nav_albums", "💿 " + t("albums")),
+            ("_nav_artists", "🎤 " + t("artists")),
             ("_nav_cloud", "☁️ " + t("cloud_drive")),
             ("_nav_playlists", "📋 " + t("playlists")),
             ("_nav_queue", "🎶 " + t("queue")),
@@ -996,6 +996,8 @@ class MainWindow(QMainWindow):
 
         # Update sidebar
         self._nav_library.setText("🎼 " + t("library"))
+        self._nav_albums.setText("💿 " + t("albums"))
+        self._nav_artists.setText("🎤 " + t("artists"))
         self._nav_cloud.setText("☁️ " + t("cloud_drive"))
         self._nav_playlists.setText("📋 " + t("playlists"))
         self._nav_queue.setText("🎶 " + t("queue"))
@@ -1015,6 +1017,10 @@ class MainWindow(QMainWindow):
         self._cloud_drive_view.refresh_ui()  # Refresh cloud drive view
         self._playlist_view._refresh_playlists()
         self._queue_view.refresh_queue()
+        self._albums_view.refresh_ui()
+        self._artists_view.refresh_ui()
+        self._artist_view.refresh_ui()
+        self._album_view.refresh_ui()
 
         # Update AI button status
         ai_status = "✅" if self._config.get_ai_enabled() else "❌"
@@ -1996,10 +2002,10 @@ class MainWindow(QMainWindow):
                         QTimer.singleShot(300, self._player.play)
 
                     # If cloud source, update cloud view
-                    if source == "cloud" and current_item.cloud_account_id:
-                        account = self._db.get_cloud_account(current_item.cloud_account_id)
-                        if account:
-                            self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
+                    # if source == "cloud" and current_item.cloud_account_id:
+                    #     account = self._db.get_cloud_account(current_item.cloud_account_id)
+                    #     if account:
+                    #         self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
 
             QTimer.singleShot(200, restore_queue_state)
             return
@@ -2021,21 +2027,21 @@ class MainWindow(QMainWindow):
 
                     def restore_cloud_state():
                         # Switch to cloud drive view
-                        self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
-
-                        # Update sidebar selection
-                        if hasattr(self, '_nav_cloud'):
-                            self._nav_cloud.setChecked(True)
-                        if hasattr(self, '_nav_library'):
-                            self._nav_library.setChecked(False)
-                        if hasattr(self, '_nav_playlists'):
-                            self._nav_playlists.setChecked(False)
-                        if hasattr(self, '_nav_queue'):
-                            self._nav_queue.setChecked(False)
-                        if hasattr(self, '_nav_favorites'):
-                            self._nav_favorites.setChecked(False)
-                        if hasattr(self, '_nav_history'):
-                            self._nav_history.setChecked(False)
+                        # self._stacked_widget.setCurrentWidget(self._cloud_drive_view)
+                        #
+                        # # Update sidebar selection
+                        # if hasattr(self, '_nav_cloud'):
+                        #     self._nav_cloud.setChecked(True)
+                        # if hasattr(self, '_nav_library'):
+                        #     self._nav_library.setChecked(False)
+                        # if hasattr(self, '_nav_playlists'):
+                        #     self._nav_playlists.setChecked(False)
+                        # if hasattr(self, '_nav_queue'):
+                        #     self._nav_queue.setChecked(False)
+                        # if hasattr(self, '_nav_favorites'):
+                        #     self._nav_favorites.setChecked(False)
+                        # if hasattr(self, '_nav_history'):
+                        #     self._nav_history.setChecked(False)
 
                         # Extract parent_id from last_fid_path
                         # last_fid_path is like "/fid1/fid2/fid3", we need the last segment

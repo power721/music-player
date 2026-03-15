@@ -695,6 +695,8 @@ class CoverService:
         import os
         api_key = os.getenv("LASTFM_API_KEY")
         if not api_key or api_key == "YOUR_LASTFM_API_KEY":
+            api_key = "52e8e86c171ed9affffa34580666927a"
+            api_key = "94381a2146e972044b745b93575ddeac"
             api_key = "9b0cdcf446cc96dea3e747787ad23575"
 
         try:
@@ -1032,6 +1034,13 @@ class CoverService:
         except Exception as e:
             logger.error(f"Error searching artist covers from iTunes: {e}", exc_info=True)
 
+        # Search Spotify
+        try:
+            spotify_results = self._search_artist_covers_from_spotify(artist_name, limit)
+            results.extend(spotify_results)
+        except Exception as e:
+            logger.error(f"Error searching artist covers from Spotify: {e}", exc_info=True)
+
         # Sort by score descending
         results.sort(key=lambda x: x['score'], reverse=True)
 
@@ -1058,3 +1067,116 @@ class CoverService:
             return 70.0 + (common / total) * 15
 
         return 50.0
+
+    # Spotify API credentials
+    SPOTIFY_CLIENT_ID = "83e307eab4cc4e9bab3382b5bc13cc67"
+    SPOTIFY_CLIENT_SECRET = "cbb426252fa44f5bb26334b3aa651fa8"
+    _spotify_token = None
+    _spotify_token_expires = 0
+
+    def _get_spotify_token(self) -> Optional[str]:
+        """
+        Get Spotify API access token using client credentials flow.
+
+        Returns:
+            Access token, or None if failed
+        """
+        import base64
+        import time
+
+        # Check if we have a valid cached token
+        if self._spotify_token and time.time() < self._spotify_token_expires:
+            return self._spotify_token
+
+        try:
+            auth = base64.b64encode(
+                f"{self.SPOTIFY_CLIENT_ID}:{self.SPOTIFY_CLIENT_SECRET}".encode()
+            ).decode()
+
+            headers = {
+                "Authorization": f"Basic {auth}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+
+            data = {
+                "grant_type": "client_credentials"
+            }
+
+            response = self.http_client.post(
+                "https://accounts.spotify.com/api/token",
+                headers=headers,
+                data=data,
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                token_data = response.json()
+                self._spotify_token = token_data["access_token"]
+                # Set expiry with 60 seconds buffer
+                self._spotify_token_expires = time.time() + token_data.get("expires_in", 3600) - 60
+                return self._spotify_token
+
+        except Exception as e:
+            logger.debug(f"Error getting Spotify token: {e}")
+
+        return None
+
+    def _search_artist_covers_from_spotify(self, artist_name: str, limit: int = 5) -> List[dict]:
+        """
+        Search for artist covers from Spotify Web API.
+
+        Args:
+            artist_name: Artist name to search
+            limit: Maximum number of results
+
+        Returns:
+            List of dicts with artist cover info
+        """
+        results = []
+
+        token = self._get_spotify_token()
+        if not token:
+            logger.debug("Failed to get Spotify token")
+            return results
+
+        try:
+            url = "https://api.spotify.com/v1/search"
+            headers = {
+                "Authorization": f"Bearer {token}"
+            }
+            params = {
+                "q": artist_name,
+                "type": "artist",
+                "limit": limit
+            }
+
+            response = self.http_client.get(url, headers=headers, params=params, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("artists", {}).get("items"):
+                    for artist_info in data["artists"]["items"]:
+                        name = artist_info.get("name", "")
+                        images = artist_info.get("images", [])
+
+                        if images:
+                            # Get the largest image (first in list is usually largest)
+                            cover_url = images[0].get("url")
+
+                            if cover_url:
+                                # Calculate match score
+                                score = self._calculate_artist_name_score(artist_name, name)
+
+                                results.append({
+                                    'name': name,
+                                    'id': artist_info.get("id"),
+                                    'cover_url': cover_url,
+                                    'album_count': artist_info.get("popularity", 0),
+                                    'score': score,
+                                    'source': 'spotify'
+                                })
+
+        except Exception as e:
+            logger.debug(f"Spotify artist search error: {e}")
+
+        return results

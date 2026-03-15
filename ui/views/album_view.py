@@ -158,15 +158,15 @@ class AlbumView(QWidget):
         info_layout.setSpacing(8)
 
         # Album type label
-        type_label = QLabel(t("album_type"))
-        type_label.setStyleSheet("""
+        self._type_label = QLabel(t("album_type"))
+        self._type_label.setStyleSheet("""
             QLabel {
                 color: #b3b3b3;
                 font-size: 12px;
                 font-weight: bold;
             }
         """)
-        info_layout.addWidget(type_label)
+        info_layout.addWidget(self._type_label)
 
         # Album name
         self._name_label = QLabel("Album Name")
@@ -257,8 +257,8 @@ class AlbumView(QWidget):
         layout.setSpacing(16)
 
         # Section title
-        title = QLabel(t("all_tracks"))
-        title.setStyleSheet("""
+        self._tracks_title_label = QLabel(t("all_tracks"))
+        self._tracks_title_label.setStyleSheet("""
             QLabel {
                 color: #1db954;
                 font-size: 24px;
@@ -266,7 +266,7 @@ class AlbumView(QWidget):
                 padding: 10px;
             }
         """)
-        layout.addWidget(title)
+        layout.addWidget(self._tracks_title_label)
 
         # Tracks table
         self._tracks_table = QTableWidget()
@@ -391,9 +391,9 @@ class AlbumView(QWidget):
         """)
         layout.addWidget(progress)
 
-        label = QLabel(t("loading_album"))
-        label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
-        layout.addWidget(label)
+        self._loading_label = QLabel(t("loading_album"))
+        self._loading_label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
+        layout.addWidget(self._loading_label)
 
         return widget
 
@@ -578,3 +578,32 @@ class AlbumView(QWidget):
         add_playlist_action.triggered.connect(lambda: self.add_to_playlist.emit(selected_tracks))
 
         menu.exec_(self._tracks_table.mapToGlobal(pos))
+
+    def refresh_ui(self):
+        """Refresh UI texts after language change."""
+        # Update header type label
+        self._type_label.setText(t("album_type"))
+
+        # Update buttons
+        self._play_btn.setText(t("play_all"))
+        self._shuffle_btn.setText(t("shuffle"))
+
+        # Update tracks section title
+        self._tracks_title_label.setText(t("all_tracks"))
+
+        # Update table headers
+        self._tracks_table.setHorizontalHeaderLabels(
+            ["#", t("title"), t("duration")]
+        )
+
+        # Update loading indicator label
+        self._loading_label.setText(t("loading_album"))
+
+        # Reload album data to update stats text
+        if self._album:
+            self._stats_label.setText(
+                t("album_stats").format(
+                    songs=self._album.song_count,
+                    duration=format_duration(self._album.duration)
+                )
+            )

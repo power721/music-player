@@ -334,15 +334,15 @@ class ArtistsView(QWidget):
         layout.setContentsMargins(20, 10, 20, 10)
 
         # Title
-        title_label = QLabel(t("artists"))
-        title_label.setStyleSheet("""
+        self._title_label = QLabel(t("artists"))
+        self._title_label.setStyleSheet("""
             QLabel {
                 color: #ffffff;
                 font-size: 28px;
                 font-weight: bold;
             }
         """)
-        layout.addWidget(title_label)
+        layout.addWidget(self._title_label)
 
         # Artist count
         self._count_label = QLabel("")
@@ -398,9 +398,9 @@ class ArtistsView(QWidget):
         """)
         layout.addWidget(progress)
 
-        label = QLabel(t("loading"))
-        label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
-        layout.addWidget(label)
+        self._loading_label = QLabel(t("loading"))
+        self._loading_label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
+        layout.addWidget(self._loading_label)
 
         return widget
 
@@ -560,3 +560,20 @@ class ArtistsView(QWidget):
         """Refresh the artists view."""
         self._data_loaded = False
         self._load_artists()
+
+    def refresh_ui(self):
+        """Refresh UI texts after language change."""
+        # Update title
+        self._title_label.setText(t("artists"))
+
+        # Update search placeholder
+        self._search_input.setPlaceholderText(t("search"))
+
+        # Update loading indicator label
+        self._loading_label.setText(t("loading"))
+
+        # Update count label
+        self._update_count_label()
+
+        # Force repaint to update delegate text
+        self._list_view.viewport().update()

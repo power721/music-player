@@ -174,15 +174,15 @@ class ArtistView(QWidget):
         info_layout.setSpacing(8)
 
         # Artist type label
-        type_label = QLabel(t("artist_type"))
-        type_label.setStyleSheet("""
+        self._type_label = QLabel(t("artist_type"))
+        self._type_label.setStyleSheet("""
             QLabel {
                 color: #b3b3b3;
                 font-size: 12px;
                 font-weight: bold;
             }
         """)
-        info_layout.addWidget(type_label)
+        info_layout.addWidget(self._type_label)
 
         # Artist name
         self._name_label = QLabel("Artist Name")
@@ -263,8 +263,8 @@ class ArtistView(QWidget):
         layout.setSpacing(16)
 
         # Section title - same style as library view
-        title = QLabel(t("albums"))
-        title.setStyleSheet("""
+        self._albums_title_label = QLabel(t("albums"))
+        self._albums_title_label.setStyleSheet("""
             QLabel {
                 color: #1db954;
                 font-size: 24px;
@@ -272,7 +272,7 @@ class ArtistView(QWidget):
                 padding: 10px;
             }
         """)
-        layout.addWidget(title)
+        layout.addWidget(self._albums_title_label)
 
         # Albums grid container
         self._albums_container = QWidget()
@@ -293,8 +293,8 @@ class ArtistView(QWidget):
         layout.setSpacing(16)
 
         # Section title
-        title = QLabel(t("all_tracks"))
-        title.setStyleSheet("""
+        self._tracks_title_label = QLabel(t("all_tracks"))
+        self._tracks_title_label.setStyleSheet("""
             QLabel {
                 color: #1db954;
                 font-size: 24px;
@@ -302,7 +302,7 @@ class ArtistView(QWidget):
                 padding: 10px;
             }
         """)
-        layout.addWidget(title)
+        layout.addWidget(self._tracks_title_label)
 
         # Tracks table - same style as LibraryView
         self._tracks_table = QTableWidget()
@@ -471,9 +471,9 @@ class ArtistView(QWidget):
         """)
         layout.addWidget(progress)
 
-        label = QLabel(t("loading_artist"))
-        label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
-        layout.addWidget(label)
+        self._loading_label = QLabel(t("loading_artist"))
+        self._loading_label.setStyleSheet("color: #b3b3b3; font-size: 14px;")
+        layout.addWidget(self._loading_label)
 
         return widget
 
@@ -730,3 +730,35 @@ class ArtistView(QWidget):
                 # Reload albums to get updated cover paths
                 self._albums = self._library.get_artist_albums(self._artist.name)
                 self._render_albums()
+
+    def refresh_ui(self):
+        """Refresh UI texts after language change."""
+        # Update header type label
+        self._type_label.setText(t("artist_type"))
+
+        # Update buttons
+        self._play_btn.setText(t("play_all"))
+        self._shuffle_btn.setText(t("shuffle"))
+
+        # Update albums section title
+        self._albums_title_label.setText(t("albums"))
+
+        # Update tracks section title
+        self._tracks_title_label.setText(t("all_tracks"))
+
+        # Update table headers
+        self._tracks_table.setHorizontalHeaderLabels(
+            ["#", t("title"), t("artist"), t("album"), t("duration")]
+        )
+
+        # Update loading indicator label
+        self._loading_label.setText(t("loading_artist"))
+
+        # Reload artist data to update stats text
+        if self._artist:
+            self._stats_label.setText(
+                t("songs_albums").format(
+                    songs=self._artist.song_count,
+                    albums=self._artist.album_count
+                )
+            )

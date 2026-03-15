@@ -295,6 +295,7 @@ class ArtistCoverDownloadDialog(QDialog):
         # Populate results list
         for result in results:
             name = result.get('name', '')
+            source = result.get('source', '')
             album_count = result.get('album_count', 0)
             score = result.get('score', 0)
 
@@ -302,7 +303,7 @@ class ArtistCoverDownloadDialog(QDialog):
             display = f"{name}"
             if album_count:
                 display += f" ({album_count} albums)"
-            display += f" [{score:.0f}%]"
+            display += f" [{source}] [{score:.0f}%]"
 
             item = QListWidgetItem(display)
             item.setData(Qt.UserRole, result)  # Store full result data

@@ -302,13 +302,14 @@ class AlbumCoverDownloadDialog(QDialog):
             title = result.get('title', '')
             artist = result.get('artist', '')
             album = result.get('album', '')
+            source = result.get('source', '')
             score = result.get('score', 0)
 
             # Format display text
             display = f"{album or title}"
             if artist:
                 display += f" - {artist}"
-            display += f" [{score:.0f}%]"
+            display += f" [{source}] [{score:.0f}%]"
 
             item = QListWidgetItem(display)
             item.setData(Qt.UserRole, result)  # Store full result data
