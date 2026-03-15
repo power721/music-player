@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from domain.playback import PlaybackState
 from services.playback import PlaybackService
 from system.i18n import t
+from utils.helpers import format_duration
 
 
 class QueueView(QWidget):
@@ -221,13 +222,14 @@ class QueueView(QWidget):
         for i, track in enumerate(playlist):
             title = track.get("title", t("unknown"))
             artist = track.get("artist", t("unknown"))
+            duration = format_duration(track.get("duration", 0))
 
             # Add play/pause icon for current track
             if i == current_index:
                 icon = "▶️ " if is_playing else "⏸️ "
-                item_text = f"{i + 1}. {icon}{title} - {artist}"
+                item_text = f"{i + 1}. {icon}{title} - {artist} [{duration}]"
             else:
-                item_text = f"{i + 1}. {title} - {artist}"
+                item_text = f"{i + 1}. {title} - {artist} [{duration}]"
 
             item = QListWidgetItem(item_text)
             item.setData(Qt.UserRole, track)
@@ -283,13 +285,14 @@ class QueueView(QWidget):
         for i, track in enumerate(playlist):
             title = track.get("title", t("unknown"))
             artist = track.get("artist", t("unknown"))
+            duration = format_duration(track.get("duration", 0))
 
             # Add play/pause icon for current track
             if i == current_index:
                 icon = "▶️ " if is_playing else "⏸️ "
-                item_text = f"{i + 1}. {icon}{title} - {artist}"
+                item_text = f"{i + 1}. {icon}{title} - {artist} [{duration}]"
             else:
-                item_text = f"{i + 1}. {title} - {artist}"
+                item_text = f"{i + 1}. {title} - {artist} [{duration}]"
 
             item = QListWidgetItem(item_text)
             item.setData(Qt.UserRole, track)
@@ -355,8 +358,9 @@ class QueueView(QWidget):
                 if track and isinstance(track, dict):
                     title = track.get("title", "Unknown")
                     artist = track.get("artist", "Unknown")
+                    duration = format_duration(track.get("duration", 0))
                     icon = "▶️ " if is_playing else "⏸️ "
-                    item_text = f"{i + 1}. {icon}{title} - {artist}"
+                    item_text = f"{i + 1}. {icon}{title} - {artist} [{duration}]"
                     item.setText(item_text)
             else:
                 item.setBackground(Qt.transparent)
@@ -366,10 +370,11 @@ class QueueView(QWidget):
                 if track and isinstance(track, dict):
                     title = track.get("title", "Unknown")
                     artist = track.get("artist", "Unknown")
+                    duration = format_duration(track.get("duration", 0))
                     # Check if text has icon and remove it
                     current_text = item.text()
                     if "▶️ " in current_text or "⏸️ " in current_text:
-                        item_text = f"{i + 1}. {title} - {artist}"
+                        item_text = f"{i + 1}. {title} - {artist} [{duration}]"
                         item.setText(item_text)
 
     def _on_current_track_changed(self, track_dict):

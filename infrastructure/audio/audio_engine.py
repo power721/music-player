@@ -322,6 +322,8 @@ class PlayerEngine(QObject):
             if index == self._current_index:
                 url = QUrl.fromLocalFile(local_path)
                 self._player.setSource(url)
+                # Reset position to 0 when loading a new track
+                self._player.setPosition(0)
 
                 # Use pending seek if available
                 if self._pending_seek and self._pending_seek > 0:
@@ -376,10 +378,24 @@ class PlayerEngine(QObject):
         # Handle loop one mode - stay on current track
         if self._play_mode in (PlayMode.LOOP, PlayMode.RANDOM_TRACK_LOOP):
             self._player.setPosition(0)
+            self._player.play()
             return
 
-        if self._player.position() > 3000:  # If more than 3 seconds played, restart track
+        # Check if we should go to previous track or restart current
+        # Only restart if we have a valid position and it's > 3 seconds
+        current_pos = self._player.position()
+        should_restart = current_pos > 3000
+
+        if should_restart:
             self._player.setPosition(0)
+            # Ensure playback continues if it was playing
+            if self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+                pass  # Already playing, position change won't stop it
+            elif self._player.playbackState() == QMediaPlayer.PlaybackState.PausedState:
+                pass  # Stay paused at beginning
+            else:
+                # Stopped state - need to play
+                self._player.play()
         else:
             self._current_index -= 1
             if self._current_index < 0:
@@ -554,6 +570,9 @@ class PlayerEngine(QObject):
             url = QUrl.fromLocalFile(item.local_path)
 
             self._player.setSource(url)
+            # Reset position to 0 when loading a new track
+            # This ensures position() returns correct value for play_previous logic
+            self._player.setPosition(0)
             self.current_track_changed.emit(item.to_dict())
 
     def _on_position_changed(self, position_ms: int):

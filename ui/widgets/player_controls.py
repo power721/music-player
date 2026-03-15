@@ -158,7 +158,7 @@ class PlayerControls(QWidget):
         self._current_time_label.setStyleSheet("color: #b3b3b3; font-size: 11px;")
         self._current_time_label.setFixedWidth(40)
 
-        self._progress_slider = QSlider(Qt.Horizontal)
+        self._progress_slider = ClickableSlider(Qt.Horizontal)
         self._progress_slider.setObjectName("progressSlider")
         self._progress_slider.setRange(0, 1000)
         self._progress_slider.setValue(0)
@@ -348,6 +348,7 @@ class PlayerControls(QWidget):
         self._progress_slider.sliderPressed.connect(self._on_seek_start)
         self._progress_slider.sliderReleased.connect(self._on_seek_end)
         self._progress_slider.valueChanged.connect(self._on_seek)
+        self._progress_slider.clicked_value.connect(self._on_slider_clicked)
 
         # Volume controls
         self._volume_slider.valueChanged.connect(self._on_volume_changed)
@@ -438,6 +439,13 @@ class PlayerControls(QWidget):
             # Calculate position in seconds for display
             position_s = (value / 1000) * self._current_duration
             self._current_time_label.setText(format_time(position_s))
+
+    def _on_slider_clicked(self, value: int):
+        """Handle click on progress slider - jump to position."""
+        if self._current_duration > 0:
+            # Calculate position in milliseconds
+            position_ms = int((value / 1000) * self._current_duration * 1000)
+            self._player.engine.seek(position_ms)
 
     def _on_volume_changed(self, value: int):
         """Handle volume change from slider."""
@@ -899,6 +907,42 @@ class PlayerControls(QWidget):
                 else 0
             )
             # Update handled by _on_position_changed signal
+
+
+class ClickableSlider(QSlider):
+    """A QSlider that allows clicking on the groove to set position directly."""
+
+    clicked_value = Signal(int)  # Emits the value at click position
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse press - jump to click position."""
+        if event.button() == Qt.LeftButton:
+            # Calculate value from click position
+            value = self._pixel_pos_to_value(event.position().x())
+            self.setValue(value)
+            self.clicked_value.emit(value)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def _pixel_pos_to_value(self, pos: int) -> int:
+        """Convert pixel position to slider value."""
+        groove_rect = self.rect()
+        # Account for handle size
+        handle_width = 12
+        available_width = groove_rect.width() - handle_width
+
+        if available_width <= 0:
+            return self.minimum()
+
+        # Adjust position to account for handle offset
+        adjusted_pos = pos - handle_width // 2
+        adjusted_pos = max(0, min(adjusted_pos, available_width))
+
+        # Calculate value
+        value_range = self.maximum() - self.minimum()
+        value = self.minimum() + int((adjusted_pos / available_width) * value_range)
+        return value
 
 
 class ClickableLabel(QLabel):

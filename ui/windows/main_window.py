@@ -1423,6 +1423,13 @@ class MainWindow(QMainWindow):
 
     def _refresh_lyrics(self):
         """Refresh lyrics display."""
+        # First check if we have a current track from the engine (works for both local and cloud)
+        current_track = self._player.engine.current_track
+        if current_track:
+            self._on_track_changed(current_track)
+            return
+
+        # Fallback to database lookup for local files
         if self._player.current_track_id:
             track = self._db.get_track(self._player.current_track_id)
             if track:
