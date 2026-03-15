@@ -1,14 +1,12 @@
 # lyrics_widget_pro.py
 import sys
-import re
-from dataclasses import dataclass
 from typing import List
 
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
-from utils.lrc_parser import LyricLine, LyricWord, detect_and_parse
+from utils.lrc_parser import LyricLine, LyricWord, detect_and_parse, YRC_LINE_RE, YRC_WORD_RE
 
 
 # =========================================================
@@ -71,6 +69,8 @@ class LyricsWidget(QWidget):
 
         self.margin_x = 40
 
+        self.is_yrc = False
+
         # 字体
         self.font_normal = QFont("Microsoft YaHei", 18)
         self.font_current = QFont("Microsoft YaHei", 26, QFont.Bold)
@@ -92,6 +92,9 @@ class LyricsWidget(QWidget):
 
     def set_lyrics(self, lrc_text):
         """设置歌词文本，自动检测格式(YRC/LRC)"""
+
+        # 检测是否是YRC格式
+        self.is_yrc = bool(YRC_LINE_RE.search(lrc_text) and YRC_WORD_RE.search(lrc_text))
 
         lines = detect_and_parse(lrc_text)
 
@@ -144,6 +147,10 @@ class LyricsWidget(QWidget):
 
         p.fillRect(self.rect(), QColor(10, 10, 10))
 
+        # YRC标记
+        if self.is_yrc:
+            self._draw_yrc_badge(p)
+
         lines = self.engine.lines
 
         if not lines:
@@ -173,6 +180,16 @@ class LyricsWidget(QWidget):
             else:
 
                 self._draw_normal_line(p, line.text, y, i)
+
+    # =====================================================
+    # YRC标记
+    # =====================================================
+
+    def _draw_yrc_badge(self, p):
+        """在右上角绘制YRC标记"""
+        p.setPen(QColor(100, 200, 255))
+        p.setFont(QFont("Segoe UI Emoji", 12))
+        p.drawText(self.width() - 30, 25, "🇾")
 
     # =====================================================
     # 行进度
