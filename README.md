@@ -197,6 +197,8 @@ Harmony/
 │   ├── playlist_item.py   # 播放项抽象
 │   ├── playback.py        # 播放状态枚举
 │   ├── cloud.py           # 云盘实体
+│   ├── album.py           # 专辑聚合实体
+│   ├── artist.py          # 艺术家聚合实体
 │   └── history.py         # 播放历史
 ├── repositories/           # 数据访问层
 │   ├── track_repository.py
@@ -256,6 +258,13 @@ Harmony/
 │   ├── lrc_parser.py      # LRC 解析器
 │   └── match_scorer.py    # 智能匹配算法
 ├── tests/                  # 测试
+│   ├── test_domain/       # 领域模型测试
+│   ├── test_services/     # 服务层测试
+│   ├── test_repositories/ # 数据访问层测试
+│   ├── test_infrastructure/ # 基础设施测试
+│   ├── test_ui/           # 用户界面测试
+│   ├── test_utils/        # 工具类测试
+│   └── test_system/       # 系统组件测试
 ├── translations/           # 翻译文件
 │   ├── en.json
 │   └── zh.json
@@ -315,12 +324,29 @@ Harmony/
 ### 运行测试
 
 ```bash
-# 运行测试
+# 运行所有测试
 python -m pytest tests/
+
+# 运行特定测试模块
+python -m pytest tests/test_domain/
+python -m pytest tests/test_repositories/
+
+# 显示测试覆盖率
+python -m pytest tests/ -v
 
 # 手动测试
 python main.py
 ```
+
+### 测试覆盖
+
+项目包含 270+ 单元测试，覆盖：
+- **领域模型**: Track, Playlist, PlaylistItem, Playback, Cloud, Album, Artist, History
+- **数据访问层**: TrackRepository, PlaylistRepository, QueueRepository
+- **服务层**: LibraryService, MetadataService
+- **基础设施**: FileCache, HttpClient
+- **工具类**: Helpers, LrcParser, MatchScorer
+- **系统组件**: EventBus
 
 ### 代码风格
 

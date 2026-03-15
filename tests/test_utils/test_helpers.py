@@ -190,36 +190,25 @@ class TestFormatCountMessage:
 
     def test_format_with_mocked_i18n(self, monkeypatch):
         """Test formatting message with mocked i18n."""
-        # Create a mock translation function
-        class MockI18n:
-            def __call__(self, key):
-                return "{count} track{s}"
+        # The function imports from system at module load time
+        # We need to patch the actual t function used by helpers module
+        def mock_t(key):
+            return "{count} track{s}"
 
-        mock_t = MockI18n()
+        # Patch the t function in the helpers module's namespace
+        import utils.helpers
+        monkeypatch.setattr(utils.helpers, "t", mock_t)
 
-        # Create a temporary i18n module in utils
-        import sys
-        import types
+        # Now test the function
+        result = format_count_message("test.key", 1)
+        assert result == "1 track"
 
-        mock_i18n_module = types.ModuleType("i18n")
-        mock_i18n_module.t = mock_t
-        sys.modules["utils.i18n"] = mock_i18n_module
+        result = format_count_message("test.key", 5)
+        assert result == "5 tracks"
 
-        try:
-            # Now test the function
-            result = format_count_message("test.key", 1)
-            assert result == "1 track"
+        result = format_count_message("test.key", 0)
+        # 0 is treated as singular (0 > 1 is False)
+        assert result == "0 track"
 
-            result = format_count_message("test.key", 5)
-            assert result == "5 tracks"
-
-            result = format_count_message("test.key", 0)
-            # 0 is treated as singular (0 > 1 is False)
-            assert result == "0 track"
-
-            result = format_count_message("test.key", 1000)
-            assert result == "1000 tracks"
-        finally:
-            # Clean up
-            if "utils.i18n" in sys.modules:
-                del sys.modules["utils.i18n"]
+        result = format_count_message("test.key", 1000)
+        assert result == "1000 tracks"

@@ -5,6 +5,8 @@ Bootstrap - Dependency injection container.
 import logging
 from typing import Optional
 
+from PySide6.QtGui import QFont, QFontDatabase
+
 from infrastructure import HttpClient
 from infrastructure.database import DatabaseManager
 from repositories.cloud_repository import SqliteCloudRepository
@@ -18,6 +20,58 @@ from system.config import ConfigManager
 from system.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
+
+
+def find_emoji_font() -> Optional[str]:
+    """
+    Find a font family that supports emoji rendering.
+
+    Returns:
+        Font family name if found, None otherwise.
+    """
+    # Common emoji-supporting fonts in order of preference
+    emoji_fonts = [
+        "Segoe UI Emoji",
+        "Apple Color Emoji",
+        "Noto Color Emoji",
+        "JoyPixels",
+        "Twemoji Mozilla",
+        "Symbola",
+        "Arial Unicode MS",
+        "DejaVu Sans",
+    ]
+
+    available_families = QFontDatabase.families()
+
+    for emoji_font in emoji_fonts:
+        # Case-insensitive match
+        for family in available_families:
+            if emoji_font.lower() == family.lower():
+                logger.info(f"Found emoji font: {family}")
+                return family
+
+    logger.warning("No emoji font found, using system default")
+    return None
+
+
+def get_emoji_font(point_size: int = 18) -> QFont:
+    """
+    Get a QFont configured for emoji rendering.
+
+    Args:
+        point_size: Font size in points
+
+    Returns:
+        QFont configured for emoji
+    """
+    font = QFont()
+    emoji_family = find_emoji_font()
+
+    if emoji_family:
+        font.setFamily(emoji_family)
+
+    font.setPointSize(point_size)
+    return font
 
 
 class Bootstrap:
@@ -51,6 +105,9 @@ class Bootstrap:
         self._queue_service: Optional[QueueService] = None
         self._library_service: Optional[LibraryService] = None
         self._cover_service: Optional[CoverService] = None
+
+        # Cached emoji font family
+        self._emoji_font_family: Optional[str] = None
 
     @classmethod
     def instance(cls) -> "Bootstrap":
@@ -164,3 +221,28 @@ class Bootstrap:
         if self._cover_service is None:
             self._cover_service = CoverService(http_client=self.http_client)
         return self._cover_service
+
+    # ===== UI Helpers =====
+
+    @property
+    def emoji_font_family(self) -> Optional[str]:
+        """Get cached emoji font family name."""
+        if self._emoji_font_family is None:
+            self._emoji_font_family = find_emoji_font()
+        return self._emoji_font_family
+
+    def get_emoji_font(self, point_size: int = 18) -> QFont:
+        """
+        Get a QFont configured for emoji rendering.
+
+        Args:
+            point_size: Font size in points
+
+        Returns:
+            QFont configured for emoji
+        """
+        font = QFont()
+        if self.emoji_font_family:
+            font.setFamily(self.emoji_font_family)
+        font.setPointSize(point_size)
+        return font

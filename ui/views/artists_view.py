@@ -337,9 +337,10 @@ class ArtistsView(QWidget):
         self._title_label = QLabel(t("artists"))
         self._title_label.setStyleSheet("""
             QLabel {
-                color: #ffffff;
+                color: #1db954;
                 font-size: 28px;
                 font-weight: bold;
+                padding: 10px;
             }
         """)
         layout.addWidget(self._title_label)

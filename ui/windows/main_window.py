@@ -305,8 +305,6 @@ class MainWindow(QMainWindow):
 
     def _create_sidebar(self) -> QWidget:
         """Create the sidebar navigation."""
-        from PySide6.QtGui import QFontDatabase, QFont
-
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
 
@@ -318,21 +316,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 20, 10, 10)
         layout.setSpacing(5)
 
-        # Get emoji-supporting font
-        emoji_fonts = [
-            "Segoe UI Emoji",
-            "Apple Color Emoji",
-            "Noto Color Emoji",
-            "Symbola",
-            "Arial Unicode MS",
-            "DejaVu Sans",
-        ]
-        available_families = QFontDatabase.families()
-        emoji_font = None
-        for font_name in emoji_fonts:
-            if any(font_name.lower() in f.lower() for f in available_families):
-                emoji_font = font_name
-                break
+        # Get emoji font from bootstrap
+        bootstrap = Bootstrap.instance()
+        emoji_font = bootstrap.emoji_font_family
 
         # Logo
         logo_label = QLabel("🎵 Harmony")
@@ -341,9 +327,7 @@ class MainWindow(QMainWindow):
 
         # Set emoji font for logo
         if emoji_font:
-            logo_font = QFont()
-            logo_font.setFamily(emoji_font)
-            logo_font.setPointSize(16)
+            logo_font = bootstrap.get_emoji_font(16)
             logo_font.setBold(True)
             logo_label.setFont(logo_font)
 
@@ -395,10 +379,7 @@ class MainWindow(QMainWindow):
 
             # Set emoji font
             if emoji_font:
-                btn_font = QFont()
-                btn_font.setFamily(emoji_font)
-                btn_font.setPointSize(14)
-                btn.setFont(btn_font)
+                btn.setFont(bootstrap.get_emoji_font(14))
 
             btn.setStyleSheet(nav_style)
             setattr(self, attr_name, btn)
@@ -418,6 +399,8 @@ class MainWindow(QMainWindow):
         self._language_btn.setObjectName("languageBtn")
         self._language_btn.setCursor(Qt.PointingHandCursor)
         self._language_btn.setFixedHeight(32)
+        if emoji_font:
+            self._language_btn.setFont(bootstrap.get_emoji_font(13))
         self._language_btn.setStyleSheet("""
             QPushButton#languageBtn {
                 background-color: #2a2a2a;

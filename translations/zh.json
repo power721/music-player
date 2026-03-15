@@ -142,7 +142,6 @@
     "back": "返回",
     "folder": "文件夹",
     "audio": "音频",
-    "file": "文件",
     "downloading": "正在下载",
     "playing": "正在播放",
     "download_failed": "下载失败",
@@ -154,10 +153,7 @@
     "login_successful": "登录成功！",
     "qr_expired": "二维码已过期",
     "refresh_qr": "刷新二维码",
-    "cancel": "取消",
     "login_timeout": "二维码已过期（60秒超时）",
-    "play": "▶ 播放",
-    "add_to_queue": "+ 添加到队列",
     "login": "登录",
     "size": "大小",
     "type": "类型",
@@ -173,7 +169,6 @@
     "vip_expires": "VIP过期时间",
     "storage_used": "网盘容量",
     "failed_to_get_account_info": "获取账户信息失败",
-    "loading": "正在加载",
     "cloud_download_dir": "网盘下载目录",
     "change_download_dir": "更改下载目录",
     "select_download_dir": "选择下载目录",
@@ -261,4 +256,3 @@
     "album_stats": "{songs} 首歌曲 • {duration}",
     "loading_album": "正在加载专辑..."
 }
-

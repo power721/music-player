@@ -52,8 +52,14 @@ class LyricsWidget(QWidget):
 
         self.margin_x = 20
 
-        self.font_normal = QFont("Microsoft YaHei", 15)
-        self.font_current = QFont("Microsoft YaHei", 18, QFont.Bold)
+        # Get emoji font from bootstrap
+        from app.bootstrap import Bootstrap
+
+        bootstrap = Bootstrap.instance()
+        emoji_family = bootstrap.emoji_font_family
+
+        self.font_normal = QFont(emoji_family or "Microsoft YaHei", 15)
+        self.font_current = QFont(emoji_family or "Microsoft YaHei", 18, QFont.Bold)
 
         self.color_normal = QColor(150, 150, 150)
         self.color_current = QColor(255, 255, 255)

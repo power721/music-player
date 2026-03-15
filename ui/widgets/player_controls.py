@@ -251,30 +251,11 @@ class PlayerControls(QWidget):
         btn = QPushButton(text)
         btn.setObjectName("controlBtn")
         btn.setCursor(Qt.PointingHandCursor)
-        # Use a font that supports emoji
-        from PySide6.QtGui import QFontDatabase, QFont
+        # Use emoji font from bootstrap
+        from app.bootstrap import Bootstrap
 
-        font = QFont()
-        # Try common emoji-supporting fonts in order
-        emoji_fonts = [
-            "Segoe UI Emoji",
-            "Apple Color Emoji",
-            "Noto Color Emoji",
-            "Symbola",
-            "Arial Unicode MS",
-            "DejaVu Sans",
-        ]
-        # Get available font families
-        available_families = QFontDatabase.families()
-        # Find first available emoji font
-        for emoji_font in emoji_fonts:
-            if any(emoji_font.lower() in f.lower() for f in available_families):
-                font.setFamily(emoji_font)
-                break
-        else:
-            # Fallback to system default
-            font = btn.font()
-        font.setPointSize(18)
+        bootstrap = Bootstrap.instance()
+        font = bootstrap.get_emoji_font(18)
         btn.setFont(font)
         return btn
 

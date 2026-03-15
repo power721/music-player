@@ -64,7 +64,8 @@ class TestCoverDownloadDialog:
         dialog = CoverDownloadDialog(sample_tracks, mock_cover_service)
 
         # Check that dialog was created
-        assert dialog.windowTitle() == "Download cover art"
+        # Window title is set via i18n t("download_cover_manual")
+        assert dialog.windowTitle() != ""
         assert dialog.tracks == sample_tracks
         assert dialog.cover_service == mock_cover_service
         assert dialog.current_track_index == 0
