@@ -444,6 +444,8 @@ class MainWindow(QMainWindow):
         """)
         self._ai_settings_btn.clicked.connect(self._show_ai_settings)
         layout.addWidget(self._ai_settings_btn)
+        if emoji_font:
+            self._ai_settings_btn.setFont(bootstrap.get_emoji_font(13))
 
         # Add music button
         self._add_music_btn = QPushButton(t("add_music"))

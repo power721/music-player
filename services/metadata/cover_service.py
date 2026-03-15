@@ -1031,7 +1031,7 @@ class CoverService:
 
     def search_artist_covers(self, artist_name: str, limit: int = 10) -> List[dict]:
         """
-        Search for artist covers from NetEase Cloud Music and iTunes.
+        Search for artist covers from NetEase Cloud Music and iTunes in parallel.
 
         Args:
             artist_name: Artist name to search
@@ -1042,106 +1042,115 @@ class CoverService:
         """
         results = []
 
-        # Search NetEase
-        try:
-            search_url = "https://music.163.com/api/search/get/web"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://music.163.com/'
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = {
+                executor.submit(self._search_artist_covers_from_netease, artist_name, limit): 'netease',
+                executor.submit(self._search_artist_covers_from_itunes, artist_name, limit): 'itunes'
             }
 
-            params = {
-                's': artist_name,
-                'type': 100,  # Artist search
-                'limit': limit,
-                'offset': 0
-            }
-
-            response = self.http_client.get(
-                search_url,
-                params=params,
-                headers=headers,
-                timeout=5
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-
-                if data.get('code') == 200 and data.get('result', {}).get('artists'):
-                    for artist_info in data['result']['artists']:
-                        pic_url = artist_info.get('picUrl') or artist_info.get('img1v1Url')
-                        if pic_url:
-                            # Get high quality version
-                            if '?' not in pic_url:
-                                pic_url += '?param=512y512'
-
-                            # Calculate match score based on name similarity
-                            name = artist_info.get('name', '')
-                            score = self._calculate_artist_name_score(artist_name, name)
-
-                            results.append({
-                                'name': name,
-                                'id': artist_info.get('id'),
-                                'cover_url': pic_url,
-                                'album_count': artist_info.get('albumSize', 0),
-                                'score': score,
-                                'source': 'netease'
-                            })
-
-        except Exception as e:
-            logger.error(f"Error searching artist covers from NetEase: {e}", exc_info=True)
-
-        # Search iTunes - use album search to get artist-related artwork
-        try:
-            search_url = "https://itunes.apple.com/search"
-            params = {
-                'term': artist_name,
-                'media': 'music',
-                'entity': 'album',
-                'limit': limit
-            }
-
-            response = self.http_client.get(search_url, params=params, timeout=5)
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('results'):
-                    seen_artists = set()
-                    for item in data['results']:
-                        name = item.get('artistName', '')
-                        # Skip duplicate artists
-                        if name.lower() in seen_artists:
-                            continue
-                        seen_artists.add(name.lower())
-
-                        artwork_url = item.get('artworkUrl100')
-                        if artwork_url:
-                            artwork_url = artwork_url.replace('100x100', '600x600')
-
-                            # Calculate match score
-                            score = self._calculate_artist_name_score(artist_name, name)
-
-                            results.append({
-                                'name': name,
-                                'id': item.get('artistId'),
-                                'cover_url': artwork_url,
-                                'album_count': None,
-                                'score': score,
-                                'source': 'itunes'
-                            })
-
-        except Exception as e:
-            logger.error(f"Error searching artist covers from iTunes: {e}", exc_info=True)
-
-        # Search Spotify
-        # try:
-        #     spotify_results = self._search_artist_covers_from_spotify(artist_name, limit)
-        #     results.extend(spotify_results)
-        # except Exception as e:
-        #     logger.error(f"Error searching artist covers from Spotify: {e}", exc_info=True)
+            for future in as_completed(futures):
+                try:
+                    source_results = future.result()
+                    results.extend(source_results)
+                except Exception as e:
+                    source = futures[future]
+                    logger.error(f"Error searching artist covers from {source}: {e}", exc_info=True)
 
         # Sort by score descending
         results.sort(key=lambda x: x['score'], reverse=True)
+
+        return results
+
+    def _search_artist_covers_from_netease(self, artist_name: str, limit: int) -> List[dict]:
+        """Search artist covers from NetEase Cloud Music."""
+        results = []
+
+        search_url = "https://music.163.com/api/search/get/web"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://music.163.com/'
+        }
+
+        params = {
+            's': artist_name,
+            'type': 100,  # Artist search
+            'limit': limit,
+            'offset': 0
+        }
+
+        response = self.http_client.get(
+            search_url,
+            params=params,
+            headers=headers,
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+
+            if data.get('code') == 200 and data.get('result', {}).get('artists'):
+                for artist_info in data['result']['artists']:
+                    pic_url = artist_info.get('picUrl') or artist_info.get('img1v1Url')
+                    if pic_url:
+                        # Get high quality version
+                        if '?' not in pic_url:
+                            pic_url += '?param=512y512'
+
+                        # Calculate match score based on name similarity
+                        name = artist_info.get('name', '')
+                        score = self._calculate_artist_name_score(artist_name, name)
+
+                        results.append({
+                            'name': name,
+                            'id': artist_info.get('id'),
+                            'cover_url': pic_url,
+                            'album_count': artist_info.get('albumSize', 0),
+                            'score': score,
+                            'source': 'netease'
+                        })
+
+        return results
+
+    def _search_artist_covers_from_itunes(self, artist_name: str, limit: int) -> List[dict]:
+        """Search artist covers from iTunes."""
+        results = []
+
+        search_url = "https://itunes.apple.com/search"
+        params = {
+            'term': artist_name,
+            'media': 'music',
+            'entity': 'album',
+            'limit': limit
+        }
+
+        response = self.http_client.get(search_url, params=params, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('results'):
+                seen_artists = set()
+                for item in data['results']:
+                    name = item.get('artistName', '')
+                    # Skip duplicate artists
+                    if name.lower() in seen_artists:
+                        continue
+                    seen_artists.add(name.lower())
+
+                    artwork_url = item.get('artworkUrl100')
+                    if artwork_url:
+                        artwork_url = artwork_url.replace('100x100', '600x600')
+
+                        # Calculate match score
+                        score = self._calculate_artist_name_score(artist_name, name)
+
+                        results.append({
+                            'name': name,
+                            'id': item.get('artistId'),
+                            'cover_url': artwork_url,
+                            'album_count': None,
+                            'score': score,
+                            'source': 'itunes'
+                        })
 
         return results
 
