@@ -2190,12 +2190,20 @@ class DatabaseManager:
     def refresh_albums(self) -> bool:
         """
         Refresh the albums table from tracks table.
+        Preserves existing cover_path for albums that already have one.
 
         Returns:
             True if successful
         """
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Save existing cover_path values before clearing
+        cursor.execute("""
+            SELECT name, artist, cover_path FROM albums
+            WHERE cover_path IS NOT NULL AND cover_path != ''
+        """)
+        existing_covers = {(row['name'], row['artist']): row['cover_path'] for row in cursor.fetchall()}
 
         # Clear existing data
         cursor.execute("DELETE FROM albums")
@@ -2213,6 +2221,13 @@ class DatabaseManager:
             WHERE album IS NOT NULL AND album != ''
             GROUP BY album, artist
         """)
+
+        # Restore preserved cover_path values (user-set covers)
+        for (name, artist), cover_path in existing_covers.items():
+            cursor.execute("""
+                UPDATE albums SET cover_path = ?
+                WHERE name = ? AND artist = ?
+            """, (cover_path, name, artist))
 
         conn.commit()
         return True
@@ -2249,12 +2264,20 @@ class DatabaseManager:
     def refresh_artists(self) -> bool:
         """
         Refresh the artists table from tracks table.
+        Preserves existing cover_path for artists that already have one.
 
         Returns:
             True if successful
         """
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Save existing cover_path values before clearing
+        cursor.execute("""
+            SELECT name, cover_path FROM artists
+            WHERE cover_path IS NOT NULL AND cover_path != ''
+        """)
+        existing_covers = {row['name']: row['cover_path'] for row in cursor.fetchall()}
 
         # Clear existing data
         cursor.execute("DELETE FROM artists")
@@ -2274,12 +2297,20 @@ class DatabaseManager:
             GROUP BY artist
         """)
 
+        # Restore preserved cover_path values (user-set covers)
+        for name, cover_path in existing_covers.items():
+            cursor.execute("""
+                UPDATE artists SET cover_path = ?
+                WHERE name = ?
+            """, (cover_path, name))
+
         conn.commit()
         return True
 
     def rebuild_albums_artists(self) -> dict:
         """
         Rebuild albums and artists tables from tracks table.
+        Preserves existing cover_path for albums and artists.
 
         This is useful for fixing data inconsistency issues.
 
@@ -2288,6 +2319,19 @@ class DatabaseManager:
         """
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Save existing cover_path values before clearing
+        cursor.execute("""
+            SELECT name, artist, cover_path FROM albums
+            WHERE cover_path IS NOT NULL AND cover_path != ''
+        """)
+        album_covers = {(row['name'], row['artist']): row['cover_path'] for row in cursor.fetchall()}
+
+        cursor.execute("""
+            SELECT name, cover_path FROM artists
+            WHERE cover_path IS NOT NULL AND cover_path != ''
+        """)
+        artist_covers = {row['name']: row['cover_path'] for row in cursor.fetchall()}
 
         # Rebuild albums
         cursor.execute("DELETE FROM albums")
@@ -2305,6 +2349,13 @@ class DatabaseManager:
         """)
         albums_count = cursor.rowcount
 
+        # Restore preserved album cover_path values
+        for (name, artist), cover_path in album_covers.items():
+            cursor.execute("""
+                UPDATE albums SET cover_path = ?
+                WHERE name = ? AND artist = ?
+            """, (cover_path, name, artist))
+
         # Rebuild artists
         cursor.execute("DELETE FROM artists")
         cursor.execute("""
@@ -2321,6 +2372,13 @@ class DatabaseManager:
             GROUP BY artist
         """)
         artists_count = cursor.rowcount
+
+        # Restore preserved artist cover_path values
+        for name, cover_path in artist_covers.items():
+            cursor.execute("""
+                UPDATE artists SET cover_path = ?
+                WHERE name = ?
+            """, (cover_path, name))
 
         conn.commit()
 

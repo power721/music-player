@@ -422,14 +422,6 @@ class AlbumCoverDownloadDialog(QDialog):
                 """, (cover_path, self._album.name, self._album.artist))
                 conn.commit()
 
-                # Also update tracks table for this album
-                cursor.execute("""
-                    UPDATE tracks
-                    SET cover_path = ?
-                    WHERE album = ? AND artist = ?
-                """, (cover_path, self._album.name, self._album.artist))
-                conn.commit()
-
             # Emit signal
             self.cover_saved.emit(cover_path)
 
